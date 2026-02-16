@@ -1,0 +1,16 @@
+[Unit]
+Description=KnowledgeHub — Personal Knowledge Radar
+After=network.target
+
+[Service]
+Type=simple
+User=knowledgehub
+Group=knowledgehub
+WorkingDirectory=/opt/knowledgehub
+ExecStart=/opt/knowledgehub/knowledgehub serve --http=0.0.0.0:8090
+Restart=on-failure
+RestartSec=5
+Environment=KH_DATA_DIR=/opt/knowledgehub/data
+
+[Install]
+WantedBy=multi-user.target

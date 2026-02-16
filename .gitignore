@@ -1,0 +1,7 @@
+build/
+coverage.out
+cmd/knowledgehub/ui/build/
+ui/node_modules/
+ui/.svelte-kit/
+kh_data/
+.prompts/
