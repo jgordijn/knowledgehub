@@ -1,0 +1,11 @@
+services:
+  sandbox:
+    build: .
+    image: knowledgehub-sandbox:latest
+    container_name: knowledgehub-sandbox
+    stdin_open: true
+    tty: true
+    volumes:
+      - .:/workspace
+      - ~/.local/share/opencode/auth.json:/root/.local/share/opencode/auth.json:ro
+      - ~/.pi/agent/auth.json:/root/.pi/agent/auth.json:ro

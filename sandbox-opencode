@@ -1,0 +1,8 @@
+#!/bin/bash
+# Start the sandbox and run opencode
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+docker compose build -q
+docker compose run --rm sandbox opencode "$@"
