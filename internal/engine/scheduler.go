@@ -66,7 +66,12 @@ func (s *Scheduler) Stop() {
 }
 
 func (s *Scheduler) fetchAll() {
-	resources, err := s.app.FindRecordsByFilter(
+	FetchAllResources(s.app)
+}
+
+// FetchAllResources fetches new content for all active, non-quarantined resources.
+func FetchAllResources(app core.App) {
+	resources, err := app.FindRecordsByFilter(
 		"resources",
 		"active = true && status != 'quarantined'",
 		"",
@@ -81,16 +86,21 @@ func (s *Scheduler) fetchAll() {
 	log.Printf("Scheduler: processing %d active resources", len(resources))
 
 	for _, resource := range resources {
-		if err := FetchResource(s.app, resource, DefaultHTTPClient); err != nil {
-			log.Printf("Scheduler: fetch failed for resource %s (%s): %v",
-				resource.GetString("name"), resource.Id, err)
-			if qErr := RecordFailure(s.app, resource, err.Error()); qErr != nil {
-				log.Printf("Scheduler: failed to record failure: %v", qErr)
-			}
-		} else {
-			if sErr := RecordSuccess(s.app, resource); sErr != nil {
-				log.Printf("Scheduler: failed to record success: %v", sErr)
-			}
+		FetchSingleResource(app, resource)
+	}
+}
+
+// FetchSingleResource fetches a single resource and updates its status.
+func FetchSingleResource(app core.App, resource *core.Record) {
+	if err := FetchResource(app, resource, DefaultHTTPClient); err != nil {
+		log.Printf("Scheduler: fetch failed for resource %s (%s): %v",
+			resource.GetString("name"), resource.Id, err)
+		if qErr := RecordFailure(app, resource, err.Error()); qErr != nil {
+			log.Printf("Scheduler: failed to record failure: %v", qErr)
+		}
+	} else {
+		if sErr := RecordSuccess(app, resource); sErr != nil {
+			log.Printf("Scheduler: failed to record success: %v", sErr)
 		}
 	}
 }

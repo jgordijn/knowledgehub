@@ -32,6 +32,7 @@ func main() {
 
 		// Register custom routes
 		routes.RegisterChatRoute(se)
+		routes.RegisterTriggerRoutes(se)
 		registerSetupRoutes(se)
 
 		// Serve embedded SvelteKit static files

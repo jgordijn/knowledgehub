@@ -76,28 +76,80 @@
 		}
 	}
 
-	function handleSaved() {
-		showAddForm = false;
-		editingResource = null;
-		loadResources();
+	let fetchingAll = $state(false);
+	let fetchingId = $state('');
+	let fetchMessage = $state('');
+
+	async function fetchAllResources() {
+		fetchingAll = true;
+		fetchMessage = '';
+		try {
+			const res = await fetch('/api/trigger/all', {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${pb.authStore.token}` }
+			});
+			const data = await res.json();
+			fetchMessage = data.message || data.error || 'Done';
+			setTimeout(() => (fetchMessage = ''), 4000);
+		} catch {
+			fetchMessage = 'Failed to trigger fetch.';
+		} finally {
+			fetchingAll = false;
+		}
+	}
+
+	async function fetchResource(resource: RecordModel) {
+		fetchingId = resource.id;
+		fetchMessage = '';
+		try {
+			const res = await fetch(`/api/trigger/${resource.id}`, {
+				method: 'POST',
+				headers: { Authorization: `Bearer ${pb.authStore.token}` }
+			});
+			const data = await res.json();
+			fetchMessage = data.message || data.error || 'Done';
+			setTimeout(() => {
+				fetchMessage = '';
+				loadResources();
+			}, 2000);
+		} catch {
+			fetchMessage = 'Failed to trigger fetch.';
+		} finally {
+			fetchingId = '';
+		}
 	}
 
 	onMount(loadResources);
 </script>
 
 <div class="space-y-6">
-	<div class="flex items-center justify-between">
+	<div class="flex items-center justify-between gap-2">
 		<h1 class="text-xl font-bold text-slate-900">Resources</h1>
-		<button
-			onclick={() => {
-				showAddForm = !showAddForm;
-				editingResource = null;
-			}}
-			class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
-		>
-			{showAddForm ? 'Cancel' : '+ Add Resource'}
-		</button>
+		<div class="flex items-center gap-2">
+			<button
+				onclick={fetchAllResources}
+				disabled={fetchingAll}
+				class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+			>
+				{fetchingAll ? 'Fetching…' : '↻ Fetch All'}
+			</button>
+			<button
+				onclick={() => {
+					showAddForm = !showAddForm;
+					editingResource = null;
+				}}
+				class="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+			>
+				{showAddForm ? 'Cancel' : '+ Add Resource'}
+			</button>
+		</div>
 	</div>
+
+	{#if fetchMessage}
+		<div class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+			{fetchMessage}
+		</div>
+	{/if}
 
 	<!-- Add form -->
 	{#if showAddForm}
@@ -198,6 +250,15 @@
 										Retry Now
 									</button>
 								{/if}
+
+								<button
+									onclick={() => fetchResource(resource)}
+									disabled={fetchingId === resource.id}
+									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 min-h-[44px] sm:min-h-0"
+									title="Fetch now"
+								>
+									{fetchingId === resource.id ? '↻…' : '↻ Fetch'}
+								</button>
 
 								<button
 									onclick={() => {
