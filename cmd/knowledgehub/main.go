@@ -30,8 +30,9 @@ func main() {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		registerCollections(se.App)
 
-		// Register custom chat route
+		// Register custom routes
 		routes.RegisterChatRoute(se)
+		registerSetupRoutes(se)
 
 		// Serve embedded SvelteKit static files
 		uiBuild, err := fs.Sub(uiFS, "ui/build")
