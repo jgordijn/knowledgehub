@@ -1,34 +1,42 @@
 <script lang="ts">
 	import pb from '$lib/pb';
-	import type { RecordModel } from 'pocketbase';
 
 	let {
+		resourceId = '',
 		initialName = '',
 		initialUrl = '',
 		initialType = 'rss',
 		initialArticleSelector = '',
 		initialContentSelector = '',
-		resourceId = '',
 		onSave,
 		onCancel
 	}: {
+		resourceId?: string;
 		initialName?: string;
 		initialUrl?: string;
 		initialType?: string;
 		initialArticleSelector?: string;
 		initialContentSelector?: string;
-		resourceId?: string;
 		onSave: () => void;
 		onCancel?: () => void;
 	} = $props();
 
-	let name = $state(initialName);
-	let url = $state(initialUrl);
-	let type = $state<string>(initialType);
-	let articleSelector = $state(initialArticleSelector);
-	let contentSelector = $state(initialContentSelector);
+	let name = $state('');
+	let url = $state('');
+	let type = $state('rss');
+	let articleSelector = $state('');
+	let contentSelector = $state('');
 	let saving = $state(false);
 	let error = $state('');
+
+	// Sync initial values from props on mount
+	$effect(() => {
+		name = initialName;
+		url = initialUrl;
+		type = initialType;
+		articleSelector = initialArticleSelector;
+		contentSelector = initialContentSelector;
+	});
 
 	let isEdit = $derived(!!resourceId);
 
