@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 
+	let { onLogout }: { onLogout?: () => void } = $props();
 	let mobileOpen = $state(false);
 
 	function closeMobile() {
@@ -39,6 +40,14 @@
 				>
 					Settings
 				</a>
+				{#if onLogout}
+					<button
+						onclick={onLogout}
+						class="text-sm font-medium text-slate-400 hover:text-slate-600"
+					>
+						Logout
+					</button>
+				{/if}
 			</div>
 
 			<!-- Mobile hamburger -->
@@ -99,6 +108,17 @@
 				>
 					Settings
 				</a>
+				{#if onLogout}
+					<button
+						onclick={() => {
+							closeMobile();
+							onLogout?.();
+						}}
+						class="block w-full rounded-md px-3 py-2 text-left text-sm font-medium text-slate-400 hover:bg-slate-50"
+					>
+						Logout
+					</button>
+				{/if}
 			</div>
 		{/if}
 	</div>
