@@ -76,6 +76,13 @@
 		}
 	}
 
+	function handleSaved() {
+		showAddForm = false;
+		editingResource = null;
+		loadResources();
+	}
+
+
 	let fetchingAll = $state(false);
 	let fetchingId = $state('');
 	let fetchMessage = $state('');
