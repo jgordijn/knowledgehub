@@ -21,22 +21,14 @@
 		onCancel?: () => void;
 	} = $props();
 
-	let name = $state('');
-	let url = $state('');
-	let type = $state('rss');
-	let articleSelector = $state('');
-	let contentSelector = $state('');
+	// Initialize form state from props (one-time, no reactive tracking)
+	let name = $state(initialName);
+	let url = $state(initialUrl);
+	let type = $state<string>(initialType);
+	let articleSelector = $state(initialArticleSelector);
+	let contentSelector = $state(initialContentSelector);
 	let saving = $state(false);
 	let error = $state('');
-
-	// Sync initial values from props on mount
-	$effect(() => {
-		name = initialName;
-		url = initialUrl;
-		type = initialType;
-		articleSelector = initialArticleSelector;
-		contentSelector = initialContentSelector;
-	});
 
 	let isEdit = $derived(!!resourceId);
 
