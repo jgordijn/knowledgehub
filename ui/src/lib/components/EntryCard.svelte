@@ -16,6 +16,7 @@
 	let effectiveStars = $derived(entry.user_stars || entry.ai_stars || 0);
 	let isPending = $derived(entry.processing_status === 'pending' || !entry.summary);
 	let sourceName = $derived(entry.expand?.resource?.name ?? 'Unknown source');
+	let displayTime = $derived(entry.published_at || entry.discovered_at);
 
 	function relativeTime(dateStr: string): string {
 		if (!dateStr) return '';
@@ -98,7 +99,7 @@
 			{/if}
 			<span class="text-xs text-slate-500">{sourceName}</span>
 		</div>
-		<span class="shrink-0 text-xs text-slate-400">{relativeTime(entry.discovered_at)}</span>
+		<span class="shrink-0 text-xs text-slate-400">{relativeTime(displayTime)}</span>
 	</div>
 
 	<!-- Title -->

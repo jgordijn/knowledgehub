@@ -21,12 +21,16 @@
 		return entry.user_stars || entry.ai_stars || 0;
 	}
 
+	function entryTime(e: RecordModel): number {
+		return new Date(e.published_at || e.discovered_at).getTime();
+	}
+
 	function sortEntries(list: RecordModel[]): RecordModel[] {
 		return [...list].sort((a, b) => {
 			const starsA = effectiveStars(a);
 			const starsB = effectiveStars(b);
 			if (starsB !== starsA) return starsB - starsA;
-			return new Date(b.discovered_at).getTime() - new Date(a.discovered_at).getTime();
+			return entryTime(b) - entryTime(a);
 		});
 	}
 
