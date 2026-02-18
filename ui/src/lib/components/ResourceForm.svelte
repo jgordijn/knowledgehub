@@ -8,6 +8,7 @@
 		initialType = 'rss',
 		initialArticleSelector = '',
 		initialContentSelector = '',
+		initialFragmentFeed = false,
 		onSave,
 		onCancel
 	}: {
@@ -17,6 +18,7 @@
 		initialType?: string;
 		initialArticleSelector?: string;
 		initialContentSelector?: string;
+		initialFragmentFeed?: boolean;
 		onSave: () => void;
 		onCancel?: () => void;
 	} = $props();
@@ -27,6 +29,7 @@
 	let type = $state<string>(initialType);
 	let articleSelector = $state(initialArticleSelector);
 	let contentSelector = $state(initialContentSelector);
+	let fragmentFeed = $state(initialFragmentFeed);
 	let saving = $state(false);
 	let error = $state('');
 
@@ -45,7 +48,8 @@
 				url: url.trim(),
 				type,
 				article_selector: type === 'watchlist' ? articleSelector.trim() : '',
-				content_selector: type === 'watchlist' ? contentSelector.trim() : ''
+				content_selector: type === 'watchlist' ? contentSelector.trim() : '',
+				fragment_feed: type === 'rss' ? fragmentFeed : false
 			};
 
 			if (isEdit) {
@@ -67,6 +71,7 @@
 				type = 'rss';
 				articleSelector = '';
 				contentSelector = '';
+				fragmentFeed = false;
 			}
 
 			onSave();
@@ -119,33 +124,44 @@
 		</div>
 	</div>
 
+	{#if type === 'rss'}
+		<label class="flex items-center gap-2 text-sm text-slate-700">
+			<input type="checkbox" bind:checked={fragmentFeed} class="rounded border-slate-300" />
+			Fragment feed
+			<span class="text-xs text-slate-400">(skip summarization, show content directly)</span>
+		</label>
+	{/if}
+
 	{#if type === 'watchlist'}
 		<div class="flex flex-col gap-4 md:flex-row">
 			<div class="flex-1">
 				<label for="res-article-sel" class="mb-1 block text-sm font-medium text-slate-700">
-					Article Selector
+					Article Selector <span class="font-normal text-slate-400">(optional)</span>
 				</label>
 				<input
 					id="res-article-sel"
 					type="text"
 					bind:value={articleSelector}
-					placeholder="CSS selector for articles"
+					placeholder="e.g. article a, .post-link — auto-detected if empty"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 				/>
 			</div>
 			<div class="flex-1">
 				<label for="res-content-sel" class="mb-1 block text-sm font-medium text-slate-700">
-					Content Selector
+					Content Selector <span class="font-normal text-slate-400">(optional)</span>
 				</label>
 				<input
 					id="res-content-sel"
 					type="text"
 					bind:value={contentSelector}
-					placeholder="CSS selector for content"
+					placeholder="e.g. .article-body — auto-detected if empty"
 					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
 				/>
 			</div>
 		</div>
+		<p class="text-xs text-slate-400">
+			Leave empty to auto-detect articles and content. Only set these if auto-detection picks up wrong links.
+		</p>
 	{/if}
 
 	<div class="flex items-center gap-2">

@@ -14,7 +14,8 @@
 	} = $props();
 
 	let effectiveStars = $derived(entry.user_stars || entry.ai_stars || 0);
-	let isPending = $derived(entry.processing_status === 'pending' || !entry.summary);
+	let isFragment = $derived(!!entry.is_fragment);
+	let isPending = $derived(entry.processing_status === 'pending' || (!entry.summary && !isFragment));
 	let sourceName = $derived(entry.expand?.resource?.name ?? 'Unknown source');
 	let displayTime = $derived(entry.published_at || entry.discovered_at);
 
@@ -115,7 +116,7 @@
 		</a>
 	</h3>
 
-	<!-- Summary or pending -->
+	<!-- Summary, fragment content, or pending -->
 	{#if isPending}
 		<div class="flex items-center gap-2 py-2 text-sm text-slate-400">
 			<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -135,8 +136,12 @@
 			</svg>
 			Processing…
 		</div>
+	{:else if isFragment}
+		<div class="fragment-content mb-3 text-sm text-slate-600 leading-relaxed">
+			{@html entry.raw_content}
+		</div>
 	{:else}
-		<p class="mb-3 line-clamp-3 text-sm text-slate-600 leading-relaxed">
+		<p class="mb-3 text-sm text-slate-600 leading-relaxed">
 			{entry.summary}
 		</p>
 	{/if}
@@ -177,3 +182,54 @@
 		</a>
 	</div>
 </div>
+
+
+<style>
+	/* Style rendered HTML from fragment feeds */
+	.fragment-content :global(a) {
+		color: var(--color-blue-600);
+		text-decoration: underline;
+	}
+	.fragment-content :global(a:hover) {
+		color: var(--color-blue-800);
+	}
+	.fragment-content :global(blockquote) {
+		border-left: 3px solid var(--color-slate-300);
+		padding-left: 0.75rem;
+		margin: 0.5rem 0;
+		color: var(--color-slate-500);
+		font-style: italic;
+	}
+	.fragment-content :global(code) {
+		background: var(--color-slate-100);
+		padding: 0.1rem 0.3rem;
+		border-radius: 0.25rem;
+		font-size: 0.85em;
+	}
+	.fragment-content :global(pre) {
+		background: var(--color-slate-100);
+		padding: 0.5rem;
+		border-radius: 0.375rem;
+		overflow-x: auto;
+	}
+	.fragment-content :global(ul),
+	.fragment-content :global(ol) {
+		padding-left: 1.25rem;
+		margin: 0.25rem 0;
+	}
+	.fragment-content :global(ul) {
+		list-style-type: disc;
+	}
+	.fragment-content :global(ol) {
+		list-style-type: decimal;
+	}
+	.fragment-content :global(p) {
+		margin: 0.25rem 0;
+	}
+	.fragment-content :global(p:first-child) {
+		margin-top: 0;
+	}
+	.fragment-content :global(p:last-child) {
+		margin-bottom: 0;
+	}
+</style>

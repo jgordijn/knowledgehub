@@ -1,14 +1,20 @@
 package engine
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/jgordijn/knowledgehub/internal/testutil"
 )
 
-const testRSSFeed = `<?xml version="1.0" encoding="UTF-8"?>
+var (
+	recentDate1 = time.Now().AddDate(0, 0, -2).UTC().Format(time.RFC1123Z)
+	recentDate2 = time.Now().AddDate(0, 0, -1).UTC().Format(time.RFC1123Z)
+
+	testRSSFeed = fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0">
   <channel>
     <title>Test Feed</title>
@@ -17,19 +23,19 @@ const testRSSFeed = `<?xml version="1.0" encoding="UTF-8"?>
       <link>https://example.com/article-one</link>
       <guid>guid-1</guid>
       <description>First article description</description>
-      <pubDate>Mon, 01 Jan 2024 12:00:00 GMT</pubDate>
+      <pubDate>%s</pubDate>
     </item>
     <item>
       <title>Article Two</title>
       <link>https://example.com/article-two</link>
       <guid>guid-2</guid>
       <description>Second article description</description>
-      <pubDate>Tue, 02 Jan 2024 12:00:00 GMT</pubDate>
+      <pubDate>%s</pubDate>
     </item>
   </channel>
-</rss>`
+</rss>`, recentDate1, recentDate2)
 
-const testAtomFeed = `<?xml version="1.0" encoding="UTF-8"?>
+	testAtomFeed = `<?xml version="1.0" encoding="UTF-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>Atom Feed</title>
   <entry>
@@ -39,6 +45,7 @@ const testAtomFeed = `<?xml version="1.0" encoding="UTF-8"?>
     <summary>Atom description</summary>
   </entry>
 </feed>`
+)
 
 func TestFetchRSS(t *testing.T) {
 	tests := []struct {

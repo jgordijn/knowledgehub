@@ -44,8 +44,8 @@
 		streaming = true;
 
 		// Add placeholder for AI response
-		const aiMsg: ChatMessage = { role: 'assistant', content: '' };
-		messages.push(aiMsg);
+		messages.push({ role: 'assistant', content: '' });
+		const aiIdx = messages.length - 1;
 
 		try {
 			const response = await fetch('/api/chat', {
@@ -58,24 +58,31 @@
 			});
 
 			if (!response.ok) {
-				aiMsg.content = 'Error: Failed to get response.';
+				messages[aiIdx].content = 'Error: Failed to get response.';
 				streaming = false;
 				return;
 			}
 
 			const reader = response.body!.getReader();
 			const decoder = new TextDecoder();
+			let buffer = '';
 
 			while (true) {
 				const { done, value } = await reader.read();
 				if (done) break;
-				const text = decoder.decode(value);
-				for (const line of text.split('\n')) {
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+				for (const line of lines) {
 					if (line.startsWith('data: ')) {
+						const payload = line.slice(6);
+						if (payload === '[DONE]') continue;
 						try {
-							const data = JSON.parse(line.slice(6));
-							if (data.content) {
-								aiMsg.content += data.content;
+							const data = JSON.parse(payload);
+							if (data.error) {
+								messages[aiIdx].content = 'Error: ' + data.error;
+							} else if (data.content) {
+								messages[aiIdx].content += data.content;
 							}
 						} catch {
 							// Skip malformed JSON
@@ -84,7 +91,7 @@
 				}
 			}
 		} catch {
-			aiMsg.content = aiMsg.content || 'Error: Connection failed.';
+			messages[aiIdx].content = messages[aiIdx].content || 'Error: Connection failed.';
 		} finally {
 			streaming = false;
 		}
@@ -144,7 +151,15 @@
 						? 'bg-blue-600 text-white'
 						: 'bg-slate-100 text-slate-800'}"
 				>
-					{msg.content || (streaming ? '…' : '')}
+					{#if !msg.content && streaming && msg.role === 'assistant'}
+						<span class="typing-dots">
+							<span></span>
+							<span></span>
+							<span></span>
+						</span>
+					{:else}
+						{msg.content}
+					{/if}
 				</div>
 			</div>
 		{/each}
@@ -179,3 +194,44 @@
 		</div>
 	</div>
 </div>
+
+
+<style>
+	.typing-dots {
+		display: inline-flex;
+		align-items: center;
+		gap: 4px;
+		padding: 2px 0;
+	}
+
+	.typing-dots span {
+		width: 6px;
+		height: 6px;
+		border-radius: 50%;
+		background-color: #94a3b8;
+		animation: typing-bounce 1.4s infinite ease-in-out;
+	}
+
+	.typing-dots span:nth-child(1) {
+		animation-delay: 0s;
+	}
+
+	.typing-dots span:nth-child(2) {
+		animation-delay: 0.2s;
+	}
+
+	.typing-dots span:nth-child(3) {
+		animation-delay: 0.4s;
+	}
+
+	@keyframes typing-bounce {
+		0%, 60%, 100% {
+			transform: translateY(0);
+			opacity: 0.4;
+		}
+		30% {
+			transform: translateY(-4px);
+			opacity: 1;
+		}
+	}
+</style>

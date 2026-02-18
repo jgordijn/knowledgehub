@@ -9,6 +9,29 @@
 	let editingResource = $state<RecordModel | null>(null);
 	let showAddForm = $state(false);
 	let deleteTarget = $state<RecordModel | null>(null);
+	let searchQuery = $state('');
+	let sortBy = $state('edited-desc');
+
+	let filteredResources = $derived.by(() => {
+		let result = resources;
+		if (searchQuery.trim()) {
+			const q = searchQuery.trim().toLowerCase();
+			result = result.filter((r) => r.name.toLowerCase().includes(q));
+		}
+		return result.toSorted((a, b) => {
+			switch (sortBy) {
+				case 'title-asc':
+					return a.name.localeCompare(b.name);
+				case 'title-desc':
+					return b.name.localeCompare(a.name);
+				case 'edited-asc':
+					return a.updated.localeCompare(b.updated);
+				case 'edited-desc':
+				default:
+					return b.updated.localeCompare(a.updated);
+			}
+		});
+	});
 
 	function relativeTime(dateStr: string): string {
 		if (!dateStr) return '';
@@ -158,6 +181,25 @@
 		</div>
 	{/if}
 
+	<!-- Search and sort -->
+	<div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+		<input
+			type="text"
+			placeholder="Search by name…"
+			bind:value={searchQuery}
+			class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+		/>
+		<select
+			bind:value={sortBy}
+			class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+		>
+			<option value="edited-desc">Edited (newest)</option>
+			<option value="edited-asc">Edited (oldest)</option>
+			<option value="title-asc">Title A → Z</option>
+			<option value="title-desc">Title Z → A</option>
+		</select>
+	</div>
+
 	<!-- Add form -->
 	{#if showAddForm}
 		<div class="rounded-lg border border-slate-200 bg-white p-4">
@@ -173,9 +215,13 @@
 		<div class="py-12 text-center text-sm text-slate-400">
 			No resources yet. Click "+ Add Resource" to get started.
 		</div>
+	{:else if filteredResources.length === 0}
+		<div class="py-12 text-center text-sm text-slate-400">
+			No resources match your search.
+		</div>
 	{:else}
 		<div class="space-y-3">
-			{#each resources as resource (resource.id)}
+			{#each filteredResources as resource (resource.id)}
 				{#if editingResource?.id === resource.id}
 					<!-- Edit form -->
 					<div class="rounded-lg border-2 border-blue-200 bg-white p-4">
@@ -187,6 +233,7 @@
 							initialType={resource.type}
 							initialArticleSelector={resource.article_selector}
 							initialContentSelector={resource.content_selector}
+							initialFragmentFeed={resource.fragment_feed}
 							onSave={handleSaved}
 							onCancel={() => (editingResource = null)}
 						/>
@@ -213,6 +260,11 @@
 									>
 										{resource.type}
 									</span>
+									{#if resource.fragment_feed}
+										<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+											Fragment
+										</span>
+									{/if}
 									{#if !resource.active}
 										<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
 											Inactive

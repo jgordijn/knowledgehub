@@ -10,6 +10,9 @@
 	let loading = $state(true);
 	let readFilter = $state<'unread' | 'all'>('unread');
 	let starFilter = $state<number>(0); // 0 = all, 3/4/5 = minimum
+	let resourceFilter = $state<string>(''); // '' = all, or resource ID
+	let resourcesOpen = $state(false);
+	let markReadOpen = $state(false);
 	let unreadCount = $state(0);
 
 	// Chat state
@@ -26,13 +29,20 @@
 	}
 
 	function sortEntries(list: RecordModel[]): RecordModel[] {
-		return [...list].sort((a, b) => {
-			const starsA = effectiveStars(a);
-			const starsB = effectiveStars(b);
-			if (starsB !== starsA) return starsB - starsA;
-			return entryTime(b) - entryTime(a);
-		});
+		return [...list].sort((a, b) => entryTime(b) - entryTime(a));
 	}
+
+	let resources = $derived(() => {
+		const map = new Map<string, string>();
+		for (const e of entries) {
+			const id = e.resource;
+			const name = e.expand?.resource?.name;
+			if (id && name && !map.has(id)) map.set(id, name);
+		}
+		return [...map.entries()]
+			.map(([id, name]) => ({ id, name }))
+			.sort((a, b) => a.name.localeCompare(b.name));
+	});
 
 	let filteredEntries = $derived(() => {
 		let result = entries;
@@ -42,6 +52,9 @@
 		if (starFilter > 0) {
 			result = result.filter((e) => effectiveStars(e) >= starFilter);
 		}
+		if (resourceFilter) {
+			result = result.filter((e) => e.resource === resourceFilter);
+		}
 		return sortEntries(result);
 	});
 
@@ -49,7 +62,7 @@
 		loading = true;
 		try {
 			const result = await pb.collection('entries').getList(1, 200, {
-				sort: '-user_stars,-ai_stars,-discovered_at',
+				sort: '-published_at,-discovered_at',
 				expand: 'resource'
 			});
 			entries = result.items;
@@ -65,6 +78,24 @@
 		entries = entries.map((e) => (e.id === updated.id ? updated : e));
 		unreadCount = entries.filter((e) => !e.is_read).length;
 	}
+
+
+	async function markAsRead(olderThanDays?: number) {
+		markReadOpen = false;
+		let toMark = entries.filter((e) => !e.is_read);
+		if (olderThanDays !== undefined) {
+			const cutoff = Date.now() - olderThanDays * 86400000;
+			toMark = toMark.filter((e) => entryTime(e) < cutoff);
+		}
+		if (toMark.length === 0) return;
+		const ids = new Set(toMark.map((e) => e.id));
+		await Promise.all(
+			toMark.map((e) => pb.collection('entries').update(e.id, { is_read: true }).catch(() => {}))
+		);
+		entries = entries.map((e) => (ids.has(e.id) ? { ...e, is_read: true } : e));
+		unreadCount = entries.filter((e) => !e.is_read).length;
+	}
+
 
 	function openChat(entry: RecordModel) {
 		chatEntry = entry;
@@ -123,6 +154,9 @@
 	});
 </script>
 
+<svelte:window onclick={() => (markReadOpen = false)} />
+
+
 <div class="space-y-4">
 	<QuarantineBanner />
 
@@ -158,7 +192,73 @@
 				</button>
 			{/each}
 		</div>
+
+		<!-- Mark as read -->
+		<div class="relative">
+			<button
+				onclick={(e) => { e.stopPropagation(); markReadOpen = !markReadOpen; }}
+				class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+			>
+				Mark read ▾
+			</button>
+			{#if markReadOpen}
+				<div class="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+					{#each [
+						{ label: 'All entries', days: undefined },
+						{ label: 'Older than 1 day', days: 1 },
+						{ label: 'Older than 3 days', days: 3 },
+						{ label: 'Older than 7 days', days: 7 },
+						{ label: 'Older than 30 days', days: 30 }
+					] as opt}
+						<button
+							onclick={() => markAsRead(opt.days)}
+							class="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+						>
+							{opt.label}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
 	</div>
+
+	<!-- Resource filter (collapsible) -->
+	{#if resources().length > 1}
+		<div>
+			<button
+				onclick={() => (resourcesOpen = !resourcesOpen)}
+				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+			>
+				<svg
+					class="h-3 w-3 transition-transform {resourcesOpen ? 'rotate-90' : ''}"
+					fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+				</svg>
+				Sources{resourceFilter ? ': ' + resources().find((r) => r.id === resourceFilter)?.name : ''}
+			</button>
+			{#if resourcesOpen}
+				<div class="mt-2 flex flex-wrap gap-1.5">
+					<button
+						onclick={() => (resourceFilter = '')}
+						class="rounded-full px-3 py-1 text-xs font-medium transition-colors
+							{resourceFilter === '' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+					>
+						All
+					</button>
+					{#each resources() as res}
+						<button
+							onclick={() => (resourceFilter = res.id)}
+							class="rounded-full px-3 py-1 text-xs font-medium transition-colors
+								{resourceFilter === res.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+						>
+							{res.name}
+						</button>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
 
 	<!-- Entries -->
 	{#if loading}

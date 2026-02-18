@@ -12,6 +12,7 @@ func registerCollections(app core.App) {
 	ensureEntriesCollection(app)
 	ensurePreferencesCollection(app)
 	ensureSettingsCollection(app)
+	migrateCollections(app)
 }
 
 func ensureResourcesCollection(app core.App) {
@@ -61,6 +62,9 @@ func ensureResourcesCollection(app core.App) {
 	})
 	collection.Fields.Add(&core.BoolField{
 		Name: "active",
+	})
+	collection.Fields.Add(&core.BoolField{
+		Name: "fragment_feed",
 	})
 	collection.Fields.Add(&core.NumberField{
 		Name: "check_interval",
@@ -139,6 +143,9 @@ func ensureEntriesCollection(app core.App) {
 		Name:      "processing_status",
 		Values:    []string{"pending", "done", "failed"},
 		MaxSelect: 1,
+	})
+	collection.Fields.Add(&core.BoolField{
+		Name: "is_fragment",
 	})
 
 	collection.ListRule = types.Pointer("@request.auth.id != ''")
@@ -219,4 +226,25 @@ func getCollectionId(app core.App, name string) string {
 
 func floatPtr(f float64) *float64 {
 	return &f
+}
+
+// migrateCollections adds new fields to existing collections.
+func migrateCollections(app core.App) {
+	addFieldIfMissing(app, "resources", &core.BoolField{Name: "fragment_feed"})
+	addFieldIfMissing(app, "entries", &core.BoolField{Name: "is_fragment"})
+	addFieldIfMissing(app, "resources", &core.BoolField{Name: "use_browser"})
+}
+
+func addFieldIfMissing(app core.App, collectionName string, field core.Field) {
+	col, err := app.FindCollectionByNameOrId(collectionName)
+	if err != nil {
+		return
+	}
+	if col.Fields.GetByName(field.GetName()) != nil {
+		return
+	}
+	col.Fields.Add(field)
+	if err := app.Save(col); err != nil {
+		log.Printf("Failed to add field %s to %s: %v", field.GetName(), collectionName, err)
+	}
 }

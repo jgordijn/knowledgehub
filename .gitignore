@@ -5,3 +5,5 @@ ui/node_modules/
 ui/.svelte-kit/
 kh_data/
 .prompts/
+.browser-test/
+/knowledgehub

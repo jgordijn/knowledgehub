@@ -94,7 +94,7 @@ func TestCreateEntry(t *testing.T) {
 	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
 
 	published := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
-	err := createEntry(app, resource.Id, "Test Title", "https://example.com/article", "guid-1", "Test content", &published)
+	err := createEntry(app, resource.Id, "Test Title", "https://example.com/article", "guid-1", "Test content", &published, false)
 	if err != nil {
 		t.Fatalf("createEntry returned error: %v", err)
 	}
