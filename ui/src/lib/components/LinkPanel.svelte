@@ -3,10 +3,12 @@
 	import { renderMarkdown } from '$lib/markdown';
 
 	let {
+		url,
 		entryId,
 		entryTitle,
 		onClose
 	}: {
+		url: string;
 		entryId: string;
 		entryTitle: string;
 		onClose: () => void;
@@ -17,6 +19,13 @@
 		content: string;
 	}
 
+	let summary = $state('');
+	let linkedTitle = $state('');
+	let linkedContent = $state('');
+	let loading = $state(true);
+	let error = $state('');
+
+	// Chat state
 	let messages = $state<ChatMessage[]>([]);
 	let input = $state('');
 	let streaming = $state(false);
@@ -49,10 +58,67 @@
 	}
 
 	$effect(() => {
-		// Scroll when messages change
 		messages.length;
-		// Use tick-like delay
 		setTimeout(scrollToBottom, 0);
+	});
+
+	onMount(async () => {
+		// Fetch summary via SSE
+		try {
+			const response = await fetch('/api/link-summary', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ url })
+			});
+
+			if (!response.ok) {
+				error = 'Failed to fetch article summary.';
+				loading = false;
+				return;
+			}
+
+			const reader = response.body!.getReader();
+			const decoder = new TextDecoder();
+			let buffer = '';
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+				const lines = buffer.split('\n');
+				buffer = lines.pop() ?? '';
+				for (const line of lines) {
+					if (line.startsWith('data: ')) {
+						const payload = line.slice(6);
+						if (payload === '[DONE]') continue;
+						try {
+							const data = JSON.parse(payload);
+							if (data.error) {
+								error = data.error;
+							} else if (data.type === 'meta') {
+								linkedTitle = data.title || url;
+								linkedContent = data.content || '';
+							} else if (data.content) {
+								summary += data.content;
+							}
+						} catch {
+							// Skip malformed JSON
+						}
+					}
+				}
+			}
+		} catch {
+			error = 'Connection failed.';
+		} finally {
+			loading = false;
+		}
+
+		// Close on Escape
+		function onKey(e: KeyboardEvent) {
+			if (e.key === 'Escape') onClose();
+		}
+		window.addEventListener('keydown', onKey);
+		return () => window.removeEventListener('keydown', onKey);
 	});
 
 	async function sendMessage() {
@@ -64,9 +130,13 @@
 		input = '';
 		streaming = true;
 
-		// Add placeholder for AI response
 		messages.push({ role: 'assistant', content: '' });
 		const aiIdx = messages.length - 1;
+
+		// Build extra context from the linked article
+		const extraContext = linkedTitle
+			? `Title: ${linkedTitle}\n\n${linkedContent}`
+			: linkedContent;
 
 		try {
 			const response = await fetch('/api/chat', {
@@ -74,7 +144,8 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					entry_id: entryId,
-					messages: messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content }))
+					messages: messages.slice(0, -1).map((m) => ({ role: m.role, content: m.content })),
+					extra_context: extraContext
 				})
 			});
 
@@ -124,15 +195,6 @@
 			sendMessage();
 		}
 	}
-
-	onMount(() => {
-		// Focus trap: close on Escape
-		function onKey(e: KeyboardEvent) {
-			if (e.key === 'Escape') onClose();
-		}
-		window.addEventListener('keydown', onKey);
-		return () => window.removeEventListener('keydown', onKey);
-	});
 </script>
 
 <!-- Backdrop on mobile -->
@@ -152,25 +214,75 @@
 	<!-- Header -->
 	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
 		<div class="min-w-0 flex-1">
-			<h2 class="truncate text-sm font-semibold text-slate-900">{entryTitle}</h2>
-			<p class="text-xs text-slate-500">Chat about this article</p>
+			<h2 class="truncate text-sm font-semibold text-slate-900">
+				{linkedTitle || 'Linked Article'}
+			</h2>
+			<p class="truncate text-xs text-slate-500">
+				From: {entryTitle}
+			</p>
 		</div>
+		<a
+			href={url}
+			target="_blank"
+			rel="noopener"
+			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+			title="Open linked article"
+		>
+			↗
+		</a>
 		<button
 			onclick={onClose}
 			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-			aria-label="Close chat"
+			aria-label="Close panel"
 		>
 			✕
 		</button>
 	</div>
 
-	<!-- Messages -->
+	<!-- Content area: summary + chat -->
 	<div bind:this={messagesEl} class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
-		{#if messages.length === 0}
-			<div class="py-12 text-center text-sm text-slate-400">
-				Ask anything about this article…
+		<!-- Summary section -->
+		{#if loading && !summary}
+			<div class="flex items-center gap-2 py-4 text-sm text-slate-400">
+				<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+					<circle
+						class="opacity-25"
+						cx="12"
+						cy="12"
+						r="10"
+						stroke="currentColor"
+						stroke-width="4"
+					></circle>
+					<path
+						class="opacity-75"
+						fill="currentColor"
+						d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+					></path>
+				</svg>
+				Fetching and summarizing…
+			</div>
+		{:else if error}
+			<div class="rounded-md bg-red-50 p-3 text-sm text-red-700">
+				{error}
 			</div>
 		{/if}
+
+		{#if summary}
+			<div class="rounded-lg bg-blue-50 p-3">
+				<h3 class="mb-1 text-xs font-semibold text-blue-800 uppercase">Summary</h3>
+				<p class="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{summary}</p>
+			</div>
+		{/if}
+
+		<!-- Chat messages -->
+		{#if !loading && !error}
+			{#if messages.length === 0}
+				<div class="py-6 text-center text-sm text-slate-400">
+					Ask anything about both articles…
+				</div>
+			{/if}
+		{/if}
+
 		{#each messages as msg}
 			<div class="flex {msg.role === 'user' ? 'justify-end' : 'justify-start'}">
 				<div
@@ -202,13 +314,13 @@
 				type="text"
 				bind:value={input}
 				onkeydown={handleKeydown}
-				placeholder="Type a message…"
-				disabled={streaming}
+				placeholder="Ask about both articles…"
+				disabled={streaming || loading}
 				class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-50"
 			/>
 			<button
 				onclick={sendMessage}
-				disabled={streaming || !input.trim()}
+				disabled={streaming || loading || !input.trim()}
 				class="flex h-10 w-10 min-w-[44px] items-center justify-center rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
 				aria-label="Send message"
 			>

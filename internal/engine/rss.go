@@ -36,7 +36,11 @@ func FetchRSS(app core.App, resource *core.Record, client *http.Client) ([]RSSEn
 	if !useBrowser {
 		body, err := fetchFeedHTTP(feedURL, client)
 		if err == nil {
-			feedBody = string(body)
+			if looksLikeFeedBody(body) {
+				feedBody = string(body)
+			} else {
+				log.Printf("Feed %s returned non-feed content (likely bot protection), trying browser", feedURL)
+			}
 		} else if looksLikeFeedProtection(err) {
 			log.Printf("Feed protection detected for %s, trying browser", feedURL)
 		} else {
@@ -148,6 +152,38 @@ func fetchFeedHTTP(feedURL string, client *http.Client) ([]byte, error) {
 
 	return body, nil
 }
+
+// looksLikeFeedBody checks whether the HTTP response body looks like an
+// RSS/Atom/JSON feed rather than an HTML page (e.g. a Cloudflare challenge).
+// When Cloudflare returns a 200 OK with HTML instead of the actual feed,
+// we need to detect this early and fall through to the browser fetcher.
+func looksLikeFeedBody(body []byte) bool {
+	trimmed := strings.TrimSpace(string(body))
+	if len(trimmed) == 0 {
+		return false
+	}
+	// RSS/Atom feeds start with <?xml or <rss or <feed
+	if trimmed[0] == '<' {
+		lower := strings.ToLower(trimmed[:min(200, len(trimmed))])
+		if strings.HasPrefix(lower, "<?xml") ||
+			strings.Contains(lower, "<rss") ||
+			strings.Contains(lower, "<feed") {
+			return true
+		}
+		// HTML responses from Cloudflare/bot protection
+		if strings.HasPrefix(lower, "<!doctype") || strings.HasPrefix(lower, "<html") {
+			return false
+		}
+		// Other XML — probably a feed
+		return true
+	}
+	// JSON feeds start with {
+	if trimmed[0] == '{' {
+		return true
+	}
+	return false
+}
+
 
 func loadExistingGUIDs(app core.App, resourceID string) (map[string]bool, error) {
 	records, err := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resourceID})

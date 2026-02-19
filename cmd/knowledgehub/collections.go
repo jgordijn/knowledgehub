@@ -233,6 +233,7 @@ func migrateCollections(app core.App) {
 	addFieldIfMissing(app, "resources", &core.BoolField{Name: "fragment_feed"})
 	addFieldIfMissing(app, "entries", &core.BoolField{Name: "is_fragment"})
 	addFieldIfMissing(app, "resources", &core.BoolField{Name: "use_browser"})
+	addFieldIfMissing(app, "entries", &core.BoolField{Name: "bookmarked"})
 }
 
 func addFieldIfMissing(app core.App, collectionName string, field core.Field) {

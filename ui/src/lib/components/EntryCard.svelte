@@ -6,10 +6,12 @@
 	let {
 		entry,
 		onOpenChat,
+		onOpenLink,
 		onUpdate
 	}: {
 		entry: RecordModel;
 		onOpenChat: (entry: RecordModel) => void;
+		onOpenLink: (entry: RecordModel, url: string) => void;
 		onUpdate: (entry: RecordModel) => void;
 	} = $props();
 
@@ -18,6 +20,65 @@
 	let isPending = $derived(entry.processing_status === 'pending' || (!entry.summary && !isFragment));
 	let sourceName = $derived(entry.expand?.resource?.name ?? 'Unknown source');
 	let displayTime = $derived(entry.published_at || entry.discovered_at);
+
+	const mediaExtensions = new Set([
+		'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp', '.avif',
+		'.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogv',
+		'.mp3', '.wav', '.ogg', '.flac', '.aac',
+		'.pdf', '.zip', '.tar', '.gz', '.rar',
+	]);
+	const mediaHosts = new Set([
+		'i.imgur.com', 'imgur.com', 'pbs.twimg.com',
+		'media.giphy.com', 'giphy.com',
+		'youtube.com', 'www.youtube.com', 'youtu.be',
+		'vimeo.com', 'www.vimeo.com',
+		'flickr.com', 'www.flickr.com',
+	]);
+
+	function isMediaURL(url: URL): boolean {
+		const path = url.pathname.toLowerCase();
+		for (const ext of mediaExtensions) {
+			if (path.endsWith(ext)) return true;
+		}
+		if (mediaHosts.has(url.hostname)) return true;
+		// Common image/video CDN path patterns
+		if (/\/(images?|img|media|assets|static|uploads|photos?|thumbnails?)\//i.test(path)) {
+			const lastSegment = path.split('/').pop() || '';
+			if (/\.\w{2,4}$/.test(lastSegment) && !lastSegment.endsWith('.html') && !lastSegment.endsWith('.htm')) return true;
+		}
+		return false;
+	}
+
+	let referencedLinks = $derived(() => {
+		const content = entry.raw_content || '';
+		if (!content.includes('<a ')) return [];
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(content, 'text/html');
+		const anchors = doc.querySelectorAll('a[href]');
+		const seen = new Set<string>();
+		const links: { href: string; text: string }[] = [];
+		for (const a of anchors) {
+			const href = a.getAttribute('href') || '';
+			if (!href || href.startsWith('#') || href.startsWith('mailto:')) continue;
+			try {
+				const url = new URL(href, entry.url);
+				if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
+				const full = url.href;
+				if (seen.has(full)) continue;
+				if (full === entry.url) continue;
+				if (isMediaURL(url)) continue;
+				// Skip if the anchor only wraps an image (no meaningful text)
+				if (a.querySelector('img') && !(a.textContent || '').trim()) continue;
+				seen.add(full);
+				const text = (a.textContent || '').trim() || url.hostname + url.pathname;
+				links.push({ href: full, text: text.length > 80 ? text.slice(0, 77) + '…' : text });
+			} catch {
+				continue;
+			}
+		}
+		return links;
+	});
+	let showLinks = $state(false);
 
 	function relativeTime(dateStr: string): string {
 		if (!dateStr) return '';
@@ -47,6 +108,17 @@
 		try {
 			const updated = await pb.collection('entries').update(entry.id, {
 				is_read: !entry.is_read
+			});
+			onUpdate({ ...entry, ...updated });
+		} catch {
+			// Silently ignore
+		}
+	}
+
+	async function toggleBookmark() {
+		try {
+			const updated = await pb.collection('entries').update(entry.id, {
+				bookmarked: !entry.bookmarked
 			});
 			onUpdate({ ...entry, ...updated });
 		} catch {
@@ -146,6 +218,49 @@
 		</p>
 	{/if}
 
+	<!-- Referenced links -->
+	{#if referencedLinks().length > 0}
+		<div class="mb-2">
+			<button
+				onclick={() => (showLinks = !showLinks)}
+				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+			>
+				<svg
+					class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}"
+					fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+				>
+					<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+				</svg>
+				🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+			</button>
+			{#if showLinks}
+				<div class="mt-1.5 space-y-1 pl-4">
+					{#each referencedLinks() as link}
+						<div class="flex items-center gap-1.5">
+							<a
+								href={link.href}
+								target="_blank"
+								rel="noopener"
+								class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px]"
+								title={link.href}
+							>
+								{link.text}
+							</a>
+							<button
+								onclick={() => onOpenLink(entry, link.href)}
+								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+								title="Get AI summary"
+							>
+								Summarize
+							</button>
+						</div>
+					{/each}
+				</div>
+			{/if}
+		</div>
+	{/if}
+
+
 	<!-- Actions -->
 	<div class="flex items-center gap-1">
 		<!-- Read/unread toggle -->
@@ -158,6 +273,20 @@
 			title={entry.is_read ? 'Mark as unread' : 'Mark as read'}
 		>
 			✓
+		</button>
+
+		<!-- Bookmark toggle -->
+		<button
+			onclick={toggleBookmark}
+			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
+				{entry.bookmarked
+				? 'text-amber-500 hover:bg-amber-50'
+				: 'text-slate-400 hover:bg-slate-50'}"
+			title={entry.bookmarked ? 'Remove from Read Later' : 'Read Later'}
+		>
+			<svg class="h-4 w-4" viewBox="0 0 24 24" fill={entry.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
+				<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+			</svg>
 		</button>
 
 		<!-- Chat button -->

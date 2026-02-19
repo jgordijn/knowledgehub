@@ -253,3 +253,32 @@ func TestLooksLikeFeedProtection(t *testing.T) {
 		})
 	}
 }
+
+
+func TestLooksLikeFeedBody(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want bool
+	}{
+		{"empty", "", false},
+		{"rss xml", `<?xml version="1.0"?><rss version="2.0"><channel></channel></rss>`, true},
+		{"atom feed", `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom"></feed>`, true},
+		{"rss no prolog", `<rss version="2.0"><channel></channel></rss>`, true},
+		{"json feed", `{"version":"https://jsonfeed.org/version/1","title":"Test"}`, true},
+		{"html doctype", `<!DOCTYPE html><html><body>Challenge</body></html>`, false},
+		{"html tag", `<html><head></head><body>Cloudflare</body></html>`, false},
+		{"cloudflare challenge", `<!DOCTYPE html><html><head><title>Just a moment...</title></head><body>Checking your browser</body></html>`, false},
+		{"whitespace then xml", `  <?xml version="1.0"?><rss></rss>`, true},
+		{"random text", `Hello world`, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := looksLikeFeedBody([]byte(tt.body))
+			if got != tt.want {
+				t.Errorf("looksLikeFeedBody(%q) = %v, want %v", tt.body[:min(50, len(tt.body))], got, tt.want)
+			}
+		})
+	}
+}

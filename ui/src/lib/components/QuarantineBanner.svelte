@@ -8,7 +8,8 @@
 	onMount(async () => {
 		try {
 			const result = await pb.collection('resources').getList(1, 1, {
-				filter: 'status="quarantined"'
+				filter: 'status="quarantined"',
+				requestKey: 'quarantineCheck'
 			});
 			quarantinedCount = result.totalItems;
 		} catch {

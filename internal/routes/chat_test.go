@@ -44,7 +44,7 @@ func TestBuildChatSystemPrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			prompt := buildChatSystemPrompt(tt.title, tt.content)
+			prompt := buildChatSystemPrompt(tt.title, tt.content, "")
 			for _, w := range tt.want {
 				if !strings.Contains(prompt, w) {
 					t.Errorf("prompt does not contain %q", w)

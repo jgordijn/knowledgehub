@@ -11,8 +11,9 @@ import (
 
 // ChatRequestBody is the expected JSON body for the chat endpoint.
 type ChatRequestBody struct {
-	EntryID  string       `json:"entry_id"`
-	Messages []ai.Message `json:"messages"`
+	EntryID      string       `json:"entry_id"`
+	Messages     []ai.Message `json:"messages"`
+	ExtraContext string       `json:"extra_context,omitempty"`
 }
 
 // RegisterChatRoute adds the POST /api/chat streaming endpoint.
@@ -59,7 +60,7 @@ func HandleChatDirect(app core.App, w http.ResponseWriter, body ChatRequestBody,
 	}
 	model := ai.GetModel(app)
 
-	messages := BuildChatMessages(title, rawContent, body.Messages)
+	messages := BuildChatMessages(title, rawContent, body.Messages, body.ExtraContext)
 	client := ai.NewClient(apiKey, model)
 	if baseURL != "" {
 		client.BaseURL = baseURL
@@ -128,8 +129,12 @@ func ValidateChatRequest(body ChatRequestBody) error {
 }
 
 // BuildChatMessages constructs the message list for the AI, including the system prompt.
-func BuildChatMessages(title, rawContent string, userMessages []ai.Message) []ai.Message {
-	systemPrompt := buildChatSystemPrompt(title, rawContent)
+func BuildChatMessages(title, rawContent string, userMessages []ai.Message, extraContext ...string) []ai.Message {
+	extra := ""
+	if len(extraContext) > 0 {
+		extra = extraContext[0]
+	}
+	systemPrompt := buildChatSystemPrompt(title, rawContent, extra)
 	messages := make([]ai.Message, 0, len(userMessages)+1)
 	messages = append(messages, ai.Message{
 		Role:    "system",
@@ -139,9 +144,18 @@ func BuildChatMessages(title, rawContent string, userMessages []ai.Message) []ai
 	return messages
 }
 
-func buildChatSystemPrompt(title, content string) string {
+func buildChatSystemPrompt(title, content, extraContext string) string {
 	if len(content) > 8000 {
 		content = content[:8000] + "..."
+	}
+	if extraContext != "" {
+		if len(extraContext) > 8000 {
+			extraContext = extraContext[:8000] + "..."
+		}
+		return fmt.Sprintf(
+			"Answer ONLY based on the articles below. If the answer is not in the articles, say so.\n\nMain Article: %s\n\n%s\n\nLinked Article:\n%s",
+			title, content, extraContext,
+		)
 	}
 	return fmt.Sprintf(
 		"Answer ONLY based on the article below. If the answer is not in the article, say so.\n\nArticle: %s\n\n%s",

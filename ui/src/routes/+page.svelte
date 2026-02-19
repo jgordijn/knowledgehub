@@ -4,19 +4,25 @@
 	import pb from '$lib/pb';
 	import EntryCard from '$lib/components/EntryCard.svelte';
 	import ChatPanel from '$lib/components/ChatPanel.svelte';
+	import LinkPanel from '$lib/components/LinkPanel.svelte';
 	import QuarantineBanner from '$lib/components/QuarantineBanner.svelte';
 
 	let entries = $state<RecordModel[]>([]);
 	let loading = $state(true);
-	let readFilter = $state<'unread' | 'all'>('unread');
+	let readFilter = $state<'unread' | 'all' | 'bookmarked'>('unread');
 	let starFilter = $state<number>(0); // 0 = all, 3/4/5 = minimum
 	let resourceFilter = $state<string>(''); // '' = all, or resource ID
 	let resourcesOpen = $state(false);
 	let markReadOpen = $state(false);
 	let unreadCount = $state(0);
+	let bookmarkedCount = $state(0);
 
 	// Chat state
 	let chatEntry = $state<RecordModel | null>(null);
+
+	// Link panel state
+	let linkEntry = $state<RecordModel | null>(null);
+	let linkUrl = $state<string>('');
 
 	let unsub: UnsubscribeFunc | undefined;
 
@@ -32,28 +38,12 @@
 		return [...list].sort((a, b) => entryTime(b) - entryTime(a));
 	}
 
-	let resources = $derived(() => {
-		const map = new Map<string, string>();
-		for (const e of entries) {
-			const id = e.resource;
-			const name = e.expand?.resource?.name;
-			if (id && name && !map.has(id)) map.set(id, name);
-		}
-		return [...map.entries()]
-			.map(([id, name]) => ({ id, name }))
-			.sort((a, b) => a.name.localeCompare(b.name));
-	});
+	let resources = $state<{ id: string; name: string }[]>([]);
 
 	let filteredEntries = $derived(() => {
 		let result = entries;
-		if (readFilter === 'unread') {
-			result = result.filter((e) => !e.is_read);
-		}
 		if (starFilter > 0) {
 			result = result.filter((e) => effectiveStars(e) >= starFilter);
-		}
-		if (resourceFilter) {
-			result = result.filter((e) => e.resource === resourceFilter);
 		}
 		return sortEntries(result);
 	});
@@ -61,22 +51,75 @@
 	async function loadEntries() {
 		loading = true;
 		try {
+			const filters: string[] = ['resource.active = true'];
+			if (readFilter === 'unread') {
+				filters.push('is_read = false');
+			} else if (readFilter === 'bookmarked') {
+				filters.push('bookmarked = true');
+			}
+			if (resourceFilter) {
+				filters.push(`resource = '${resourceFilter}'`);
+			}
 			const result = await pb.collection('entries').getList(1, 200, {
 				sort: '-published_at,-discovered_at',
-				expand: 'resource'
+				expand: 'resource',
+				filter: filters.length > 0 ? filters.join(' && ') : '',
+				requestKey: 'loadEntries'
 			});
 			entries = result.items;
-			unreadCount = entries.filter((e) => !e.is_read).length;
-		} catch {
-			// Backend may not be ready
+		} catch (err) {
+			console.error('loadEntries failed:', err);
 		} finally {
 			loading = false;
 		}
 	}
 
+	async function loadUnreadCount() {
+		try {
+			const result = await pb.collection('entries').getList(1, 1, {
+				filter: 'is_read = false && resource.active = true',
+				fields: 'id',
+				skipTotal: false,
+				requestKey: 'loadUnreadCount'
+			});
+			unreadCount = result.totalItems;
+		} catch {
+			// ignore
+		}
+	}
+
+	async function loadBookmarkedCount() {
+		try {
+			const result = await pb.collection('entries').getList(1, 1, {
+				filter: 'bookmarked = true && resource.active = true',
+				fields: 'id',
+				skipTotal: false,
+				requestKey: 'loadBookmarkedCount'
+			});
+			bookmarkedCount = result.totalItems;
+		} catch {
+			// ignore
+		}
+	}
+
+	async function loadResources() {
+		try {
+			const result = await pb.collection('resources').getList(1, 200, {
+				filter: 'active = true',
+				sort: 'name',
+				fields: 'id,name'
+			});
+			resources = result.items.map((r) => ({ id: r.id, name: r.name }));
+		} catch {
+			// Backend may not be ready
+		}
+	}
+
+
 	function handleEntryUpdate(updated: RecordModel) {
 		entries = entries.map((e) => (e.id === updated.id ? updated : e));
-		unreadCount = entries.filter((e) => !e.is_read).length;
+		loadUnreadCount();
+		loadBookmarkedCount();
 	}
 
 
@@ -88,12 +131,12 @@
 			toMark = toMark.filter((e) => entryTime(e) < cutoff);
 		}
 		if (toMark.length === 0) return;
-		const ids = new Set(toMark.map((e) => e.id));
 		await Promise.all(
 			toMark.map((e) => pb.collection('entries').update(e.id, { is_read: true }).catch(() => {}))
 		);
-		entries = entries.map((e) => (ids.has(e.id) ? { ...e, is_read: true } : e));
-		unreadCount = entries.filter((e) => !e.is_read).length;
+		// Reload to reflect server-side filtering
+		await loadEntries();
+		loadUnreadCount();
 	}
 
 
@@ -105,14 +148,37 @@
 		chatEntry = null;
 	}
 
+	function openLink(entry: RecordModel, url: string) {
+		linkEntry = entry;
+		linkUrl = url;
+	}
+
+	function closeLink() {
+		linkEntry = null;
+		linkUrl = '';
+	}
+
 	function tryNotify(entry: RecordModel) {
 		if (Notification.permission === 'granted' && effectiveStars(entry) === 5) {
 			new Notification('KnowledgeHub ★★★★★', { body: entry.title });
 		}
 	}
 
+	let mounted = false;
+
+	// Reload entries when read or resource filter changes
+	$effect(() => {
+		// Track the reactive dependencies
+		readFilter;
+		resourceFilter;
+		if (mounted) {
+			loadEntries();
+		}
+	});
+
 	onMount(async () => {
-		await loadEntries();
+		await Promise.all([loadEntries(), loadResources(), loadUnreadCount(), loadBookmarkedCount()]);
+		mounted = true;
 
 		// Request notification permission
 		if ('Notification' in window && Notification.permission === 'default') {
@@ -129,7 +195,8 @@
 							expand: 'resource'
 						});
 						entries = [...entries, full];
-						unreadCount = entries.filter((en) => !en.is_read).length;
+						loadUnreadCount();
+						loadBookmarkedCount();
 						tryNotify(full);
 					} catch {
 						entries = [...entries, e.record];
@@ -138,10 +205,12 @@
 					entries = entries.map((en) =>
 						en.id === e.record.id ? { ...en, ...e.record } : en
 					);
-					unreadCount = entries.filter((en) => !en.is_read).length;
+					loadUnreadCount();
+					loadBookmarkedCount();
 				} else if (e.action === 'delete') {
 					entries = entries.filter((en) => en.id !== e.record.id);
-					unreadCount = entries.filter((en) => !en.is_read).length;
+					loadUnreadCount();
+					loadBookmarkedCount();
 				}
 			});
 		} catch {
@@ -177,6 +246,13 @@
 					{readFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
 			>
 				All
+			</button>
+			<button
+				onclick={() => (readFilter = 'bookmarked')}
+				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
+					{readFilter === 'bookmarked' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+			>
+				📌 Read Later{bookmarkedCount > 0 ? ` (${bookmarkedCount})` : ''}
 			</button>
 		</div>
 
@@ -223,7 +299,7 @@
 	</div>
 
 	<!-- Resource filter (collapsible) -->
-	{#if resources().length > 1}
+	{#if resources.length > 1}
 		<div>
 			<button
 				onclick={() => (resourcesOpen = !resourcesOpen)}
@@ -235,7 +311,7 @@
 				>
 					<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
 				</svg>
-				Sources{resourceFilter ? ': ' + resources().find((r) => r.id === resourceFilter)?.name : ''}
+				Sources{resourceFilter ? ': ' + resources.find((r) => r.id === resourceFilter)?.name : ''}
 			</button>
 			{#if resourcesOpen}
 				<div class="mt-2 flex flex-wrap gap-1.5">
@@ -246,7 +322,7 @@
 					>
 						All
 					</button>
-					{#each resources() as res}
+					{#each resources as res}
 						<button
 							onclick={() => (resourceFilter = res.id)}
 							class="rounded-full px-3 py-1 text-xs font-medium transition-colors
@@ -265,12 +341,12 @@
 		<div class="py-12 text-center text-sm text-slate-400">Loading entries…</div>
 	{:else if filteredEntries().length === 0}
 		<div class="py-12 text-center text-sm text-slate-400">
-			{readFilter === 'unread' ? 'No unread entries. Switch to "All" to see read entries.' : 'No entries yet. Add some resources to get started.'}
+			{readFilter === 'unread' ? 'No unread entries. Switch to "All" to see read entries.' : readFilter === 'bookmarked' ? 'No bookmarked entries. Use the bookmark icon to save articles for later.' : 'No entries yet. Add some resources to get started.'}
 		</div>
 	{:else}
 		<div class="grid gap-3">
 			{#each filteredEntries() as entry (entry.id)}
-				<EntryCard {entry} onOpenChat={openChat} onUpdate={handleEntryUpdate} />
+				<EntryCard {entry} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
 			{/each}
 		</div>
 	{/if}
@@ -279,4 +355,9 @@
 <!-- Chat panel -->
 {#if chatEntry}
 	<ChatPanel entryId={chatEntry.id} entryTitle={chatEntry.title ?? 'Untitled'} onClose={closeChat} />
+{/if}
+
+<!-- Link summary panel -->
+{#if linkEntry && linkUrl}
+	<LinkPanel url={linkUrl} entryId={linkEntry.id} entryTitle={linkEntry.title ?? 'Untitled'} onClose={closeLink} />
 {/if}
