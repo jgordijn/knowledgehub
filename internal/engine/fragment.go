@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/PuerkitoBio/goquery"
+	"github.com/pocketbase/pocketbase/core"
 
 	"github.com/jgordijn/knowledgehub/internal/ai"
 )
@@ -222,6 +223,37 @@ func extractText(html string) string {
 func FragmentGUID(parentGUID, fragmentHTML string) string {
 	h := sha256.Sum256([]byte(fragmentHTML))
 	return fmt.Sprintf("%s#frag-%x", parentGUID, h[:6])
+}
+
+// contentSHA256 returns a hex-encoded SHA-256 hash of the given content.
+func contentSHA256(content string) string {
+	h := sha256.Sum256([]byte(content))
+	return fmt.Sprintf("%x", h[:])
+}
+
+// loadFragmentHashes deserialises the per-parent-GUID content hashes stored
+// on a resource record. Returns an empty map when the field is blank.
+func loadFragmentHashes(resource *core.Record) map[string]string {
+	raw := resource.GetString("fragment_hashes")
+	if raw == "" {
+		return make(map[string]string)
+	}
+	var hashes map[string]string
+	if err := json.Unmarshal([]byte(raw), &hashes); err != nil {
+		return make(map[string]string)
+	}
+	return hashes
+}
+
+// saveFragmentHashes serialises the per-parent-GUID content hashes back to the
+// resource record.
+func saveFragmentHashes(app core.App, resource *core.Record, hashes map[string]string) error {
+	data, err := json.Marshal(hashes)
+	if err != nil {
+		return err
+	}
+	resource.Set("fragment_hashes", string(data))
+	return app.Save(resource)
 }
 
 // titleSimilarity returns the word-level Jaccard similarity between two titles.

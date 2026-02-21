@@ -47,12 +47,16 @@ func fetchRSSResource(app core.App, resource *core.Record, client *http.Client) 
 	var existingFrags []existingFragEntry
 	var fragNow time.Time
 	var fragLastChecked time.Time
+	var storedHashes map[string]string
 	if isFragment {
 		existingFragGUIDs, _ = loadExistingGUIDs(app, resource.Id)
 		existingFrags, _ = loadExistingFragEntries(app, resource.Id)
 		fragNow = time.Now().UTC()
 		fragLastChecked = resource.GetDateTime("last_checked").Time().UTC()
+		storedHashes = loadFragmentHashes(resource)
 	}
+
+	hashesChanged := false
 
 	for _, entry := range entries {
 		// Resource may have been deleted while we were fetching content
@@ -65,6 +69,15 @@ func fetchRSSResource(app core.App, resource *core.Record, client *http.Client) 
 
 		// Fragment feeds: resolve relative links, then split into individual fragments
 		if isFragment {
+			// Skip re-processing when the parent entry content hasn't changed.
+			// This prevents duplicate/phantom fragments from re-splitting unchanged content.
+			contentHash := contentSHA256(content)
+			if storedHashes[entry.GUID] == contentHash {
+				continue
+			}
+			storedHashes[entry.GUID] = contentHash
+			hashesChanged = true
+
 			content = resolveContentLinks(content, entry.URL)
 			apiKey, _ := ai.GetAPIKey(app)
 			model := ai.GetModel(app)
@@ -111,6 +124,13 @@ func fetchRSSResource(app core.App, resource *core.Record, client *http.Client) 
 
 		if err := createEntry(app, resource.Id, entry.Title, entry.URL, entry.GUID, content, entry.PublishedAt, false); err != nil {
 			log.Printf("Failed to create entry %s: %v", entry.URL, err)
+		}
+	}
+
+	// Persist updated content hashes for fragment feeds
+	if isFragment && hashesChanged {
+		if err := saveFragmentHashes(app, resource, storedHashes); err != nil {
+			log.Printf("Failed to save fragment hashes for resource %s: %v", resource.Id, err)
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/jgordijn/knowledgehub/internal/ai"
+	"github.com/jgordijn/knowledgehub/internal/testutil"
 )
 
 func TestSplitFragments_Basic(t *testing.T) {
@@ -386,5 +387,69 @@ func TestTitleSimilarity(t *testing.T) {
 				t.Errorf("titleSimilarity(%q, %q) = %.3f, want [%.3f, %.3f]", tt.a, tt.b, score, tt.min, tt.max)
 			}
 		})
+	}
+}
+
+
+func TestContentSHA256(t *testing.T) {
+	h1 := contentSHA256("<p>Hello</p>")
+	h2 := contentSHA256("<p>Hello</p>")
+	h3 := contentSHA256("<p>World</p>")
+
+	if h1 != h2 {
+		t.Error("same content should produce same hash")
+	}
+	if h1 == h3 {
+		t.Error("different content should produce different hash")
+	}
+	if len(h1) != 64 {
+		t.Errorf("expected 64-char hex hash, got %d chars", len(h1))
+	}
+}
+
+func TestLoadFragmentHashes(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
+
+	// Empty field returns empty map
+	hashes := loadFragmentHashes(resource)
+	if len(hashes) != 0 {
+		t.Errorf("expected empty map, got %d entries", len(hashes))
+	}
+
+	// Valid JSON
+	resource.Set("fragment_hashes", `{"guid-1":"abc123"}`)
+	hashes = loadFragmentHashes(resource)
+	if hashes["guid-1"] != "abc123" {
+		t.Errorf("expected abc123, got %q", hashes["guid-1"])
+	}
+
+	// Invalid JSON returns empty map
+	resource.Set("fragment_hashes", "not-json")
+	hashes = loadFragmentHashes(resource)
+	if len(hashes) != 0 {
+		t.Errorf("expected empty map for invalid JSON, got %d entries", len(hashes))
+	}
+}
+
+func TestSaveFragmentHashes(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
+
+	hashes := map[string]string{"guid-1": "hash1", "guid-2": "hash2"}
+	err := saveFragmentHashes(app, resource, hashes)
+	if err != nil {
+		t.Fatalf("saveFragmentHashes returned error: %v", err)
+	}
+
+	// Reload and verify
+	updated, _ := app.FindRecordById("resources", resource.Id)
+	loaded := loadFragmentHashes(updated)
+	if loaded["guid-1"] != "hash1" || loaded["guid-2"] != "hash2" {
+		t.Errorf("round-trip failed: got %v", loaded)
 	}
 }

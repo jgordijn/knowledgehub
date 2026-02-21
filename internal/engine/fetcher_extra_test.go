@@ -524,3 +524,157 @@ func TestFetchRSSResource_FragmentFeed_SimilarDedup(t *testing.T) {
 		t.Fatalf("second fetch: got %d entries, want 2 (similar dedup), got %d", len(entries2), len(entries2))
 	}
 }
+
+
+func TestFetchRSSResource_FragmentFeed_UnchangedContentSkipped(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	testutil.CreateSetting(t, app, "openrouter_api_key", "test-key")
+
+	todayDate := time.Now().UTC().Format(time.RFC1123Z)
+
+	feed := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Moments Feed</title>
+    <item>
+      <title>Today Moments</title>
+      <link>https://example.com/moments/today</link>
+      <guid>moments-today</guid>
+      <description><![CDATA[<p>Fragment A</p><p>Fragment B</p>]]></description>
+      <pubDate>%s</pubDate>
+    </item>
+  </channel>
+</rss>`, todayDate)
+
+	feedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		w.Write([]byte(feed))
+	}))
+	defer feedServer.Close()
+
+	resource := testutil.CreateResource(t, app, "fragment-rss", feedServer.URL, "rss", "healthy", 0, true)
+	resource.Set("fragment_feed", true)
+	app.Save(resource)
+
+	// First fetch — creates 2 fragments and stores content hash
+	err := FetchResource(app, resource, feedServer.Client())
+	if err != nil {
+		t.Fatalf("First FetchResource returned error: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	entries1, _ := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resource.Id})
+	if len(entries1) != 2 {
+		t.Fatalf("first fetch: got %d entries, want 2", len(entries1))
+	}
+
+	RecordSuccess(app, resource)
+
+	// Reload resource to get stored fragment_hashes
+	resource, _ = app.FindRecordById("resources", resource.Id)
+	storedHashes := resource.GetString("fragment_hashes")
+	if storedHashes == "" {
+		t.Fatal("expected fragment_hashes to be stored after first fetch")
+	}
+
+	// Second fetch — identical content, should be skipped entirely (no new entries)
+	err = FetchResource(app, resource, feedServer.Client())
+	if err != nil {
+		t.Fatalf("Second FetchResource returned error: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	entries2, _ := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resource.Id})
+	if len(entries2) != 2 {
+		t.Fatalf("second fetch with unchanged content: got %d entries, want 2", len(entries2))
+	}
+}
+
+func TestFetchRSSResource_FragmentFeed_ChangedContentProcessed(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	testutil.CreateSetting(t, app, "openrouter_api_key", "test-key")
+
+	todayDate := time.Now().UTC().Format(time.RFC1123Z)
+
+	feedV1 := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Moments Feed</title>
+    <item>
+      <title>Today Moments</title>
+      <link>https://example.com/moments/today</link>
+      <guid>moments-today</guid>
+      <description><![CDATA[<p>Fragment A</p>]]></description>
+      <pubDate>%s</pubDate>
+    </item>
+  </channel>
+</rss>`, todayDate)
+
+	feedV2 := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Moments Feed</title>
+    <item>
+      <title>Today Moments</title>
+      <link>https://example.com/moments/today</link>
+      <guid>moments-today</guid>
+      <description><![CDATA[<p>Fragment A</p><p>Brand new fragment</p>]]></description>
+      <pubDate>%s</pubDate>
+    </item>
+  </channel>
+</rss>`, todayDate)
+
+	callCount := 0
+	feedServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/xml")
+		callCount++
+		if callCount == 1 {
+			w.Write([]byte(feedV1))
+		} else {
+			w.Write([]byte(feedV2))
+		}
+	}))
+	defer feedServer.Close()
+
+	resource := testutil.CreateResource(t, app, "fragment-rss", feedServer.URL, "rss", "healthy", 0, true)
+	resource.Set("fragment_feed", true)
+	app.Save(resource)
+
+	// First fetch — creates 1 fragment
+	err := FetchResource(app, resource, feedServer.Client())
+	if err != nil {
+		t.Fatalf("First FetchResource returned error: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	entries1, _ := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resource.Id})
+	if len(entries1) != 1 {
+		t.Fatalf("first fetch: got %d entries, want 1", len(entries1))
+	}
+
+	RecordSuccess(app, resource)
+	resource, _ = app.FindRecordById("resources", resource.Id)
+
+	// Second fetch — content changed (new fragment added), should create the new one
+	err = FetchResource(app, resource, feedServer.Client())
+	if err != nil {
+		t.Fatalf("Second FetchResource returned error: %v", err)
+	}
+	time.Sleep(100 * time.Millisecond)
+
+	entries2, _ := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resource.Id})
+	if len(entries2) != 2 {
+		t.Fatalf("second fetch with changed content: got %d entries, want 2 (1 existing + 1 new)", len(entries2))
+	}
+
+	// Verify the hash was updated
+	resource, _ = app.FindRecordById("resources", resource.Id)
+	updatedHashes := resource.GetString("fragment_hashes")
+	if updatedHashes == "" {
+		t.Fatal("expected fragment_hashes to be updated")
+	}
+}
