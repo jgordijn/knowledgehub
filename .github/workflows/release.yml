@@ -2,8 +2,7 @@ name: Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches: [main]
 
 permissions:
   contents: write
@@ -13,12 +12,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
       - uses: oven-sh/setup-bun@v2
+
+      - name: Determine version bump
+        id: version
+        run: |
+          # Get latest tag (default to v0.0.0 if none)
+          LATEST=$(git tag -l 'v*' --sort=-v:refname | head -1)
+          LATEST=${LATEST:-v0.0.0}
+          echo "latest=$LATEST"
+
+          # Parse current version
+          MAJOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f1)
+          MINOR=$(echo "$LATEST" | sed 's/v//' | cut -d. -f2)
+          PATCH=$(echo "$LATEST" | sed 's/v//' | cut -d. -f3)
+
+          # Check commit message for bump hint (PR title via squash merge)
+          MSG=$(git log -1 --pretty=%s)
+          echo "commit message: $MSG"
+
+          if echo "$MSG" | grep -qi '#major'; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif echo "$MSG" | grep -qi '#minor'; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NEW_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
+          echo "Bumping $LATEST -> $NEW_TAG"
 
       - name: Build frontend
         run: |
@@ -32,7 +62,7 @@ jobs:
       - name: Build binary
         run: |
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o build/knowledgehub ./cmd/knowledgehub
+            go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.new_tag }}" -o build/knowledgehub ./cmd/knowledgehub
 
       - name: Package tarball
         run: |
@@ -40,9 +70,15 @@ jobs:
             -C build knowledgehub \
             -C .. knowledgehub.service knowledgehub-updater.sh knowledgehub-updater.service knowledgehub-updater.timer
 
-      - name: Create release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            build/knowledgehub-linux-amd64.tar.gz
+      - name: Create tag and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG=${{ steps.version.outputs.new_tag }}
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            build/knowledgehub-linux-amd64.tar.gz \
             build/knowledgehub
