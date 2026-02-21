@@ -51,6 +51,11 @@ func main() {
 			return re.JSON(http.StatusOK, map[string]string{"status": "ok"})
 		})
 
+		// Version endpoint
+		se.Router.GET("/api/version", func(re *core.RequestEvent) error {
+			return re.JSON(http.StatusOK, map[string]string{"version": version})
+		})
+
 		// Serve embedded SvelteKit static files
 		uiBuild, err := fs.Sub(uiFS, "ui/build")
 		if err != nil {

@@ -140,14 +140,14 @@
 </script>
 
 <div
-	class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md
+	class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
 		{entry.is_read ? 'opacity-70' : ''}"
 >
 	<!-- Top row: stars + source + time -->
 	<div class="mb-2 flex items-center justify-between gap-2">
 		<div class="flex items-center gap-3">
 			{#if isPending}
-				<div class="flex items-center gap-1 text-slate-400">
+				<div class="flex items-center gap-1 text-slate-400 dark:text-slate-500">
 					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
 						<circle
 							class="opacity-25"
@@ -171,19 +171,19 @@
 					onRate={handleRate}
 				/>
 			{/if}
-			<span class="text-xs text-slate-500">{sourceName}</span>
+			<span class="text-xs text-slate-500 dark:text-slate-400">{sourceName}</span>
 		</div>
-		<span class="shrink-0 text-xs text-slate-400">{relativeTime(displayTime)}</span>
+		<span class="shrink-0 text-xs text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 	</div>
 
 	<!-- Title -->
-	<h3 class="mb-1 text-sm font-semibold text-slate-900 leading-snug">
+	<h3 class="mb-1 text-sm font-semibold text-slate-900 leading-snug dark:text-slate-100">
 		<a
 			href={entry.url}
 			target="_blank"
 			rel="noopener"
 			onclick={markReadAndOpen}
-			class="hover:text-blue-600"
+			class="hover:text-blue-600 dark:hover:text-blue-400"
 		>
 			{entry.title || 'Untitled'}
 		</a>
@@ -191,7 +191,7 @@
 
 	<!-- Summary, fragment content, or pending -->
 	{#if isPending}
-		<div class="flex items-center gap-2 py-2 text-sm text-slate-400">
+		<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
 			<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
 				<circle
 					class="opacity-25"
@@ -210,11 +210,11 @@
 			Processing…
 		</div>
 	{:else if isFragment}
-		<div class="fragment-content mb-3 text-sm text-slate-600 leading-relaxed">
+		<div class="fragment-content mb-3 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
 			{@html sanitizeHTML(entry.raw_content)}
 		</div>
 	{:else}
-		<p class="mb-3 text-sm text-slate-600 leading-relaxed">
+		<p class="mb-3 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
 			{entry.summary}
 		</p>
 	{/if}
@@ -224,7 +224,7 @@
 		<div class="mb-2">
 			<button
 				onclick={() => (showLinks = !showLinks)}
-				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
 			>
 				<svg
 					class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}"
@@ -242,14 +242,14 @@
 								href={link.href}
 								target="_blank"
 								rel="noopener"
-								class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px]"
+								class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300"
 								title={link.href}
 							>
 								{link.text}
 							</a>
 							<button
 								onclick={() => onOpenLink(entry, link.href)}
-								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
 								title="Get AI summary"
 							>
 								Summarize
@@ -269,8 +269,8 @@
 			onclick={toggleRead}
 			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
 				{entry.is_read
-				? 'text-green-600 hover:bg-green-50'
-				: 'text-slate-400 hover:bg-slate-50'}"
+				? 'text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30'
+				: 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-700'}"
 			title={entry.is_read ? 'Mark as unread' : 'Mark as read'}
 		>
 			✓
@@ -281,8 +281,8 @@
 			onclick={toggleBookmark}
 			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
 				{entry.bookmarked
-				? 'text-amber-500 hover:bg-amber-50'
-				: 'text-slate-400 hover:bg-slate-50'}"
+				? 'text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30'
+				: 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-700'}"
 			title={entry.bookmarked ? 'Remove from Read Later' : 'Read Later'}
 		>
 			<svg class="h-4 w-4" viewBox="0 0 24 24" fill={entry.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
@@ -293,7 +293,7 @@
 		<!-- Chat button -->
 		<button
 			onclick={() => onOpenChat(entry)}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 			title="Chat about this article"
 		>
 			🤖
@@ -305,7 +305,7 @@
 			target="_blank"
 			rel="noopener"
 			onclick={markReadAndOpen}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 			title="Open article"
 		>
 			↗
@@ -361,5 +361,23 @@
 	}
 	.fragment-content :global(p:last-child) {
 		margin-bottom: 0;
+	}
+
+	/* Dark mode overrides for fragment content */
+	:global(.dark) .fragment-content :global(a) {
+		color: var(--color-blue-400);
+	}
+	:global(.dark) .fragment-content :global(a:hover) {
+		color: var(--color-blue-300);
+	}
+	:global(.dark) .fragment-content :global(blockquote) {
+		border-left-color: var(--color-slate-600);
+		color: var(--color-slate-400);
+	}
+	:global(.dark) .fragment-content :global(code) {
+		background: var(--color-slate-700);
+	}
+	:global(.dark) .fragment-content :global(pre) {
+		background: var(--color-slate-700);
 	}
 </style>

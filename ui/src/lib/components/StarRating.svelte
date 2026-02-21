@@ -26,7 +26,7 @@
 					? isUserRated
 						? 'text-amber-400'
 						: 'text-amber-400/70'
-					: 'text-slate-200'}"
+					: 'text-slate-200 dark:text-slate-600'}"
 			onmouseenter={() => (hovered = star)}
 			onmouseleave={() => (hovered = 0)}
 			onclick={() => onRate?.(star)}

@@ -135,6 +135,16 @@ The `testutil` package provides helpers that create an in-memory PocketBase app 
 - AI client calls are mocked via `clientCompleteFunc` variable override in tests
 - HTTP calls are mocked via `DefaultHTTPClient` or `httptest.NewServer`
 
+### Running the app for testing/proofing
+
+Always start the app in a **separate tmux session** so it doesn't block the agent:
+
+```bash
+tmux new-session -d -s knowledgehub 'KH_DATA_DIR=./proof_data ./knowledgehub serve --http=127.0.0.1:18090'
+# To stop:
+tmux kill-session -t knowledgehub
+```
+
 ### Adding a new PocketBase collection
 
 1. Add `ensure<Name>Collection(app core.App)` function in `cmd/knowledgehub/collections.go`
