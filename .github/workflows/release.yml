@@ -23,8 +23,8 @@ jobs:
       - name: Build frontend
         run: |
           cd ui && bun install && bun run build
-          rm -rf ../cmd/knowledgehub/ui/build
-          cp -r build ../cmd/knowledgehub/ui/build
+          mkdir -p ../cmd/knowledgehub/ui/build
+          cp -r build/* ../cmd/knowledgehub/ui/build/
 
       - name: Run tests
         run: go test ./internal/... -count=1
