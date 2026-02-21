@@ -32,7 +32,7 @@ jobs:
       - name: Build binary
         run: |
           CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -ldflags="-s -w" -o build/knowledgehub ./cmd/knowledgehub
+            go build -ldflags="-s -w -X main.version=${GITHUB_REF_NAME}" -o build/knowledgehub ./cmd/knowledgehub
 
       - name: Package tarball
         run: |

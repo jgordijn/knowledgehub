@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"fmt"
 	"os"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
@@ -17,7 +18,15 @@ import (
 //go:embed all:ui/build
 var uiFS embed.FS
 
+var version = "dev"
+
+
 func main() {
+	if len(os.Args) == 2 && os.Args[1] == "--version" {
+		fmt.Println(version)
+		return
+	}
+
 	dataDir := os.Getenv("KH_DATA_DIR")
 	if dataDir == "" {
 		dataDir = "./kh_data"
