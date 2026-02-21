@@ -2,8 +2,10 @@
 	import { onMount } from 'svelte';
 	import pb from '$lib/pb';
 
+	const DISMISS_KEY = 'quarantine-banner-dismissed';
+
 	let quarantinedCount = $state(0);
-	let dismissed = $state(false);
+	let dismissed = $state(typeof sessionStorage !== 'undefined' && sessionStorage.getItem(DISMISS_KEY) === 'true');
 
 	onMount(async () => {
 		try {
@@ -29,7 +31,7 @@
 				</a>
 			</p>
 			<button
-				onclick={() => (dismissed = true)}
+				onclick={() => { dismissed = true; sessionStorage.setItem(DISMISS_KEY, 'true'); }}
 				class="flex h-6 w-6 items-center justify-center rounded text-red-400 hover:bg-red-100 hover:text-red-600 dark:text-red-500 dark:hover:bg-red-900/50 dark:hover:text-red-300"
 				aria-label="Dismiss"
 			>
