@@ -21,11 +21,10 @@ func TestSummarizeAndScore_EmptyContent(t *testing.T) {
 	entry.Set("processing_status", "pending")
 	app.Save(entry)
 
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return `{"summary":"Minimal article.","stars":2}`, nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := SummarizeAndScore(app, entry)
 	if err != nil {
@@ -56,16 +55,16 @@ func TestSummarizeAndScore_WithProfileAndCorrections(t *testing.T) {
 	app.Save(entry)
 
 	var capturedPrompt string
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		for _, m := range messages {
 			if m.Role == "user" {
 				capturedPrompt = m.Content
 			}
 		}
 		return `{"summary":"Great Kotlin guide.","stars":5}`, nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := SummarizeAndScore(app, entry)
 	if err != nil {
@@ -93,18 +92,16 @@ func TestSummarizeAndScore_AIReturnsBadJSON(t *testing.T) {
 	entry.Set("processing_status", "pending")
 	app.Save(entry)
 
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return "This is not JSON at all", nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := SummarizeAndScore(app, entry)
 	if err == nil {
 		t.Error("expected error for invalid JSON response")
 	}
 }
-
 
 func TestScoreOnly(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
@@ -126,11 +123,10 @@ func TestScoreOnly(t *testing.T) {
 	entry.Set("is_fragment", true)
 	app.Save(entry)
 
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return `{"summary":"","stars":4}`, nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := ScoreOnly(app, entry)
 	if err != nil {

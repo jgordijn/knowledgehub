@@ -4,6 +4,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
@@ -35,6 +36,11 @@ func main() {
 		routes.RegisterTriggerRoutes(se)
 		routes.RegisterLinkSummaryRoute(se)
 		registerSetupRoutes(se)
+
+		// Health check endpoint
+		se.Router.GET("/health", func(re *core.RequestEvent) error {
+			return re.JSON(http.StatusOK, map[string]string{"status": "ok"})
+		})
 
 		// Serve embedded SvelteKit static files
 		uiBuild, err := fs.Sub(uiFS, "ui/build")

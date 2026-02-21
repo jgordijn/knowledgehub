@@ -97,11 +97,11 @@ sudo chown -R knowledgehub:knowledgehub /opt/knowledgehub
 ### Deploy
 
 ```bash
-# Build the release binary
-make release
+# Download the latest release (or build with: make release)
+curl -LO https://github.com/jgordijn/knowledgehub/releases/latest/download/knowledgehub-linux-amd64.tar.gz
 
-# Copy to the target machine
-scp build/knowledgehub-linux-amd64.tar.gz yourhost:/tmp/
+# Copy to the target machine (skip if downloading directly on the host)
+scp knowledgehub-linux-amd64.tar.gz yourhost:/tmp/
 
 # On the target machine
 ssh yourhost

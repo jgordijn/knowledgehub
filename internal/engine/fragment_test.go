@@ -151,11 +151,10 @@ func TestSplitFragmentsWithAI(t *testing.T) {
 
 	// Heuristic produces 4 fragments: [0] Mario, [1] Large PRs, [2] Context+blockquote, [3] I know, [4] Cloudflare
 	// AI should group [0,1], [2,3], [4]
-	orig := fragmentCompleteFunc
-	fragmentCompleteFunc = func(apiKey, model string, messages []ai.Message) (string, error) {
+	restore := SetFragmentCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
 		return `{"groups": [[0, 1], [2, 3], [4]]}`, nil
-	}
-	defer func() { fragmentCompleteFunc = orig }()
+	})
+	defer restore()
 
 	frags := SplitFragmentsWithAI(html, "test-key", "test-model")
 
@@ -176,11 +175,10 @@ func TestSplitFragmentsWithAI(t *testing.T) {
 func TestSplitFragmentsWithAI_FallbackOnError(t *testing.T) {
 	html := `<p>First.</p><p>Second.</p>`
 
-	orig := fragmentCompleteFunc
-	fragmentCompleteFunc = func(apiKey, model string, messages []ai.Message) (string, error) {
+	restore := SetFragmentCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
 		return "", fmt.Errorf("API unavailable")
-	}
-	defer func() { fragmentCompleteFunc = orig }()
+	})
+	defer restore()
 
 	frags := SplitFragmentsWithAI(html, "test-key", "test-model")
 
@@ -193,11 +191,10 @@ func TestSplitFragmentsWithAI_FallbackOnError(t *testing.T) {
 func TestSplitFragmentsWithAI_FallbackOnBadJSON(t *testing.T) {
 	html := `<p>First.</p><p>Second.</p>`
 
-	orig := fragmentCompleteFunc
-	fragmentCompleteFunc = func(apiKey, model string, messages []ai.Message) (string, error) {
+	restore := SetFragmentCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
 		return "not json", nil
-	}
-	defer func() { fragmentCompleteFunc = orig }()
+	})
+	defer restore()
 
 	frags := SplitFragmentsWithAI(html, "test-key", "test-model")
 

@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/url"
 	"strings"
+	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 
@@ -19,11 +20,35 @@ type Fragment struct {
 	Title string // Auto-generated title from the text content
 }
 
+// fragmentCompleteMu protects fragmentCompleteFunc from concurrent test modifications.
+var fragmentCompleteMu sync.RWMutex
+
 // fragmentCompleteFunc is the function used to call the AI for fragment grouping.
-// It can be overridden in tests.
+// It can be overridden in tests via SetFragmentCompleteFunc.
 var fragmentCompleteFunc = func(apiKey, model string, messages []ai.Message) (string, error) {
 	client := ai.NewClient(apiKey, model)
 	return client.Complete(messages)
+}
+
+// callFragmentComplete invokes fragmentCompleteFunc with read-lock protection.
+func callFragmentComplete(apiKey, model string, messages []ai.Message) (string, error) {
+	fragmentCompleteMu.RLock()
+	fn := fragmentCompleteFunc
+	fragmentCompleteMu.RUnlock()
+	return fn(apiKey, model, messages)
+}
+
+// SetFragmentCompleteFunc replaces fragmentCompleteFunc for testing and returns a restore function.
+func SetFragmentCompleteFunc(fn func(apiKey, model string, messages []ai.Message) (string, error)) func() {
+	fragmentCompleteMu.Lock()
+	orig := fragmentCompleteFunc
+	fragmentCompleteFunc = fn
+	fragmentCompleteMu.Unlock()
+	return func() {
+		fragmentCompleteMu.Lock()
+		fragmentCompleteFunc = orig
+		fragmentCompleteMu.Unlock()
+	}
 }
 
 // SplitFragments splits HTML content into individual fragments using a heuristic.
@@ -90,7 +115,7 @@ func SplitFragmentsWithAI(html, apiKey, model string) []Fragment {
 %s
 Return JSON only: {"groups": [[0, 1], [2], ...]}`, sb.String())
 
-	response, err := fragmentCompleteFunc(apiKey, model, []ai.Message{
+	response, err := callFragmentComplete(apiKey, model, []ai.Message{
 		{Role: "system", Content: "You group content blocks into coherent fragments. Always respond with valid JSON."},
 		{Role: "user", Content: prompt},
 	})

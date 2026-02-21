@@ -19,12 +19,13 @@
 	{#each [1, 2, 3, 4, 5] as star}
 		<button
 			class="h-6 w-6 min-w-[24px] text-lg leading-none transition-colors
+				focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 rounded
 				{hovered >= star
 				? 'text-amber-400'
 				: (hovered > 0 ? 0 : effectiveStars) >= star
 					? isUserRated
 						? 'text-amber-400'
-						: 'text-amber-300/60'
+						: 'text-amber-400/70'
 					: 'text-slate-200'}"
 			onmouseenter={() => (hovered = star)}
 			onmouseleave={() => (hovered = 0)}

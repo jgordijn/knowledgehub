@@ -16,6 +16,8 @@
 	let markReadOpen = $state(false);
 	let unreadCount = $state(0);
 	let bookmarkedCount = $state(0);
+	let undoEntries = $state<RecordModel[]>([]);
+	let undoTimeout: ReturnType<typeof setTimeout> | undefined;
 
 	// Chat state
 	let chatEntry = $state<RecordModel | null>(null);
@@ -50,6 +52,8 @@
 
 	async function loadEntries() {
 		loading = true;
+		undoEntries = [];
+		clearTimeout(undoTimeout);
 		try {
 			const filters: string[] = ['resource.active = true'];
 			if (readFilter === 'unread') {
@@ -117,7 +121,34 @@
 
 
 	function handleEntryUpdate(updated: RecordModel) {
-		entries = entries.map((e) => (e.id === updated.id ? updated : e));
+		const existing = entries.find((e) => e.id === updated.id);
+
+		if (readFilter === 'unread' && updated.is_read && existing) {
+			// Entry just marked as read on unread view — remove and offer undo
+			entries = entries.filter((e) => e.id !== updated.id);
+			undoEntries = [...undoEntries, { ...existing, ...updated }];
+			clearTimeout(undoTimeout);
+			undoTimeout = setTimeout(() => { undoEntries = []; }, 15000);
+		} else {
+			entries = entries.map((e) => (e.id === updated.id ? updated : e));
+		}
+
+		loadUnreadCount();
+		loadBookmarkedCount();
+	}
+
+	async function undoMarkRead() {
+		const toUndo = [...undoEntries];
+		undoEntries = [];
+		clearTimeout(undoTimeout);
+
+		await Promise.all(
+			toUndo.map((e) =>
+				pb.collection('entries').update(e.id, { is_read: false }).catch(() => {})
+			)
+		);
+
+		entries = [...entries, ...toUndo.map((e) => ({ ...e, is_read: false }))];
 		loadUnreadCount();
 		loadBookmarkedCount();
 	}
@@ -220,10 +251,11 @@
 
 	onDestroy(() => {
 		unsub?.();
+		clearTimeout(undoTimeout);
 	});
 </script>
 
-<svelte:window onclick={() => (markReadOpen = false)} />
+
 
 
 <div class="space-y-4">
@@ -270,9 +302,10 @@
 		</div>
 
 		<!-- Mark as read -->
-		<div class="relative">
+		<!-- svelte-ignore a11y_no_static_element_interactions -->
+		<div class="relative" onfocusout={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) markReadOpen = false; }}>
 			<button
-				onclick={(e) => { e.stopPropagation(); markReadOpen = !markReadOpen; }}
+				onclick={() => (markReadOpen = !markReadOpen)}
 				class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
 			>
 				Mark read ▾
@@ -333,6 +366,21 @@
 					{/each}
 				</div>
 			{/if}
+		</div>
+	{/if}
+
+	<!-- Undo banner -->
+	{#if undoEntries.length > 0}
+		<div class="flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-md">
+			<span>
+				{undoEntries.length === 1 ? '1 article' : `${undoEntries.length} articles`} marked as read
+			</span>
+			<button
+				onclick={undoMarkRead}
+				class="rounded-md bg-white/20 px-3 py-1 text-sm font-medium hover:bg-white/30 transition-colors"
+			>
+				Undo
+			</button>
 		</div>
 	{/if}
 

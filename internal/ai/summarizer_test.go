@@ -183,13 +183,13 @@ func TestSummarizeAndScore(t *testing.T) {
 	app.Save(entry)
 
 	// Patch the client to use our mock server
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		c := NewClient(apiKey, model)
 		c.BaseURL = server.URL
 		return c.Complete(messages)
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := SummarizeAndScore(app, entry)
 	if err != nil {

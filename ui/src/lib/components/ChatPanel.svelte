@@ -126,9 +126,17 @@
 	}
 
 	onMount(() => {
-		// Focus trap: close on Escape
 		function onKey(e: KeyboardEvent) {
 			if (e.key === 'Escape') onClose();
+			// Ctrl+Left/Right to resize panel
+			if (e.ctrlKey && e.key === 'ArrowLeft') {
+				e.preventDefault();
+				panelWidth = Math.min(panelWidth + 100, window.innerWidth * 0.8);
+			}
+			if (e.ctrlKey && e.key === 'ArrowRight') {
+				e.preventDefault();
+				panelWidth = Math.max(panelWidth - 100, 300);
+			}
 		}
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
@@ -144,10 +152,13 @@
 	class="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:top-0 md:right-0 md:bottom-0 md:border-l md:border-slate-200 md:shadow-xl {dragging ? 'select-none' : ''}"
 	style:width={`${panelWidth}px`}
 >
-	<!-- Drag handle -->
+	<!-- Drag handle (also keyboard-accessible via Ctrl+Arrow) -->
 	<div
 		class="hidden md:block absolute left-0 top-0 bottom-0 w-1.5 cursor-col-resize hover:bg-blue-400 hover:opacity-40 transition-colors z-10 {dragging ? 'bg-blue-400 opacity-40' : ''}"
 		onpointerdown={onDragStart}
+		role="separator"
+		aria-orientation="vertical"
+		aria-label="Resize chat panel (use Ctrl+Left/Right)"
 	></div>
 	<!-- Header -->
 	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3">

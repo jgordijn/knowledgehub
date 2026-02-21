@@ -2,9 +2,17 @@ package main
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// setupRateLimiter limits POST /api/setup to 5 attempts per minute.
+var setupRateLimiter = struct {
+	sync.Mutex
+	attempts []time.Time
+}{}
 
 func registerSetupRoutes(se *core.ServeEvent) {
 	// GET /api/setup-status — returns whether initial setup is needed
@@ -15,6 +23,24 @@ func registerSetupRoutes(se *core.ServeEvent) {
 
 	// POST /api/setup — creates the first superuser (only when none exist)
 	se.Router.POST("/api/setup", func(re *core.RequestEvent) error {
+		// Rate limit: max 5 attempts per minute
+		setupRateLimiter.Lock()
+		now := time.Now()
+		cutoff := now.Add(-1 * time.Minute)
+		valid := setupRateLimiter.attempts[:0]
+		for _, t := range setupRateLimiter.attempts {
+			if t.After(cutoff) {
+				valid = append(valid, t)
+			}
+		}
+		setupRateLimiter.attempts = valid
+		if len(setupRateLimiter.attempts) >= 5 {
+			setupRateLimiter.Unlock()
+			return re.JSON(http.StatusTooManyRequests, map[string]string{"error": "Too many attempts. Try again later."})
+		}
+		setupRateLimiter.attempts = append(setupRateLimiter.attempts, now)
+		setupRateLimiter.Unlock()
+
 		if hasSuperusers(re.App) {
 			return re.JSON(http.StatusForbidden, map[string]string{
 				"error": "Setup already completed. Use the login form.",

@@ -186,7 +186,15 @@ func looksLikeFeedBody(body []byte) bool {
 
 
 func loadExistingGUIDs(app core.App, resourceID string) (map[string]bool, error) {
-	records, err := app.FindRecordsByFilter("entries", "resource = {:id}", "", 0, 0, map[string]any{"id": resourceID})
+	// Only load GUIDs from the last 13 months to bound memory usage.
+	// FetchRSS already skips articles older than 12 months, so this is safe.
+	cutoff := time.Now().UTC().AddDate(0, -13, 0).Format(time.RFC3339)
+	records, err := app.FindRecordsByFilter(
+		"entries",
+		"resource = {:id} && created >= {:cutoff}",
+		"", 0, 0,
+		map[string]any{"id": resourceID, "cutoff": cutoff},
+	)
 	if err != nil {
 		return nil, err
 	}

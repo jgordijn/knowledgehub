@@ -3,12 +3,20 @@ package engine
 import (
 	"log"
 	"net/http"
+	"runtime/debug"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jgordijn/knowledgehub/internal/ai"
 	"github.com/pocketbase/pocketbase/core"
 )
+
+// maxConcurrentAI limits the number of concurrent AI processing goroutines.
+var maxConcurrentAI = make(chan struct{}, 5)
+
+// PanicCount tracks the number of recovered panics in processEntry (for monitoring).
+var PanicCount atomic.Int64
 
 // FetchResource fetches new entries for a resource and creates them in the DB.
 // It handles both RSS feeds and watchlist (scraper) resources.
@@ -204,8 +212,12 @@ func createEntry(app core.App, resourceID, title, entryURL, guid, content string
 		return err
 	}
 
-	// Trigger AI processing in the background
-	go processEntry(app, record)
+	// Trigger AI processing in the background (bounded concurrency)
+	maxConcurrentAI <- struct{}{}
+	go func() {
+		defer func() { <-maxConcurrentAI }()
+		processEntry(app, record)
+	}()
 
 	return nil
 }
@@ -213,7 +225,8 @@ func createEntry(app core.App, resourceID, title, entryURL, guid, content string
 func processEntry(app core.App, record *core.Record) {
 	defer func() {
 		if r := recover(); r != nil {
-			log.Printf("Recovered panic in processEntry for %s: %v", record.Id, r)
+			PanicCount.Add(1)
+			log.Printf("PANIC in processEntry for %s: %v\n%s", record.Id, r, debug.Stack())
 		}
 	}()
 

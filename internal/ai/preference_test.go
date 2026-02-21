@@ -22,11 +22,11 @@ func TestGeneratePreferenceProfile(t *testing.T) {
 	testutil.CreateEntryWithStars(t, app, resource.Id, "JS Article", "https://example.com/js", 5, 1)
 
 	// Mock the AI client
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return "User prefers Go over JavaScript programming.", nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := GeneratePreferenceProfile(app)
 	if err != nil {
@@ -77,11 +77,10 @@ func TestGeneratePreferenceProfile_UpdatesExisting(t *testing.T) {
 	testutil.CreateEntryWithStars(t, app, resource.Id, "Article A", "https://example.com/a", 2, 5)
 	testutil.CreatePreference(t, app, "Old profile", "2024-01-01 12:00:00.000Z")
 
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return "Updated preference profile.", nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := GeneratePreferenceProfile(app)
 	if err != nil {
@@ -158,13 +157,12 @@ func TestCheckAndRegeneratePreferences(t *testing.T) {
 		testutil.CreateEntryWithStars(t, app, resource.Id, "Article", "https://example.com/"+string(rune('a'+i)), 2, 5)
 	}
 
-	origComplete := clientCompleteFunc
 	called := false
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		called = true
 		return "Profile", nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	CheckAndRegeneratePreferences(app)
 
@@ -185,13 +183,12 @@ func TestCheckAndRegeneratePreferences_AboveThreshold(t *testing.T) {
 		testutil.CreateEntryWithStars(t, app, resource.Id, "Article", "https://example.com/"+string(rune('a'+i)), 2, 5)
 	}
 
-	origComplete := clientCompleteFunc
 	called := false
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		called = true
 		return "New profile", nil
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	CheckAndRegeneratePreferences(app)
 

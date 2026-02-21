@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { RecordModel } from 'pocketbase';
 	import pb from '$lib/pb';
+	import { sanitizeHTML } from '$lib/markdown';
 	import StarRating from './StarRating.svelte';
 
 	let {
@@ -210,7 +211,7 @@
 		</div>
 	{:else if isFragment}
 		<div class="fragment-content mb-3 text-sm text-slate-600 leading-relaxed">
-			{@html entry.raw_content}
+			{@html sanitizeHTML(entry.raw_content)}
 		</div>
 	{:else}
 		<p class="mb-3 text-sm text-slate-600 leading-relaxed">

@@ -56,11 +56,10 @@ func TestGeneratePreferenceProfile_AIFailure(t *testing.T) {
 	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
 	testutil.CreateEntryWithStars(t, app, resource.Id, "Article", "https://example.com/a", 2, 5)
 
-	origComplete := clientCompleteFunc
-	clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
 		return "", fmt.Errorf("AI service unavailable")
-	}
-	defer func() { clientCompleteFunc = origComplete }()
+	})
+	defer restore()
 
 	err := GeneratePreferenceProfile(app)
 	if err == nil {

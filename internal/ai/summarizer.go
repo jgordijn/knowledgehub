@@ -5,15 +5,40 @@ import (
 	"fmt"
 	"log"
 	"strings"
+	"sync"
 
 	htmltomarkdown "github.com/JohannesKaufmann/html-to-markdown/v2"
 	"github.com/pocketbase/pocketbase/core"
 )
 
+// clientCompleteMu protects clientCompleteFunc from concurrent test modifications.
+var clientCompleteMu sync.RWMutex
+
 // clientCompleteFunc is the function used to call the AI. It can be overridden in tests.
 var clientCompleteFunc = func(apiKey, model string, messages []Message) (string, error) {
 	client := NewClient(apiKey, model)
 	return client.Complete(messages)
+}
+
+// callComplete invokes clientCompleteFunc with read-lock protection.
+func callComplete(apiKey, model string, messages []Message) (string, error) {
+	clientCompleteMu.RLock()
+	fn := clientCompleteFunc
+	clientCompleteMu.RUnlock()
+	return fn(apiKey, model, messages)
+}
+
+// SetCompleteFunc replaces clientCompleteFunc for testing and returns a restore function.
+func SetCompleteFunc(fn func(apiKey, model string, messages []Message) (string, error)) func() {
+	clientCompleteMu.Lock()
+	orig := clientCompleteFunc
+	clientCompleteFunc = fn
+	clientCompleteMu.Unlock()
+	return func() {
+		clientCompleteMu.Lock()
+		clientCompleteFunc = orig
+		clientCompleteMu.Unlock()
+	}
 }
 
 // SummaryResult holds the parsed AI response for summarization + scoring.
@@ -42,7 +67,7 @@ func SummarizeAndScore(app core.App, entry *core.Record) error {
 
 	prompt := buildSummaryPrompt(title, content, profile, corrections)
 
-	response, err := clientCompleteFunc(apiKey, model, []Message{
+	response, err := callComplete(apiKey, model, []Message{
 		{Role: "system", Content: "You are a helpful assistant that summarizes articles and rates their relevance. Always respond with valid JSON."},
 		{Role: "user", Content: prompt},
 	})
@@ -82,7 +107,7 @@ func ScoreOnly(app core.App, entry *core.Record) error {
 
 	prompt := buildScoreOnlyPrompt(title, content, profile, corrections)
 
-	response, err := clientCompleteFunc(apiKey, model, []Message{
+	response, err := callComplete(apiKey, model, []Message{
 		{Role: "system", Content: "You are a helpful assistant that rates article relevance. Always respond with valid JSON."},
 		{Role: "user", Content: prompt},
 	})
