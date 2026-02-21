@@ -121,11 +121,32 @@ curl http://localhost:8090    # should return the UI
 
 ## Updating
 
+### Automatic updates
+
+The release tarball includes an auto-updater that checks GitHub for new releases every minute and installs them automatically.
+
 ```bash
-# On the target machine
+cd /opt/knowledgehub
+sudo cp knowledgehub-updater.sh /opt/knowledgehub/
+sudo cp knowledgehub-updater.service knowledgehub-updater.timer /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now knowledgehub-updater.timer
+```
+
+Check update status:
+
+```bash
+systemctl status knowledgehub-updater.timer    # next/last run
+journalctl -u knowledgehub-updater.service     # update logs
+```
+
+### Manual updates
+
+```bash
 sudo systemctl stop knowledgehub
 cd /opt/knowledgehub
-sudo tar xzf /tmp/knowledgehub-linux-amd64.tar.gz
+curl -LO https://github.com/jgordijn/knowledgehub/releases/latest/download/knowledgehub
+chmod +x knowledgehub
 sudo systemctl start knowledgehub
 ```
 
