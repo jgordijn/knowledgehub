@@ -135,6 +135,16 @@ The `testutil` package provides helpers that create an in-memory PocketBase app 
 - AI client calls are mocked via `clientCompleteFunc` variable override in tests
 - HTTP calls are mocked via `DefaultHTTPClient` or `httptest.NewServer`
 
+### Running the app for testing/proofing
+
+Always start the app in a **separate tmux session** so it doesn't block the agent:
+
+```bash
+tmux new-session -d -s knowledgehub 'KH_DATA_DIR=./proof_data ./knowledgehub serve --http=127.0.0.1:18090'
+# To stop:
+tmux kill-session -t knowledgehub
+```
+
 ### Adding a new PocketBase collection
 
 1. Add `ensure<Name>Collection(app core.App)` function in `cmd/knowledgehub/collections.go`
@@ -147,38 +157,32 @@ The `testutil` package provides helpers that create an in-memory PocketBase app 
 2. Register it via `se.Router` in `main.go`'s `OnServe` hook
 3. Write tests using `NewTestApp` and `httptest`
 
-## How to Release a New Version
+## Versioning and Releases
 
-The release produces a single Linux amd64 binary with the frontend embedded.
+Releases are **fully automated** via GitHub Actions. Every merge to `main` triggers a build, test, and release.
 
-```bash
-# 1. Ensure tests pass
-make test
+### Version bumping convention
 
-# 2. Build the release binary
-make release
+The version bump is controlled by the **PR title** (which becomes the squash merge commit message):
 
-# 3. The output is at:
-#    build/knowledgehub                          — the binary
-#    build/knowledgehub-linux-amd64.tar.gz       — tarball with binary + systemd unit
-```
+| PR title contains | Bump | Example |
+|-------------------|------|---------|
+| *(nothing special)* | **patch** | v0.1.2 → v0.1.3 |
+| `#minor` | **minor** | v0.1.3 → v0.2.0 |
+| `#major` | **major** | v0.2.0 → v1.0.0 |
 
-To deploy to the LXC host:
+**When creating PRs**, include `#minor` or `#major` in the title when appropriate. If neither is present, the release will be a patch bump.
 
-```bash
-# Copy to the target machine (via Tailscale)
-scp build/knowledgehub-linux-amd64.tar.gz knowledgehub-host:/tmp/
+### What the CI pipeline does
 
-# On the target machine:
-ssh knowledgehub-host
-cd /opt/knowledgehub
-sudo systemctl stop knowledgehub
-tar xzf /tmp/knowledgehub-linux-amd64.tar.gz
-sudo systemctl start knowledgehub
-```
+1. Determines the next version from the latest git tag + commit message
+2. Builds the frontend (Bun) and backend (Go)
+3. Runs tests
+4. Creates a git tag and GitHub release with the binary and tarball
+5. The auto-updater on the LXC host picks up new releases automatically
 
-The systemd service file (`knowledgehub.service`) expects:
-- Binary at `/opt/knowledgehub/knowledgehub`
-- Data directory at `/opt/knowledgehub/data` (set via `KH_DATA_DIR`)
-- Listens on `0.0.0.0:8090`
-- Runs as `knowledgehub` user/group
+### GitHub repo settings
+
+- **Squash merge only** — merge commits and rebase are disabled
+- **PR title as commit message** — so version hints flow through automatically
+- **Auto-delete branch** after merge

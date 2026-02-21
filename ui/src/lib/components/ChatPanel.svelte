@@ -149,7 +149,7 @@
 <!-- Panel -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:top-0 md:right-0 md:bottom-0 md:border-l md:border-slate-200 md:shadow-xl {dragging ? 'select-none' : ''}"
+	class="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:top-0 md:right-0 md:bottom-0 md:border-l md:border-slate-200 md:shadow-xl dark:bg-slate-800 dark:md:border-slate-700 {dragging ? 'select-none' : ''}"
 	style:width={`${panelWidth}px`}
 >
 	<!-- Drag handle (also keyboard-accessible via Ctrl+Arrow) -->
@@ -161,14 +161,14 @@
 		aria-label="Resize chat panel (use Ctrl+Left/Right)"
 	></div>
 	<!-- Header -->
-	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
 		<div class="min-w-0 flex-1">
-			<h2 class="truncate text-sm font-semibold text-slate-900">{entryTitle}</h2>
-			<p class="text-xs text-slate-500">Chat about this article</p>
+			<h2 class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{entryTitle}</h2>
+			<p class="text-xs text-slate-500 dark:text-slate-400">Chat about this article</p>
 		</div>
 		<button
 			onclick={onClose}
-			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 			aria-label="Close chat"
 		>
 			✕
@@ -178,7 +178,7 @@
 	<!-- Messages -->
 	<div bind:this={messagesEl} class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 		{#if messages.length === 0}
-			<div class="py-12 text-center text-sm text-slate-400">
+			<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
 				Ask anything about this article…
 			</div>
 		{/if}
@@ -188,7 +188,7 @@
 					class="max-w-[85%] rounded-lg px-3 py-2 text-sm
 						{msg.role === 'user'
 						? 'bg-blue-600 text-white whitespace-pre-wrap'
-						: 'bg-slate-100 text-slate-800 prose prose-sm prose-slate'}"
+						: 'bg-slate-100 text-slate-800 prose prose-sm prose-slate dark:bg-slate-700 dark:text-slate-200 dark:prose-invert'}"
 				>
 					{#if !msg.content && streaming && msg.role === 'assistant'}
 						<span class="typing-dots">
@@ -207,7 +207,7 @@
 	</div>
 
 	<!-- Input -->
-	<div class="border-t border-slate-200 px-4 py-3">
+	<div class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
 		<div class="flex gap-2">
 			<input
 				type="text"
@@ -215,7 +215,7 @@
 				onkeydown={handleKeydown}
 				placeholder="Type a message…"
 				disabled={streaming}
-				class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-50"
+				class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 			/>
 			<button
 				onclick={sendMessage}

@@ -79,23 +79,23 @@
 
 {#if checking}
 	<div class="flex min-h-[60vh] items-center justify-center">
-		<p class="text-sm text-slate-400">Loading…</p>
+		<p class="text-sm text-slate-400 dark:text-slate-500">Loading…</p>
 	</div>
 {:else}
 	<div class="flex min-h-[60vh] items-center justify-center">
 		<div class="w-full max-w-sm space-y-6">
 			<div class="text-center">
-				<h1 class="text-2xl font-bold text-slate-900">KnowledgeHub</h1>
+				<h1 class="text-2xl font-bold text-slate-900 dark:text-slate-100">KnowledgeHub</h1>
 				{#if needsSetup}
-					<p class="mt-1 text-sm text-slate-500">Create your account to get started</p>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Create your account to get started</p>
 				{:else}
-					<p class="mt-1 text-sm text-slate-500">Sign in to continue</p>
+					<p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Sign in to continue</p>
 				{/if}
 			</div>
 
 			{#if setupDone}
 				<div
-					class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700"
+					class="rounded-md border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/30 dark:text-green-300"
 				>
 					Account created! Sign in below.
 				</div>
@@ -106,18 +106,18 @@
 					e.preventDefault();
 					needsSetup ? handleSetup() : handleLogin();
 				}}
-				class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm"
+				class="space-y-4 rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800"
 			>
 				{#if error}
 					<div
-						class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+						class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300"
 					>
 						{error}
 					</div>
 				{/if}
 
 				<div>
-					<label for="email" class="mb-1 block text-sm font-medium text-slate-700">
+					<label for="email" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
 						Email
 					</label>
 					<input
@@ -125,12 +125,12 @@
 						type="email"
 						bind:value={email}
 						placeholder="you@example.com"
-						class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+						class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 					/>
 				</div>
 
 				<div>
-					<label for="password" class="mb-1 block text-sm font-medium text-slate-700">
+					<label for="password" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
 						Password
 					</label>
 					<input
@@ -138,7 +138,7 @@
 						type="password"
 						bind:value={password}
 						placeholder={needsSetup ? 'Min. 8 characters' : '••••••••'}
-						class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+						class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 					/>
 				</div>
 

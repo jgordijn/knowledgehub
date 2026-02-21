@@ -203,7 +203,7 @@
 <!-- Panel -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
-	class="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:top-0 md:right-0 md:bottom-0 md:border-l md:border-slate-200 md:shadow-xl {dragging ? 'select-none' : ''}"
+	class="fixed inset-0 z-50 flex flex-col bg-white md:inset-auto md:top-0 md:right-0 md:bottom-0 md:border-l md:border-slate-200 md:shadow-xl dark:bg-slate-800 dark:md:border-slate-700 {dragging ? 'select-none' : ''}"
 	style:width={`${panelWidth}px`}
 >
 	<!-- Drag handle -->
@@ -212,12 +212,12 @@
 		onpointerdown={onDragStart}
 	></div>
 	<!-- Header -->
-	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3">
+	<div class="flex items-center gap-3 border-b border-slate-200 px-4 py-3 dark:border-slate-700">
 		<div class="min-w-0 flex-1">
-			<h2 class="truncate text-sm font-semibold text-slate-900">
+			<h2 class="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">
 				{linkedTitle || 'Linked Article'}
 			</h2>
-			<p class="truncate text-xs text-slate-500">
+			<p class="truncate text-xs text-slate-500 dark:text-slate-400">
 				From: {entryTitle}
 			</p>
 		</div>
@@ -225,14 +225,14 @@
 			href={url}
 			target="_blank"
 			rel="noopener"
-			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 			title="Open linked article"
 		>
 			↗
 		</a>
 		<button
 			onclick={onClose}
-			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+			class="flex h-8 w-8 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
 			aria-label="Close panel"
 		>
 			✕
@@ -243,7 +243,7 @@
 	<div bind:this={messagesEl} class="flex-1 overflow-y-auto px-4 py-4 space-y-3">
 		<!-- Summary section -->
 		{#if loading && !summary}
-			<div class="flex items-center gap-2 py-4 text-sm text-slate-400">
+			<div class="flex items-center gap-2 py-4 text-sm text-slate-400 dark:text-slate-500">
 				<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
 					<circle
 						class="opacity-25"
@@ -262,22 +262,22 @@
 				Fetching and summarizing…
 			</div>
 		{:else if error}
-			<div class="rounded-md bg-red-50 p-3 text-sm text-red-700">
+			<div class="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-900/30 dark:text-red-300">
 				{error}
 			</div>
 		{/if}
 
 		{#if summary}
-			<div class="rounded-lg bg-blue-50 p-3">
-				<h3 class="mb-1 text-xs font-semibold text-blue-800 uppercase">Summary</h3>
-				<p class="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap">{summary}</p>
+			<div class="rounded-lg bg-blue-50 p-3 dark:bg-blue-900/30">
+				<h3 class="mb-1 text-xs font-semibold text-blue-800 uppercase dark:text-blue-300">Summary</h3>
+				<p class="text-sm text-blue-900 leading-relaxed whitespace-pre-wrap dark:text-blue-100">{summary}</p>
 			</div>
 		{/if}
 
 		<!-- Chat messages -->
 		{#if !loading && !error}
 			{#if messages.length === 0}
-				<div class="py-6 text-center text-sm text-slate-400">
+				<div class="py-6 text-center text-sm text-slate-400 dark:text-slate-500">
 					Ask anything about both articles…
 				</div>
 			{/if}
@@ -289,7 +289,7 @@
 					class="max-w-[85%] rounded-lg px-3 py-2 text-sm
 						{msg.role === 'user'
 						? 'bg-blue-600 text-white whitespace-pre-wrap'
-						: 'bg-slate-100 text-slate-800 prose prose-sm prose-slate'}"
+						: 'bg-slate-100 text-slate-800 prose prose-sm prose-slate dark:bg-slate-700 dark:text-slate-200 dark:prose-invert'}"
 				>
 					{#if !msg.content && streaming && msg.role === 'assistant'}
 						<span class="typing-dots">
@@ -308,7 +308,7 @@
 	</div>
 
 	<!-- Input -->
-	<div class="border-t border-slate-200 px-4 py-3">
+	<div class="border-t border-slate-200 px-4 py-3 dark:border-slate-700">
 		<div class="flex gap-2">
 			<input
 				type="text"
@@ -316,7 +316,7 @@
 				onkeydown={handleKeydown}
 				placeholder="Ask about both articles…"
 				disabled={streaming || loading}
-				class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-50"
+				class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none disabled:opacity-50 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 			/>
 			<button
 				onclick={sendMessage}

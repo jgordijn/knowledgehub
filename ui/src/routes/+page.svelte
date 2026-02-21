@@ -264,37 +264,37 @@
 	<!-- Filters -->
 	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
 		<!-- Read/unread tabs -->
-		<div class="flex gap-1 rounded-lg bg-slate-100 p-1">
+		<div class="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
 			<button
 				onclick={() => (readFilter = 'unread')}
 				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'unread' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+					{readFilter === 'unread' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 			>
 				Unread ({unreadCount})
 			</button>
 			<button
 				onclick={() => (readFilter = 'all')}
 				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+					{readFilter === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 			>
 				All
 			</button>
 			<button
 				onclick={() => (readFilter = 'bookmarked')}
 				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'bookmarked' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+					{readFilter === 'bookmarked' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 			>
 				📌 Read Later{bookmarkedCount > 0 ? ` (${bookmarkedCount})` : ''}
 			</button>
 		</div>
 
 		<!-- Star filter -->
-		<div class="flex gap-1 rounded-lg bg-slate-100 p-1">
+		<div class="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
 			{#each [{ label: 'All', value: 0 }, { label: '3+', value: 3 }, { label: '4+', value: 4 }, { label: '5', value: 5 }] as opt}
 				<button
 					onclick={() => (starFilter = opt.value)}
 					class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-						{starFilter === opt.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}"
+						{starFilter === opt.value ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 				>
 					{opt.label}
 				</button>
@@ -306,12 +306,12 @@
 		<div class="relative" onfocusout={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) markReadOpen = false; }}>
 			<button
 				onclick={() => (markReadOpen = !markReadOpen)}
-				class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+				class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:bg-slate-700"
 			>
 				Mark read ▾
 			</button>
 			{#if markReadOpen}
-				<div class="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
+				<div class="absolute right-0 z-10 mt-1 w-44 rounded-lg border border-slate-200 bg-white py-1 shadow-lg dark:border-slate-700 dark:bg-slate-800">
 					{#each [
 						{ label: 'All entries', days: undefined },
 						{ label: 'Older than 1 day', days: 1 },
@@ -321,7 +321,7 @@
 					] as opt}
 						<button
 							onclick={() => markAsRead(opt.days)}
-							class="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+							class="block w-full px-3 py-1.5 text-left text-sm text-slate-700 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700"
 						>
 							{opt.label}
 						</button>
@@ -336,7 +336,7 @@
 		<div>
 			<button
 				onclick={() => (resourcesOpen = !resourcesOpen)}
-				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors"
+				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
 			>
 				<svg
 					class="h-3 w-3 transition-transform {resourcesOpen ? 'rotate-90' : ''}"
@@ -351,7 +351,7 @@
 					<button
 						onclick={() => (resourceFilter = '')}
 						class="rounded-full px-3 py-1 text-xs font-medium transition-colors
-							{resourceFilter === '' ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+							{resourceFilter === '' ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600'}"
 					>
 						All
 					</button>
@@ -359,7 +359,7 @@
 						<button
 							onclick={() => (resourceFilter = res.id)}
 							class="rounded-full px-3 py-1 text-xs font-medium transition-colors
-								{resourceFilter === res.id ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}"
+								{resourceFilter === res.id ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600'}"
 						>
 							{res.name}
 						</button>
@@ -371,7 +371,7 @@
 
 	<!-- Undo banner -->
 	{#if undoEntries.length > 0}
-		<div class="flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-md">
+		<div class="flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-md dark:bg-slate-600">
 			<span>
 				{undoEntries.length === 1 ? '1 article' : `${undoEntries.length} articles`} marked as read
 			</span>
@@ -386,9 +386,9 @@
 
 	<!-- Entries -->
 	{#if loading}
-		<div class="py-12 text-center text-sm text-slate-400">Loading entries…</div>
+		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">Loading entries…</div>
 	{:else if filteredEntries().length === 0}
-		<div class="py-12 text-center text-sm text-slate-400">
+		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
 			{readFilter === 'unread' ? 'No unread entries. Switch to "All" to see read entries.' : readFilter === 'bookmarked' ? 'No bookmarked entries. Use the bookmark icon to save articles for later.' : 'No entries yet. Add some resources to get started.'}
 		</div>
 	{:else}
