@@ -1,0 +1,6 @@
+[Unit]
+Description=KnowledgeHub auto-updater
+
+[Service]
+Type=oneshot
+ExecStart=/opt/knowledgehub/knowledgehub-updater.sh

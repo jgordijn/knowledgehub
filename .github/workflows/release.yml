@@ -38,7 +38,7 @@ jobs:
         run: |
           tar czf build/knowledgehub-linux-amd64.tar.gz \
             -C build knowledgehub \
-            -C .. knowledgehub.service
+            -C .. knowledgehub.service knowledgehub-updater.sh knowledgehub-updater.service knowledgehub-updater.timer
 
       - name: Create release
         uses: softprops/action-gh-release@v2

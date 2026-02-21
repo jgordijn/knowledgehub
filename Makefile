@@ -17,7 +17,7 @@ dev:
 
 release: ui
 	CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o $(BUILD_DIR)/$(APP_NAME) $(CMD_DIR)
-	tar czf $(BUILD_DIR)/$(APP_NAME)-linux-amd64.tar.gz -C $(BUILD_DIR) $(APP_NAME) -C .. knowledgehub.service
+	tar czf $(BUILD_DIR)/$(APP_NAME)-linux-amd64.tar.gz -C $(BUILD_DIR) $(APP_NAME) -C .. knowledgehub.service knowledgehub-updater.sh knowledgehub-updater.service knowledgehub-updater.timer
 
 clean:
 	rm -rf $(BUILD_DIR)
