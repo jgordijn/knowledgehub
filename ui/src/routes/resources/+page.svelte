@@ -154,12 +154,12 @@
 
 <div class="space-y-6">
 	<div class="flex items-center justify-between gap-2">
-		<h1 class="text-xl font-bold text-slate-900">Resources</h1>
+		<h1 class="text-xl font-bold text-slate-900 dark:text-slate-100">Resources</h1>
 		<div class="flex items-center gap-2">
 			<button
 				onclick={fetchAllResources}
 				disabled={fetchingAll}
-				class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+				class="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
 			>
 				{fetchingAll ? 'Fetching…' : '↻ Fetch All'}
 			</button>
@@ -176,7 +176,7 @@
 	</div>
 
 	{#if fetchMessage}
-		<div class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700">
+		<div class="rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-sm text-blue-700 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
 			{fetchMessage}
 		</div>
 	{/if}
@@ -187,11 +187,11 @@
 			type="text"
 			placeholder="Search by name…"
 			bind:value={searchQuery}
-			class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 		/>
 		<select
 			bind:value={sortBy}
-			class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+			class="rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
 		>
 			<option value="edited-desc">Edited (newest)</option>
 			<option value="edited-asc">Edited (oldest)</option>
@@ -202,21 +202,21 @@
 
 	<!-- Add form -->
 	{#if showAddForm}
-		<div class="rounded-lg border border-slate-200 bg-white p-4">
-			<h2 class="mb-3 text-sm font-semibold text-slate-700">Add New Resource</h2>
+		<div class="rounded-lg border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800">
+			<h2 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Add New Resource</h2>
 			<ResourceForm onSave={handleSaved} onCancel={() => (showAddForm = false)} />
 		</div>
 	{/if}
 
 	<!-- Resource list -->
 	{#if loading}
-		<div class="py-12 text-center text-sm text-slate-400">Loading resources…</div>
+		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">Loading resources…</div>
 	{:else if resources.length === 0}
-		<div class="py-12 text-center text-sm text-slate-400">
+		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
 			No resources yet. Click "+ Add Resource" to get started.
 		</div>
 	{:else if filteredResources.length === 0}
-		<div class="py-12 text-center text-sm text-slate-400">
+		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">
 			No resources match your search.
 		</div>
 	{:else}
@@ -224,8 +224,8 @@
 			{#each filteredResources as resource (resource.id)}
 				{#if editingResource?.id === resource.id}
 					<!-- Edit form -->
-					<div class="rounded-lg border-2 border-blue-200 bg-white p-4">
-						<h2 class="mb-3 text-sm font-semibold text-slate-700">Edit Resource</h2>
+					<div class="rounded-lg border-2 border-blue-200 bg-white p-4 dark:border-blue-800 dark:bg-slate-800">
+						<h2 class="mb-3 text-sm font-semibold text-slate-700 dark:text-slate-300">Edit Resource</h2>
 						<ResourceForm
 							resourceId={resource.id}
 							initialName={resource.name}
@@ -239,7 +239,7 @@
 						/>
 					</div>
 				{:else}
-					<div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+					<div class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-700 dark:bg-slate-800">
 						<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
 							<!-- Info -->
 							<div class="min-w-0 flex-1">
@@ -253,34 +253,34 @@
 										<span class="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500" title="Quarantined"></span>
 									{/if}
 
-									<h3 class="text-sm font-semibold text-slate-900">{resource.name}</h3>
+									<h3 class="text-sm font-semibold text-slate-900 dark:text-slate-100">{resource.name}</h3>
 									<span
 										class="rounded-full px-2 py-0.5 text-xs font-medium
-											{resource.type === 'rss' ? 'bg-blue-100 text-blue-700' : 'bg-purple-100 text-purple-700'}"
+											{resource.type === 'rss' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' : 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300'}"
 									>
 										{resource.type}
 									</span>
 									{#if resource.fragment_feed}
-										<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+										<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
 											Fragment
 										</span>
 									{/if}
 									{#if !resource.active}
-										<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+										<span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 dark:bg-slate-700 dark:text-slate-400">
 											Inactive
 										</span>
 									{/if}
 								</div>
 
-								<p class="mt-1 truncate text-xs text-slate-500">{resource.url}</p>
+								<p class="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{resource.url}</p>
 
 								<!-- Status detail -->
 								{#if resource.status === 'failing'}
-									<p class="mt-1 text-xs text-yellow-700">
+									<p class="mt-1 text-xs text-yellow-700 dark:text-yellow-400">
 										{resource.consecutive_failures}/5 failures — {resource.last_error || 'Unknown error'}
 									</p>
 								{:else if resource.status === 'quarantined'}
-									<p class="mt-1 text-xs text-red-700">
+									<p class="mt-1 text-xs text-red-700 dark:text-red-400">
 										Quarantined {relativeTime(resource.quarantined_at)} — {resource.last_error || 'Unknown error'}
 									</p>
 								{/if}
@@ -292,7 +292,7 @@
 								<button
 									onclick={() => toggleActive(resource)}
 									class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors min-w-[44px]
-										{resource.active ? 'bg-blue-600' : 'bg-slate-200'}"
+										{resource.active ? 'bg-blue-600' : 'bg-slate-200 dark:bg-slate-600'}"
 									title={resource.active ? 'Deactivate' : 'Activate'}
 								>
 									<span
@@ -304,7 +304,7 @@
 								{#if resource.status === 'quarantined'}
 									<button
 										onclick={() => retryQuarantined(resource)}
-										class="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 min-h-[44px] sm:min-h-0"
+										class="rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-medium text-amber-700 hover:bg-amber-100 min-h-[44px] sm:min-h-0 dark:border-amber-700 dark:bg-amber-900/30 dark:text-amber-300 dark:hover:bg-amber-900/50"
 									>
 										Retry Now
 									</button>
@@ -313,7 +313,7 @@
 								<button
 									onclick={() => fetchResource(resource)}
 									disabled={fetchingId === resource.id}
-									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 min-h-[44px] sm:min-h-0"
+									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 min-h-[44px] sm:min-h-0 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
 									title="Fetch now"
 								>
 									{fetchingId === resource.id ? '↻…' : '↻ Fetch'}
@@ -324,14 +324,14 @@
 										editingResource = resource;
 										showAddForm = false;
 									}}
-									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 min-h-[44px] sm:min-h-0"
+									class="rounded-md border border-slate-300 px-3 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 min-h-[44px] sm:min-h-0 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
 								>
 									Edit
 								</button>
 
 								<button
 									onclick={() => (deleteTarget = resource)}
-									class="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 min-h-[44px] sm:min-h-0"
+									class="rounded-md border border-red-200 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 min-h-[44px] sm:min-h-0 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/30"
 								>
 									Delete
 								</button>
@@ -347,15 +347,15 @@
 <!-- Delete confirmation dialog -->
 {#if deleteTarget}
 	<div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-		<div class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl">
-			<h2 class="text-lg font-semibold text-slate-900">Delete Resource</h2>
-			<p class="mt-2 text-sm text-slate-600">
+		<div class="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl dark:bg-slate-800">
+			<h2 class="text-lg font-semibold text-slate-900 dark:text-slate-100">Delete Resource</h2>
+			<p class="mt-2 text-sm text-slate-600 dark:text-slate-400">
 				Delete <strong>{deleteTarget.name}</strong> and all its entries? This cannot be undone.
 			</p>
 			<div class="mt-4 flex justify-end gap-2">
 				<button
 					onclick={() => (deleteTarget = null)}
-					class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+					class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
 				>
 					Cancel
 				</button>

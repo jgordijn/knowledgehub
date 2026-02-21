@@ -85,38 +85,38 @@
 
 <form onsubmit={(e) => { e.preventDefault(); handleSubmit(); }} class="space-y-4">
 	{#if error}
-		<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+		<div class="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/30 dark:text-red-300">
 			{error}
 		</div>
 	{/if}
 
 	<div class="flex flex-col gap-4 md:flex-row">
 		<div class="flex-1">
-			<label for="res-name" class="mb-1 block text-sm font-medium text-slate-700">Name</label>
+			<label for="res-name" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
 			<input
 				id="res-name"
 				type="text"
 				bind:value={name}
 				placeholder="My RSS Feed"
-				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 			/>
 		</div>
 		<div class="flex-1">
-			<label for="res-url" class="mb-1 block text-sm font-medium text-slate-700">URL</label>
+			<label for="res-url" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">URL</label>
 			<input
 				id="res-url"
 				type="url"
 				bind:value={url}
 				placeholder="https://example.com/feed.xml"
-				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 			/>
 		</div>
 		<div class="w-full md:w-36">
-			<label for="res-type" class="mb-1 block text-sm font-medium text-slate-700">Type</label>
+			<label for="res-type" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">Type</label>
 			<select
 				id="res-type"
 				bind:value={type}
-				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+				class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
 			>
 				<option value="rss">RSS</option>
 				<option value="watchlist">Watchlist</option>
@@ -125,41 +125,41 @@
 	</div>
 
 	{#if type === 'rss'}
-		<label class="flex items-center gap-2 text-sm text-slate-700">
-			<input type="checkbox" bind:checked={fragmentFeed} class="rounded border-slate-300" />
+		<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+			<input type="checkbox" bind:checked={fragmentFeed} class="rounded border-slate-300 dark:border-slate-600" />
 			Fragment feed
-			<span class="text-xs text-slate-400">(skip summarization, show content directly)</span>
+			<span class="text-xs text-slate-400 dark:text-slate-500">(skip summarization, show content directly)</span>
 		</label>
 	{/if}
 
 	{#if type === 'watchlist'}
 		<div class="flex flex-col gap-4 md:flex-row">
 			<div class="flex-1">
-				<label for="res-article-sel" class="mb-1 block text-sm font-medium text-slate-700">
-					Article Selector <span class="font-normal text-slate-400">(optional)</span>
+				<label for="res-article-sel" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+					Article Selector <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
 				</label>
 				<input
 					id="res-article-sel"
 					type="text"
 					bind:value={articleSelector}
 					placeholder="e.g. article a, .post-link — auto-detected if empty"
-					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 				/>
 			</div>
 			<div class="flex-1">
-				<label for="res-content-sel" class="mb-1 block text-sm font-medium text-slate-700">
-					Content Selector <span class="font-normal text-slate-400">(optional)</span>
+				<label for="res-content-sel" class="mb-1 block text-sm font-medium text-slate-700 dark:text-slate-300">
+					Content Selector <span class="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
 				</label>
 				<input
 					id="res-content-sel"
 					type="text"
 					bind:value={contentSelector}
 					placeholder="e.g. .article-body — auto-detected if empty"
-					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+					class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 				/>
 			</div>
 		</div>
-		<p class="text-xs text-slate-400">
+		<p class="text-xs text-slate-400 dark:text-slate-500">
 			Leave empty to auto-detect articles and content. Only set these if auto-detection picks up wrong links.
 		</p>
 	{/if}
@@ -176,7 +176,7 @@
 			<button
 				type="button"
 				onclick={onCancel}
-				class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+				class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
 			>
 				Cancel
 			</button>
