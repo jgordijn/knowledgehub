@@ -59,6 +59,7 @@ func registerCollections(t *testing.T, app core.App) {
 	resources.Fields.Add(&core.BoolField{Name: "use_browser"})
 	resources.Fields.Add(&core.NumberField{Name: "check_interval"})
 	resources.Fields.Add(&core.DateField{Name: "last_checked"})
+	resources.Fields.Add(&core.TextField{Name: "fragment_hashes"})
 	resources.ListRule = types.Pointer("")
 	resources.ViewRule = types.Pointer("")
 	resources.CreateRule = types.Pointer("")
