@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import pb from '$lib/pb';
+	import { getRememberMe, setRememberMe, switchStorageBackend } from '$lib/auth-store';
 
 	let email = $state('');
 	let password = $state('');
@@ -10,6 +11,7 @@
 	let needsSetup = $state(false);
 	let checking = $state(true);
 	let setupDone = $state(false);
+	let rememberMe = $state(getRememberMe());
 
 	onMount(async () => {
 		// Already logged in? Go to feed.
@@ -66,8 +68,10 @@
 		}
 		loading = true;
 		error = '';
+		setRememberMe(rememberMe);
 		try {
 			await pb.collection('_superusers').authWithPassword(email.trim(), password.trim());
+			switchStorageBackend();
 			goto('/');
 		} catch {
 			error = 'Invalid email or password.';
@@ -141,6 +145,17 @@
 						class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
 					/>
 				</div>
+
+				{#if !needsSetup}
+					<label class="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+						<input
+							type="checkbox"
+							bind:checked={rememberMe}
+							class="rounded border-slate-300 text-blue-600 focus:ring-blue-500 dark:border-slate-600 dark:bg-slate-700"
+						/>
+						Remember me
+					</label>
+				{/if}
 
 				<button
 					type="submit"
