@@ -1,0 +1,42 @@
+# Decision Log: Clickable Entry Card
+Date: 2026-03-01
+Task: Make the entire entry card clickable to navigate to the article
+
+## Problem Statement
+Currently, only the title link navigates to the article. The user wants to click
+anywhere on the card to open the article, but all interactive elements (buttons,
+links, star ratings) must continue to work normally.
+
+## Options Considered
+
+### Option 1: Wrap entire card in an <a> tag
+- Pros: Semantic, accessible, works with middle-click/right-click
+- Cons: Nesting interactive elements (buttons, links) inside <a> is invalid HTML.
+  Can cause browser quirks and accessibility issues.
+
+### Option 2: CSS "stretched link" pattern
+- Use a pseudo-element on the title link stretched to cover the card via position
+- Pros: Semantic link, accessible, valid HTML
+- Cons: Inner links/buttons need `position: relative; z-index: 1` to stay above
+  the stretched link. Can be tricky with complex card layouts.
+
+### Option 3: onclick handler on the card div with event delegation
+- Add an onclick handler to the card <div>
+- Check if the click target is within an interactive element (a, button, input, etc.)
+- If not, programmatically open the article URL and mark as read
+- Pros: Simple, keeps all existing interactive elements working, no HTML nesting issues
+- Cons: Not a real <a> tag so no native middle-click/context-menu "open in new tab".
+  But this can be mitigated with cursor:pointer styling.
+
+## Decision
+**Option 3: onclick handler with event delegation.**
+
+Rationale:
+- The card has many interactive elements (star rating, read/unread toggle, bookmark,
+  chat button, referenced links, summarize buttons). Using event delegation makes
+  it trivial to let these work normally.
+- The card already has an explicit "Open article" link at the bottom for users who
+  want right-click/middle-click behavior.
+- Adding cursor:pointer on the card gives clear visual feedback.
+- This approach requires the least code change and has the lowest risk of breaking
+  existing functionality.
