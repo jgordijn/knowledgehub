@@ -9,3 +9,4 @@ kh_data/
 /knowledgehub
 .rodney/
 *.out
+*.log

@@ -137,10 +137,33 @@
 			}
 		}
 	}
+
+	function handleCardClick(event: MouseEvent) {
+		// Walk up from the click target to find if it's within an interactive element
+		let target = event.target as HTMLElement | null;
+		while (target && target !== event.currentTarget) {
+			const tag = target.tagName?.toLowerCase();
+			if (tag === 'a' || tag === 'button' || tag === 'input' || tag === 'select' || tag === 'textarea') {
+				return; // Let the interactive element handle it
+			}
+			// Also check for elements with role="button" (e.g. star rating)
+			if (target.getAttribute?.('role') === 'button') {
+				return;
+			}
+			target = target.parentElement;
+		}
+		// Open article in new tab and mark as read
+		if (entry.url) {
+			markReadAndOpen();
+			window.open(entry.url, '_blank', 'noopener');
+		}
+	}
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
 <div
-	class="rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
+	onclick={handleCardClick}
+	class="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
 		{entry.is_read ? 'opacity-70' : ''}"
 >
 	<!-- Top row: stars + source + time -->
