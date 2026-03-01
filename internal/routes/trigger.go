@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
@@ -37,5 +38,29 @@ func RegisterTriggerRoutes(se *core.ServeEvent) {
 		return re.JSON(http.StatusOK, map[string]string{
 			"message": "Fetch started for " + resource.GetString("name") + ".",
 		})
+	})
+}
+
+// HandleTriggerAll is the testable core logic for the trigger-all endpoint.
+func HandleTriggerAll(app core.App, w http.ResponseWriter) {
+	go engine.FetchAllResources(app)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Fetch started for all active resources."})
+}
+
+// HandleTriggerSingle is the testable core logic for the trigger-single endpoint.
+func HandleTriggerSingle(app core.App, w http.ResponseWriter, id string) {
+	resource, err := app.FindRecordById("resources", id)
+	if err != nil {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]string{"error": "Resource not found."})
+		return
+	}
+
+	go engine.FetchSingleResource(app, resource)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Fetch started for " + resource.GetString("name") + ".",
 	})
 }

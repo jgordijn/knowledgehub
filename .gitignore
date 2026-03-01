@@ -8,4 +8,5 @@ kh_data/
 .browser-test/
 /knowledgehub
 .rodney/
+*.out
 *.log
