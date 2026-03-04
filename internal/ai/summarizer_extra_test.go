@@ -219,3 +219,121 @@ func TestBuildScoreOnlyPrompt(t *testing.T) {
 		})
 	}
 }
+
+func TestParseSummaryResult_WithTakeaways(t *testing.T) {
+	input := `{"summary":"A deep dive into CRDTs.","stars":4,"takeaways":["CRDTs enable conflict-free replication","Operation-based and state-based variants exist","Useful for collaborative editing"]}`
+	result, err := parseSummaryResult(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Summary != "A deep dive into CRDTs." {
+		t.Errorf("Summary = %q", result.Summary)
+	}
+	if result.Stars != 4 {
+		t.Errorf("Stars = %d, want 4", result.Stars)
+	}
+	if len(result.Takeaways) != 3 {
+		t.Fatalf("Takeaways length = %d, want 3", len(result.Takeaways))
+	}
+	if result.Takeaways[0] != "CRDTs enable conflict-free replication" {
+		t.Errorf("Takeaways[0] = %q", result.Takeaways[0])
+	}
+}
+
+func TestParseSummaryResult_WithoutTakeaways(t *testing.T) {
+	input := `{"summary":"Short article.","stars":3}`
+	result, err := parseSummaryResult(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Summary != "Short article." {
+		t.Errorf("Summary = %q", result.Summary)
+	}
+	if result.Stars != 3 {
+		t.Errorf("Stars = %d, want 3", result.Stars)
+	}
+	if len(result.Takeaways) != 0 {
+		t.Errorf("Takeaways should be empty, got %v", result.Takeaways)
+	}
+}
+
+func TestSummarizeAndScore_StoresTakeaways(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	testutil.CreateSetting(t, app, "openrouter_api_key", "test-key")
+	testutil.CreateSetting(t, app, "openrouter_model", "test-model")
+
+	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "Long Article", "https://example.com/long", "guid-long")
+	entry.Set("raw_content", strings.Repeat("Detailed content. ", 200))
+	entry.Set("processing_status", "pending")
+	app.Save(entry)
+
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
+		return `{"summary":"A comprehensive overview.","stars":4,"takeaways":["Point one","Point two","Point three"]}`, nil
+	})
+	defer restore()
+
+	err := SummarizeAndScore(app, entry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	updated, _ := app.FindRecordById("entries", entry.Id)
+	if got := updated.GetString("summary"); got != "A comprehensive overview." {
+		t.Errorf("summary = %q", got)
+	}
+
+	// PocketBase stores JSON fields; retrieve as raw and check
+	raw := updated.Get("takeaways")
+	if raw == nil {
+		t.Fatal("takeaways should not be nil")
+	}
+}
+
+func TestSummarizeAndScore_NullTakeaways(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+
+	testutil.CreateSetting(t, app, "openrouter_api_key", "test-key")
+	testutil.CreateSetting(t, app, "openrouter_model", "test-model")
+
+	resource := testutil.CreateResource(t, app, "test", "https://example.com", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "Short Article", "https://example.com/short", "guid-short")
+	entry.Set("raw_content", "A brief note.")
+	entry.Set("processing_status", "pending")
+	app.Save(entry)
+
+	restore := SetCompleteFunc(func(apiKey, model string, messages []Message) (string, error) {
+		return `{"summary":"Brief note about Go.","stars":3}`, nil
+	})
+	defer restore()
+
+	err := SummarizeAndScore(app, entry)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	updated, _ := app.FindRecordById("entries", entry.Id)
+	if got := updated.GetString("summary"); got != "Brief note about Go." {
+		t.Errorf("summary = %q", got)
+	}
+
+	// Takeaways should be empty/null when not provided
+	raw := updated.Get("takeaways")
+	// PocketBase JSON fields return nil or empty for unset values
+	if raw != nil {
+		// Check it's an empty value (empty string, empty array, etc.)
+		switch v := raw.(type) {
+		case string:
+			if v != "" && v != "null" && v != "[]" {
+				t.Errorf("takeaways should be empty, got %q", v)
+			}
+		case []interface{}:
+			if len(v) != 0 {
+				t.Errorf("takeaways should be empty array, got %v", v)
+			}
+		}
+	}
+}

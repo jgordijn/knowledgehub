@@ -86,6 +86,7 @@ func registerCollections(t *testing.T, app core.App) {
 	entries.Fields.Add(&core.DateField{Name: "published_at"})
 	entries.Fields.Add(&core.SelectField{Name: "processing_status", Values: []string{"pending", "done", "failed"}, MaxSelect: 1})
 	entries.Fields.Add(&core.BoolField{Name: "is_fragment"})
+	entries.Fields.Add(&core.JSONField{Name: "takeaways", MaxSize: 5000})
 	entries.ListRule = types.Pointer("")
 	entries.ViewRule = types.Pointer("")
 	entries.CreateRule = types.Pointer("")

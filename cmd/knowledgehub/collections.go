@@ -235,6 +235,7 @@ func migrateCollections(app core.App) {
 	addFieldIfMissing(app, "resources", &core.BoolField{Name: "use_browser"})
 	addFieldIfMissing(app, "entries", &core.BoolField{Name: "bookmarked"})
 	addFieldIfMissing(app, "resources", &core.TextField{Name: "fragment_hashes"})
+	addFieldIfMissing(app, "entries", &core.JSONField{Name: "takeaways", MaxSize: 5000})
 }
 
 func addFieldIfMissing(app core.App, collectionName string, field core.Field) {
