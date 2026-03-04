@@ -234,6 +234,8 @@
 							initialArticleSelector={resource.article_selector}
 							initialContentSelector={resource.content_selector}
 							initialFragmentFeed={resource.fragment_feed}
+							initialFragmentMode={resource.fragment_mode || 'auto'}
+							initialFragmentSeparator={resource.fragment_separator || ''}
 							onSave={handleSaved}
 							onCancel={() => (editingResource = null)}
 						/>
@@ -262,7 +264,7 @@
 									</span>
 									{#if resource.fragment_feed}
 										<span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
-											Fragment
+											Fragment{#if resource.fragment_mode === 'separated' && resource.fragment_separator} ({resource.fragment_separator}){/if}
 										</span>
 									{/if}
 									{#if !resource.active}

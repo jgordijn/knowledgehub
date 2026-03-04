@@ -92,6 +92,43 @@ func SplitFragments(html string) []Fragment {
 	return fragments
 }
 
+// SplitFragmentsBySeparator splits HTML content into fragments using an explicit
+// text separator. It walks the top-level DOM children and groups elements into
+// fragments, splitting whenever an element's trimmed text content exactly matches
+// the separator string. Separator elements are discarded.
+func SplitFragmentsBySeparator(html, separator string) []Fragment {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return nil
+	}
+
+	var fragments []Fragment
+	var current strings.Builder
+
+	doc.Find("body").Children().Each(func(i int, s *goquery.Selection) {
+		text := strings.TrimSpace(s.Text())
+
+		// Element is the separator — flush current fragment and discard separator
+		if text == separator {
+			if current.Len() > 0 {
+				fragments = append(fragments, newFragment(current.String()))
+				current.Reset()
+			}
+			return
+		}
+
+		h, _ := goquery.OuterHtml(s)
+		current.WriteString(h)
+	})
+
+	// Flush the last fragment
+	if current.Len() > 0 {
+		fragments = append(fragments, newFragment(current.String()))
+	}
+
+	return fragments
+}
+
 // SplitFragmentsWithAI uses the heuristic splitter as a first pass, then asks
 // the LLM to re-group fragments that belong to the same topic.
 // Falls back to the heuristic result on any AI error.

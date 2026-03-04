@@ -453,3 +453,107 @@ func TestSaveFragmentHashes(t *testing.T) {
 		t.Errorf("round-trip failed: got %v", loaded)
 	}
 }
+
+func TestSplitFragmentsBySeparator_Basic(t *testing.T) {
+	html := `<p>First topic content.</p>
+<p>More about first topic.</p>
+<p>~~~</p>
+<p>Second topic content.</p>
+<p>~~~</p>
+<p>Third topic content.</p>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 3 {
+		t.Fatalf("got %d fragments, want 3", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "First topic") || !strings.Contains(frags[0].HTML, "More about first") {
+		t.Errorf("frag[0] should contain first two paragraphs, got %q", frags[0].HTML)
+	}
+	if !strings.Contains(frags[1].HTML, "Second topic") {
+		t.Errorf("frag[1] should contain second topic, got %q", frags[1].HTML)
+	}
+	if !strings.Contains(frags[2].HTML, "Third topic") {
+		t.Errorf("frag[2] should contain third topic, got %q", frags[2].HTML)
+	}
+	// Separator should not appear in any fragment
+	for i, f := range frags {
+		if strings.Contains(f.HTML, "~~~") {
+			t.Errorf("frag[%d] should not contain separator, got %q", i, f.HTML)
+		}
+	}
+}
+
+func TestSplitFragmentsBySeparator_NotFound(t *testing.T) {
+	html := `<p>Some content here.</p>
+<p>More content.</p>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 1 {
+		t.Fatalf("got %d fragments, want 1 (entire content as single fragment)", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "Some content") {
+		t.Errorf("frag[0] should contain all content, got %q", frags[0].HTML)
+	}
+}
+
+func TestSplitFragmentsBySeparator_LeadingTrailing(t *testing.T) {
+	html := `<p>~~~</p>
+<p>Content in the middle.</p>
+<p>~~~</p>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 1 {
+		t.Fatalf("got %d fragments, want 1 (leading/trailing separators discarded), got %d", len(frags), len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "middle") {
+		t.Errorf("frag[0] should contain middle content, got %q", frags[0].HTML)
+	}
+}
+
+func TestSplitFragmentsBySeparator_ConsecutiveSeparators(t *testing.T) {
+	html := `<p>First.</p>
+<p>~~~</p>
+<p>~~~</p>
+<p>Second.</p>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 2 {
+		t.Fatalf("got %d fragments, want 2 (empty groups between consecutive separators discarded)", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "First") {
+		t.Errorf("frag[0] should contain 'First', got %q", frags[0].HTML)
+	}
+	if !strings.Contains(frags[1].HTML, "Second") {
+		t.Errorf("frag[1] should contain 'Second', got %q", frags[1].HTML)
+	}
+}
+
+func TestSplitFragmentsBySeparator_DifferentSeparator(t *testing.T) {
+	html := `<p>Part one.</p>
+<p>---</p>
+<p>Part two.</p>`
+
+	frags := SplitFragmentsBySeparator(html, "---")
+	if len(frags) != 2 {
+		t.Fatalf("got %d fragments, want 2", len(frags))
+	}
+}
+
+func TestSplitFragmentsBySeparator_MixedElements(t *testing.T) {
+	html := `<p>Intro paragraph.</p>
+<blockquote>A quote.</blockquote>
+<p>~~~</p>
+<p>Next topic.</p>
+<ul><li>Item one</li></ul>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 2 {
+		t.Fatalf("got %d fragments, want 2", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "Intro") || !strings.Contains(frags[0].HTML, "quote") {
+		t.Errorf("frag[0] should contain intro and quote, got %q", frags[0].HTML)
+	}
+	if !strings.Contains(frags[1].HTML, "Next topic") || !strings.Contains(frags[1].HTML, "Item one") {
+		t.Errorf("frag[1] should contain next topic and list, got %q", frags[1].HTML)
+	}
+}
