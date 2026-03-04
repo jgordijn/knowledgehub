@@ -73,7 +73,7 @@ func (s *Scheduler) fetchAll() {
 func FetchAllResources(app core.App) {
 	resources, err := app.FindRecordsByFilter(
 		"resources",
-		"active = true && status != 'quarantined'",
+		"active = true && status != 'quarantined' && type != 'quickadd'",
 		"",
 		0, 0,
 		nil,

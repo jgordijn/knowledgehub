@@ -6,6 +6,7 @@
 	import ChatPanel from '$lib/components/ChatPanel.svelte';
 	import LinkPanel from '$lib/components/LinkPanel.svelte';
 	import QuarantineBanner from '$lib/components/QuarantineBanner.svelte';
+	import QuickAddModal from '$lib/components/QuickAddModal.svelte';
 
 	let entries = $state<RecordModel[]>([]);
 	let loading = $state(true);
@@ -21,6 +22,9 @@
 
 	// Chat state
 	let chatEntry = $state<RecordModel | null>(null);
+
+	// Quick Add state
+	let quickAddOpen = $state(false);
 
 	// Link panel state
 	let linkEntry = $state<RecordModel | null>(null);
@@ -408,4 +412,22 @@
 <!-- Link summary panel -->
 {#if linkEntry && linkUrl}
 	<LinkPanel url={linkUrl} entryId={linkEntry.id} entryTitle={linkEntry.title ?? 'Untitled'} onClose={closeLink} />
+{/if}
+
+
+<!-- Quick Add FAB -->
+<button
+	onclick={() => (quickAddOpen = true)}
+	class="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full bg-blue-600 text-white shadow-lg transition-transform hover:scale-105 hover:bg-blue-700 active:scale-95"
+	aria-label="Quick Add Article"
+	title="Quick Add Article"
+>
+	<svg class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+		<path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+	</svg>
+</button>
+
+<!-- Quick Add Modal -->
+{#if quickAddOpen}
+	<QuickAddModal onClose={() => (quickAddOpen = false)} />
 {/if}
