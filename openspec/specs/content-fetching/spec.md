@@ -54,3 +54,63 @@ The system SHALL enforce a 30-second timeout per HTTP request when fetching reso
 #### Scenario: Fetch times out
 - **WHEN** fetching a resource takes longer than 30 seconds
 - **THEN** the fetch is aborted, counted as a failure, and last_error is set to "timeout after 30s"
+
+
+### Requirement: Single-article content extraction
+The system SHALL support fetching and extracting content from a single article URL outside the scheduler context, for use by the Quick Add feature. The extraction SHALL use the same readability pipeline as existing watchlist scraping.
+
+#### Scenario: Extract content from article URL
+- **WHEN** the quick-add endpoint receives URL "https://example.com/article"
+- **THEN** the system fetches the page, extracts title and content via readability, and returns the extracted content
+
+#### Scenario: Extraction with readability fallback
+- **WHEN** readability cannot extract meaningful content from the page
+- **THEN** the system falls back to the page title and first 500 characters of body text
+
+### Requirement: RSS feed discovery from page HTML
+The system SHALL discover RSS/Atom/JSON Feed URLs by parsing `<link rel="alternate">` tags from page HTML. It SHALL check the article page first, then the site root if no feed is found.
+
+#### Scenario: Discover RSS from link tags
+- **WHEN** the page HTML contains `<link rel="alternate" type="application/rss+xml" href="/feed">`
+- **THEN** the system resolves the href to an absolute URL and returns it as a discovered feed
+
+#### Scenario: Discover Atom feed
+- **WHEN** the page HTML contains `<link rel="alternate" type="application/atom+xml" href="/atom.xml">`
+- **THEN** the system discovers it as a valid feed URL
+
+#### Scenario: Fallback to site root
+- **WHEN** the article page has no feed links
+- **THEN** the system fetches the site root (scheme + host) and checks for feed links there
+
+#### Scenario: Resolve relative feed URLs
+- **WHEN** the feed link href is relative (e.g., "/feed.xml")
+- **THEN** the system resolves it against the page URL to produce an absolute URL
+
+### Requirement: Separator-based fragment splitting
+The system SHALL support splitting fragment feed content by an explicit text separator. When a resource has `fragment_mode` set to `separated` and a non-empty `fragment_separator`, the system SHALL split content by finding DOM elements whose trimmed text content exactly matches the separator string, using those as boundaries. Separator elements SHALL be discarded. Each group of elements between separators becomes a separate fragment.
+
+#### Scenario: Split by separator
+- **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "~~~", and the feed entry contains three sections of content separated by paragraphs containing only "~~~"
+- **THEN** the system creates three fragment entries, one for each section, with the "~~~" separator paragraphs discarded
+
+#### Scenario: Separator not found in content
+- **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "~~~", but the feed entry content contains no elements matching "~~~"
+- **THEN** the entire content is treated as a single fragment
+
+#### Scenario: Separator at start or end of content
+- **WHEN** a fragment feed entry starts with a "~~~" separator and ends with a "~~~" separator
+- **THEN** leading and trailing empty fragments are discarded, and only non-empty content groups become fragments
+
+### Requirement: Auto mode preserves existing behavior
+The system SHALL treat resources with `fragment_mode` set to `auto` or empty/unset identically to the current heuristic + AI fragment splitting behavior.
+
+#### Scenario: Auto mode fragment splitting
+- **WHEN** a fragment feed resource has fragment_mode "auto" (or empty)
+- **THEN** the system uses the heuristic paragraph-based splitter with optional AI regrouping, identical to current behavior
+
+### Requirement: Separator mode skips AI regrouping
+The system SHALL NOT invoke AI regrouping when fragment_mode is `separated`. The separator boundaries are authoritative.
+
+#### Scenario: No AI call for separated mode
+- **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "---"
+- **THEN** the system splits by the separator without making any AI calls for regrouping
