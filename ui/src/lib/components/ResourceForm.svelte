@@ -9,6 +9,8 @@
 		initialArticleSelector = '',
 		initialContentSelector = '',
 		initialFragmentFeed = false,
+		initialFragmentMode = 'auto',
+		initialFragmentSeparator = '',
 		onSave,
 		onCancel
 	}: {
@@ -19,6 +21,8 @@
 		initialArticleSelector?: string;
 		initialContentSelector?: string;
 		initialFragmentFeed?: boolean;
+		initialFragmentMode?: string;
+		initialFragmentSeparator?: string;
 		onSave: () => void;
 		onCancel?: () => void;
 	} = $props();
@@ -30,6 +34,8 @@
 	let articleSelector = $state(initialArticleSelector);
 	let contentSelector = $state(initialContentSelector);
 	let fragmentFeed = $state(initialFragmentFeed);
+	let fragmentMode = $state<string>(initialFragmentMode);
+	let fragmentSeparator = $state(initialFragmentSeparator);
 	let saving = $state(false);
 	let error = $state('');
 
@@ -43,13 +49,16 @@
 		saving = true;
 		error = '';
 		try {
+			const isFragFeed = type === 'rss' && fragmentFeed;
 			const data: Record<string, unknown> = {
 				name: name.trim(),
 				url: url.trim(),
 				type,
 				article_selector: type === 'watchlist' ? articleSelector.trim() : '',
 				content_selector: type === 'watchlist' ? contentSelector.trim() : '',
-				fragment_feed: type === 'rss' ? fragmentFeed : false
+				fragment_feed: isFragFeed,
+				fragment_mode: isFragFeed ? fragmentMode : '',
+				fragment_separator: isFragFeed && fragmentMode === 'separated' ? fragmentSeparator.trim() : ''
 			};
 
 			if (isEdit) {
@@ -72,6 +81,8 @@
 				articleSelector = '';
 				contentSelector = '';
 				fragmentFeed = false;
+				fragmentMode = 'auto';
+				fragmentSeparator = '';
 			}
 
 			onSave();
@@ -130,6 +141,35 @@
 			Fragment feed
 			<span class="text-xs text-slate-400 dark:text-slate-500">(skip summarization, show content directly)</span>
 		</label>
+
+		{#if fragmentFeed}
+			<div class="ml-6 flex flex-col gap-3">
+				<div class="flex items-center gap-3">
+					<label for="res-frag-mode" class="text-sm font-medium text-slate-700 dark:text-slate-300">Split mode</label>
+					<select
+						id="res-frag-mode"
+						bind:value={fragmentMode}
+						class="rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100"
+					>
+						<option value="auto">Auto (heuristic + AI)</option>
+						<option value="separated">Separated (by text separator)</option>
+					</select>
+				</div>
+
+				{#if fragmentMode === 'separated'}
+					<div class="flex items-center gap-3">
+						<label for="res-frag-sep" class="text-sm font-medium text-slate-700 dark:text-slate-300">Separator</label>
+						<input
+							id="res-frag-sep"
+							type="text"
+							bind:value={fragmentSeparator}
+							placeholder="e.g. ~~~"
+							class="w-40 rounded-md border border-slate-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100 dark:placeholder-slate-500"
+						/>
+					</div>
+				{/if}
+			</div>
+		{/if}
 	{/if}
 
 	{#if type === 'watchlist'}

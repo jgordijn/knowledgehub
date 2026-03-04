@@ -79,14 +79,21 @@ func fetchRSSResource(app core.App, resource *core.Record, client *http.Client) 
 			hashesChanged = true
 
 			content = resolveContentLinks(content, entry.URL)
-			apiKey, _ := ai.GetAPIKey(app)
-			model := ai.GetModel(app)
 
 			var fragments []Fragment
-			if apiKey != "" {
-				fragments = SplitFragmentsWithAI(content, apiKey, model)
+			fragMode := resource.GetString("fragment_mode")
+			fragSep := resource.GetString("fragment_separator")
+
+			if fragMode == "separated" && fragSep != "" {
+				fragments = SplitFragmentsBySeparator(content, fragSep)
 			} else {
-				fragments = SplitFragments(content)
+				apiKey, _ := ai.GetAPIKey(app)
+				model := ai.GetModel(app)
+				if apiKey != "" {
+					fragments = SplitFragmentsWithAI(content, apiKey, model)
+				} else {
+					fragments = SplitFragments(content)
+				}
 			}
 
 			for _, frag := range fragments {

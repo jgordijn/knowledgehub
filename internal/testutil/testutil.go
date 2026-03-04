@@ -60,6 +60,8 @@ func registerCollections(t *testing.T, app core.App) {
 	resources.Fields.Add(&core.NumberField{Name: "check_interval"})
 	resources.Fields.Add(&core.DateField{Name: "last_checked"})
 	resources.Fields.Add(&core.TextField{Name: "fragment_hashes"})
+	resources.Fields.Add(&core.SelectField{Name: "fragment_mode", Values: []string{"auto", "separated"}, MaxSelect: 1})
+	resources.Fields.Add(&core.TextField{Name: "fragment_separator"})
 	resources.ListRule = types.Pointer("")
 	resources.ViewRule = types.Pointer("")
 	resources.CreateRule = types.Pointer("")
