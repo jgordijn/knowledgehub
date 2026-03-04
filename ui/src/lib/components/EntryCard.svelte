@@ -237,9 +237,18 @@
 			{@html sanitizeHTML(entry.raw_content)}
 		</div>
 	{:else}
-		<p class="mb-3 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
+		<p class="mb-1 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
 			{entry.summary}
 		</p>
+		{#if entry.takeaways?.length}
+			<ul class="mb-3 ml-4 list-disc space-y-0.5">
+				{#each entry.takeaways as takeaway}
+					<li class="text-xs text-slate-500 leading-snug dark:text-slate-400">{takeaway}</li>
+				{/each}
+			</ul>
+		{:else}
+			<div class="mb-2"></div>
+		{/if}
 	{/if}
 
 	<!-- Referenced links -->
