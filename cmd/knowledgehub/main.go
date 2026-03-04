@@ -44,6 +44,7 @@ func main() {
 		routes.RegisterChatRoute(se)
 		routes.RegisterTriggerRoutes(se)
 		routes.RegisterLinkSummaryRoute(se)
+		routes.RegisterQuickAddRoutes(se)
 		registerSetupRoutes(se)
 
 		// Health check endpoint

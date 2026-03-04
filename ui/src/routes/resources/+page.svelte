@@ -52,7 +52,8 @@
 		loading = true;
 		try {
 			const result = await pb.collection('resources').getList(1, 200, {
-				sort: '-created'
+				sort: '-created',
+				filter: "type != 'quickadd'"
 			});
 			resources = result.items;
 		} catch {

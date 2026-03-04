@@ -13,6 +13,7 @@ func registerCollections(app core.App) {
 	ensurePreferencesCollection(app)
 	ensureSettingsCollection(app)
 	migrateCollections(app)
+	ensureQuickAddResource(app)
 }
 
 func ensureResourcesCollection(app core.App) {
@@ -36,7 +37,7 @@ func ensureResourcesCollection(app core.App) {
 	collection.Fields.Add(&core.SelectField{
 		Name:      "type",
 		Required:  true,
-		Values:    []string{"rss", "watchlist"},
+		Values:    []string{"rss", "watchlist", "quickadd"},
 		MaxSelect: 1,
 	})
 	collection.Fields.Add(&core.TextField{
@@ -236,6 +237,7 @@ func migrateCollections(app core.App) {
 	addFieldIfMissing(app, "entries", &core.BoolField{Name: "bookmarked"})
 	addFieldIfMissing(app, "resources", &core.TextField{Name: "fragment_hashes"})
 	addFieldIfMissing(app, "entries", &core.JSONField{Name: "takeaways", MaxSize: 5000})
+	migrateResourceTypeValues(app)
 }
 
 func addFieldIfMissing(app core.App, collectionName string, field core.Field) {
@@ -249,5 +251,56 @@ func addFieldIfMissing(app core.App, collectionName string, field core.Field) {
 	col.Fields.Add(field)
 	if err := app.Save(col); err != nil {
 		log.Printf("Failed to add field %s to %s: %v", field.GetName(), collectionName, err)
+	}
+}
+
+// migrateResourceTypeValues ensures the resources "type" select field includes "quickadd".
+func migrateResourceTypeValues(app core.App) {
+	col, err := app.FindCollectionByNameOrId("resources")
+	if err != nil {
+		return
+	}
+	f := col.Fields.GetByName("type")
+	if f == nil {
+		return
+	}
+	sf, ok := f.(*core.SelectField)
+	if !ok {
+		return
+	}
+	for _, v := range sf.Values {
+		if v == "quickadd" {
+			return // already present
+		}
+	}
+	sf.Values = append(sf.Values, "quickadd")
+	if err := app.Save(col); err != nil {
+		log.Printf("Failed to add quickadd to resource type values: %v", err)
+	}
+}
+
+// ensureQuickAddResource creates the system "Quick Add" resource on startup if it doesn't exist.
+func ensureQuickAddResource(app core.App) {
+	records, err := app.FindRecordsByFilter("resources", "type = 'quickadd'", "", 1, 0)
+	if err == nil && len(records) > 0 {
+		return // already exists
+	}
+
+	collection, err := app.FindCollectionByNameOrId("resources")
+	if err != nil {
+		log.Printf("Failed to find resources collection for Quick Add: %v", err)
+		return
+	}
+
+	record := core.NewRecord(collection)
+	record.Set("name", "Quick Add")
+	record.Set("url", "https://quickadd.local")
+	record.Set("type", "quickadd")
+	record.Set("status", "healthy")
+	record.Set("active", true)
+	record.Set("consecutive_failures", 0)
+
+	if err := app.Save(record); err != nil {
+		log.Printf("Failed to create Quick Add resource: %v", err)
 	}
 }
