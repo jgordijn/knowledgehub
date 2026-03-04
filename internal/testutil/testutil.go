@@ -47,7 +47,7 @@ func registerCollections(t *testing.T, app core.App) {
 	addAutodateFields(resources)
 	resources.Fields.Add(&core.TextField{Name: "name", Required: true, Max: 200})
 	resources.Fields.Add(&core.URLField{Name: "url", Required: true})
-	resources.Fields.Add(&core.SelectField{Name: "type", Required: true, Values: []string{"rss", "watchlist"}, MaxSelect: 1})
+	resources.Fields.Add(&core.SelectField{Name: "type", Required: true, Values: []string{"rss", "watchlist", "quickadd"}, MaxSelect: 1})
 	resources.Fields.Add(&core.TextField{Name: "article_selector"})
 	resources.Fields.Add(&core.TextField{Name: "content_selector"})
 	resources.Fields.Add(&core.SelectField{Name: "status", Required: true, Values: []string{"healthy", "failing", "quarantined"}, MaxSelect: 1})
