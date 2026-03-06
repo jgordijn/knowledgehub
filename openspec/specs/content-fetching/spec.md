@@ -87,11 +87,15 @@ The system SHALL discover RSS/Atom/JSON Feed URLs by parsing `<link rel="alterna
 - **THEN** the system resolves it against the page URL to produce an absolute URL
 
 ### Requirement: Separator-based fragment splitting
-The system SHALL support splitting fragment feed content by an explicit text separator. When a resource has `fragment_mode` set to `separated` and a non-empty `fragment_separator`, the system SHALL split content by finding DOM elements whose trimmed text content exactly matches the separator string, using those as boundaries. Separator elements SHALL be discarded. Each group of elements between separators becomes a separate fragment.
+The system SHALL support splitting fragment feed content by an explicit text separator. When a resource has `fragment_mode` set to `separated` and a non-empty `fragment_separator`, the system SHALL split content by finding DOM elements whose whitespace-normalized trimmed text content matches the separator string, using those as boundaries. Separator elements SHALL be discarded. Each group of elements between separators becomes a separate fragment.
 
 #### Scenario: Split by separator
 - **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "~~~", and the feed entry contains three sections of content separated by paragraphs containing only "~~~"
 - **THEN** the system creates three fragment entries, one for each section, with the "~~~" separator paragraphs discarded
+
+#### Scenario: Separator match tolerates internal whitespace variation
+- **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "~ ~ ~", and the feed entry contains separator paragraphs like "~  ~ ~"
+- **THEN** the system treats those paragraphs as matching separators and splits the entry at those boundaries
 
 #### Scenario: Separator not found in content
 - **WHEN** a fragment feed resource has fragment_mode "separated" and fragment_separator "~~~", but the feed entry content contains no elements matching "~~~"

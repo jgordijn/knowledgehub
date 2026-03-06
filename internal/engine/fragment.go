@@ -93,22 +93,32 @@ func SplitFragments(html string) []Fragment {
 }
 
 // SplitFragmentsBySeparator splits HTML content into fragments using an explicit
-// text separator. It walks the top-level DOM children and groups elements into
-// fragments, splitting whenever an element's trimmed text content exactly matches
-// the separator string. Separator elements are discarded.
+// text separator. Separator matching is whitespace-normalized so feeds that emit
+// inconsistent spacing like "~  ~ ~" still match a configured "~ ~ ~". The
+// splitter also unwraps single top-level container elements (for example a
+// wrapping <div>) until it reaches the level where sibling content blocks live.
+// Separator elements are discarded.
 func SplitFragmentsBySeparator(html, separator string) []Fragment {
 	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
 	if err != nil {
 		return nil
 	}
 
+	separator = normalizeFragmentText(separator)
+	blocks := fragmentSplitBlocks(doc.Find("body"), separator)
+
 	var fragments []Fragment
 	var current strings.Builder
 
-	doc.Find("body").Children().Each(func(i int, s *goquery.Selection) {
-		text := strings.TrimSpace(s.Text())
+	blocks.Each(func(i int, s *goquery.Selection) {
+		text := normalizeFragmentText(s.Text())
+		tagName := goquery.NodeName(s)
 
-		// Element is the separator — flush current fragment and discard separator
+		if tagName == "hr" {
+			return
+		}
+
+		// Element is the separator — flush current fragment and discard separator.
 		if text == separator {
 			if current.Len() > 0 {
 				fragments = append(fragments, newFragment(current.String()))
@@ -121,12 +131,40 @@ func SplitFragmentsBySeparator(html, separator string) []Fragment {
 		current.WriteString(h)
 	})
 
-	// Flush the last fragment
+	// Flush the last fragment.
 	if current.Len() > 0 {
 		fragments = append(fragments, newFragment(current.String()))
 	}
 
 	return fragments
+}
+
+func normalizeFragmentText(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
+func fragmentSplitBlocks(root *goquery.Selection, separator string) *goquery.Selection {
+	blocks := root.Children()
+	for blocks.Length() == 1 && !hasSeparatorBlock(blocks, separator) {
+		next := blocks.First().Children()
+		if next.Length() == 0 {
+			break
+		}
+		blocks = next
+	}
+	return blocks
+}
+
+func hasSeparatorBlock(blocks *goquery.Selection, separator string) bool {
+	found := false
+	blocks.EachWithBreak(func(_ int, s *goquery.Selection) bool {
+		if normalizeFragmentText(s.Text()) == separator {
+			found = true
+			return false
+		}
+		return true
+	})
+	return found
 }
 
 // SplitFragmentsWithAI uses the heuristic splitter as a first pass, then asks
@@ -332,8 +370,6 @@ func titleWords(s string) map[string]bool {
 	}
 	return words
 }
-
-
 
 // resolveContentLinks resolves relative href and src attributes in HTML content
 // to absolute URLs using the given base URL. This prevents relative links from
