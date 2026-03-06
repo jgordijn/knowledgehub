@@ -7,13 +7,33 @@ import (
 	"github.com/pocketbase/pocketbase/tools/types"
 )
 
+const rememberMeAuthTokenDurationSeconds int64 = 30 * 24 * 60 * 60
+
 func registerCollections(app core.App) {
 	ensureResourcesCollection(app)
 	ensureEntriesCollection(app)
 	ensurePreferencesCollection(app)
 	ensureSettingsCollection(app)
+	ensureSuperuserAuthTokenDuration(app)
 	migrateCollections(app)
 	ensureQuickAddResource(app)
+}
+
+func ensureSuperuserAuthTokenDuration(app core.App) {
+	superusers, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		log.Printf("Failed to find superusers collection: %v", err)
+		return
+	}
+
+	if superusers.AuthToken.Duration >= rememberMeAuthTokenDurationSeconds {
+		return
+	}
+
+	superusers.AuthToken.Duration = rememberMeAuthTokenDurationSeconds
+	if err := app.Save(superusers); err != nil {
+		log.Printf("Failed to extend superuser auth token duration: %v", err)
+	}
 }
 
 func ensureResourcesCollection(app core.App) {

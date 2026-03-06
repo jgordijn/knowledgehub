@@ -4,7 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import Nav from '$lib/components/Nav.svelte';
-	import pb from '$lib/pb';
+	import pb, { refreshAuthSession } from '$lib/pb';
 	import { initTheme } from '$lib/theme';
 
 	let { children } = $props();
@@ -27,7 +27,11 @@
 			ready = true;
 		};
 
-		checkAuth();
+		const initialize = async () => {
+			await refreshAuthSession();
+			checkAuth();
+		};
+		void initialize();
 
 		// Listen for auth changes (login/logout) to update ready state
 		const unsub = pb.authStore.onChange(() => {
