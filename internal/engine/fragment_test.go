@@ -285,7 +285,6 @@ func TestMergeFragments(t *testing.T) {
 	}
 }
 
-
 func TestResolveContentLinks(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -389,7 +388,6 @@ func TestTitleSimilarity(t *testing.T) {
 		})
 	}
 }
-
 
 func TestContentSHA256(t *testing.T) {
 	h1 := contentSHA256("<p>Hello</p>")
@@ -536,6 +534,43 @@ func TestSplitFragmentsBySeparator_DifferentSeparator(t *testing.T) {
 	frags := SplitFragmentsBySeparator(html, "---")
 	if len(frags) != 2 {
 		t.Fatalf("got %d fragments, want 2", len(frags))
+	}
+}
+
+func TestSplitFragmentsBySeparator_NormalizesInternalWhitespace(t *testing.T) {
+	html := `<p>First moment.</p>
+<p>~  ~ ~</p>
+<p>Second moment.</p>
+<p>~ ~ ~</p>
+<p>Third moment.</p>`
+
+	frags := SplitFragmentsBySeparator(html, "~ ~ ~")
+	if len(frags) != 3 {
+		t.Fatalf("got %d fragments, want 3", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "First moment") {
+		t.Errorf("frag[0] should contain first moment, got %q", frags[0].HTML)
+	}
+	if !strings.Contains(frags[1].HTML, "Second moment") {
+		t.Errorf("frag[1] should contain second moment, got %q", frags[1].HTML)
+	}
+	if !strings.Contains(frags[2].HTML, "Third moment") {
+		t.Errorf("frag[2] should contain third moment, got %q", frags[2].HTML)
+	}
+}
+
+func TestSplitFragmentsBySeparator_UnwrapsSingleContainer(t *testing.T) {
+	html := `<div><p>First moment.</p><p>~~~</p><p>Second moment.</p></div>`
+
+	frags := SplitFragmentsBySeparator(html, "~~~")
+	if len(frags) != 2 {
+		t.Fatalf("got %d fragments, want 2", len(frags))
+	}
+	if !strings.Contains(frags[0].HTML, "First moment") {
+		t.Errorf("frag[0] should contain first moment, got %q", frags[0].HTML)
+	}
+	if !strings.Contains(frags[1].HTML, "Second moment") {
+		t.Errorf("frag[1] should contain second moment, got %q", frags[1].HTML)
 	}
 }
 
