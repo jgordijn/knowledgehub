@@ -128,6 +128,11 @@ func HandleQuickAddDirect(app core.App, body QuickAddRequest, client *http.Clien
 
 	// Trigger AI processing in background
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				log.Printf("AI processing panicked for quick-add entry %s: %v", entry.Id, r)
+			}
+		}()
 		if aiErr := ai.SummarizeAndScore(app, entry); aiErr != nil {
 			log.Printf("AI processing failed for quick-add entry %s: %v", entry.Id, aiErr)
 			entry.Set("processing_status", "failed")
