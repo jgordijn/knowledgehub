@@ -7,6 +7,7 @@ CMD_DIR := ./cmd/knowledgehub
 ui:
 	cd ui && bun install && bun run build
 	rm -rf $(CMD_DIR)/ui/build
+	mkdir -p $(CMD_DIR)/ui
 	cp -r ui/build $(CMD_DIR)/ui/build
 
 build: ui
