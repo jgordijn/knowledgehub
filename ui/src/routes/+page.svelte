@@ -373,9 +373,9 @@
 		</div>
 	{/if}
 
-	<!-- Undo banner -->
+	<!-- Undo banner (fixed to bottom so it doesn't shift content when it disappears) -->
 	{#if undoEntries.length > 0}
-		<div class="flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-md dark:bg-slate-600">
+		<div class="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-lg flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-lg dark:bg-slate-600">
 			<span>
 				{undoEntries.length === 1 ? '1 article' : `${undoEntries.length} articles`} marked as read
 			</span>
