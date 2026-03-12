@@ -81,7 +81,7 @@ The chat panel slides in from the right and covers the feed on mobile. There's n
 - **5 stars**: Full-width featured card with border accent, expanded summary, takeaways visible, large action buttons
 - **4 stars**: Medium card — title + 2-line summary, visible actions
 - **3 stars**: Compact — title + 1-line summary, actions on hover
-- **1–2 stars**: Minimal row — title only, just a "mark read" button visible
+- **1–2 stars**: Minimal row — title only, muted at 50% opacity. **Click to expand in-place** reveals summary + full action set (Read, Save, Mark read). Collapses back on second click. *(Refined in v2)*
 
 This creates a natural visual river where the eye is drawn to high-value content first.
 
@@ -91,13 +91,15 @@ Instead of tiny icon-only buttons, use clear labeled buttons:
 - **"Save 📌"** — bookmarks for later (amber when active)
 - **"Chat 🤖"** — opens chat panel
 
-On low-star entries, only "Mark read ✓" is shown to reduce noise and encourage quick dismissal.
+On low-star entries, the collapsed row shows only the title and a ✓ button. Expanding reveals the full action set (Read, Save, Mark read) so users can still engage if the AI under-scored something relevant. *(Refined in v2)*
 
-**3. Unified filter bar**
+**3. Unified filter bar** *(Refined in v2)*
 Replace three separate filter groups with a clean single-line bar:
 - Left: segmented toggle for **Unread (23) | Saved (4) | All**
-- Center: dropdown for **Sources** (shows active source name when filtered)
+- Center: **active source indicator** — a read-only pill showing the sidebar-selected source with a ✕ clear button; hidden when "All Sources" is active. This is *not* a filter control — it's feedback.
 - Right: star minimum dropdown **"★ 3+" / "★ 4+" / "★ 5"** and **"Mark read ▾"** action button (visually separated from filters by a divider)
+
+**Source filtering lives exclusively in the sidebar source list** — the topbar only reflects the current selection. The old "All Sources" `<select>` dropdown has been removed to eliminate the dual-control confusion.
 
 **4. Source shown as a subtle colored tag**
 Each source gets a consistent 2-letter avatar + color (deterministic from name hash). This provides instant visual recognition of sources without needing to read the name. The full source name appears below the summary in a smaller font.
@@ -187,4 +189,58 @@ This is an incremental redesign, not a rewrite:
 4. **Phase 4**: Add swipe gestures (new Svelte action)
 5. **Phase 5**: Enhance chat panel with context and quick prompts
 
-Each phase is a single PR. No big-bang migration.
+---
+
+## Refinement v2 — Addressing Feedback
+
+This section documents changes made to the original River proposal after review.
+
+### 1. Low-priority items are now expandable/collapsible in-place
+
+**Problem**: The original design showed 1–2 star items as minimal rows with only a "✓ Mark read" button. This made them essentially write-off-only — there was no way to inspect the content without opening the full article externally.
+
+**Resolution**: Low-priority rows now have click-to-expand behavior. The collapsed state remains visually muted (50% opacity, small text, single-line title). Clicking a row expands a detail panel directly below it, revealing:
+- Full title (readable size)
+- AI summary
+- Source + time metadata
+- Full action set: Read ↗, Save 📌, Mark read ✓
+
+The expand/collapse is in-place — no navigation, no modal. The row gets a subtle `▸`/`▾` chevron hint. On expand, opacity lifts to ~85% so the content is fully readable while still being visually subordinate to higher-tier cards.
+
+**Rationale**: Not every 2-star article is noise — sometimes the AI under-scores something the user cares about. Expand-in-place lets users quickly check without losing their scroll position in the River.
+
+### 2. Expanded low-priority items are readable, not muted
+
+**Problem**: If expanded items stayed at 50% opacity, the summary text would be unreadable.
+
+**Resolution**: The collapsed row stays muted (opacity 0.5). When expanded, the row header lifts to 0.85 opacity and the detail panel renders at full contrast inside a bordered card — identical styling to the "Worth a Look" tier. This gives a clear visual signal that the user has chosen to engage with this item.
+
+### 3. Source filtering lives in the sidebar
+
+**Problem**: The original design had an "All Sources" dropdown in the topbar *and* a Sources nav link in the sidebar. This created two source-related controls with different purposes — one for filtering, one for CRUD management — but their labels didn't make the distinction clear.
+
+**Resolution**: The sidebar now contains a dedicated **"Filter by Source"** section showing all subscribed sources as a clickable list. Each source shows its avatar color, name, and unread count. The active source gets a highlighted background + accent border. "All Sources" at the top is the default/reset option.
+
+This makes the sidebar the **single, authoritative place** to filter by source. The source list is always visible (on desktop) which makes it faster than a dropdown — no click-to-reveal needed.
+
+### 4. Topbar "All Sources" dropdown removed
+
+**Problem**: Having a source dropdown in the topbar duplicated the sidebar's source filtering, creating confusion about which control is canonical.
+
+**Resolution**: The topbar "All Sources" `<select>` has been removed entirely. When a source filter is active (selected in sidebar), a small blue tag appears in the topbar showing the active source name with an ✕ to clear it — this serves as a visible reminder + quick escape, not as a filter control.
+
+The topbar now contains only: Unread/Saved/All tabs, the active-source tag (when applicable), star minimum filter, theme toggle, and Mark read action. This is cleaner and avoids the "which source control do I use?" confusion.
+
+### 5. River direction intact
+
+The core River metaphor is preserved: content flows top-to-bottom with decreasing visual prominence. Featured (5★) → High Priority (4★) → Worth a Look (3★) → Low Priority (1–2★). The expand/collapse addition to low-priority items doesn't break this hierarchy — collapsed items remain the least visually prominent elements in the feed. Expanding one temporarily lifts it for inspection, then it collapses back to muted.
+
+### Summary of mockup changes
+
+| Element | Before (v1) | After (v2) |
+|---------|------------|------------|
+| Low-priority rows | Title + ✓ button only | Expandable: click reveals summary + full actions |
+| Low-priority expanded | N/A | Card-style panel, full contrast, readable |
+| Source filtering | Topbar `<select>` dropdown | Sidebar source list (always visible) |
+| Topbar "All Sources" | `<select>` dropdown | Removed; replaced with active-source tag when filtered |
+| River ordering | Top→bottom by stars | Unchanged |

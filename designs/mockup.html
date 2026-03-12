@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KnowledgeHub — River Redesign</title>
+<title>KnowledgeHub — River Redesign (v2)</title>
 <style>
 /* ─── Theme variables ─── */
 :root{--trans:background .2s,color .2s,border-color .2s,box-shadow .2s}
@@ -12,18 +12,20 @@
   --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--text4:#475569;
   --heading:#f8fafc;--accent:#f59e0b;--blue:#3b82f6;
   --card:#1e293b;--scroll:#334155;--code-bg:#334155;
+  --src-active:#1e3a5f;--src-active-border:#3b82f6;
 }
 [data-theme="light"]{
   --bg:#f8fafc;--bg2:#ffffff;--border:#e2e8f0;--border2:#cbd5e1;
   --text:#334155;--text2:#64748b;--text3:#94a3b8;--text4:#cbd5e1;
   --heading:#0f172a;--accent:#d97706;--blue:#2563eb;
   --card:#ffffff;--scroll:#cbd5e1;--code-bg:#f1f5f9;
+  --src-active:#eff6ff;--src-active-border:#2563eb;
 }
 *{margin:0;padding:0;box-sizing:border-box}
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;transition:var(--trans)}
 
 /* ─── Sidebar ─── */
-.sidebar{width:210px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:var(--trans)}
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:var(--trans)}
 .logo{padding:20px 16px 12px;font-size:17px;font-weight:700;color:var(--heading)}
 .logo span{color:var(--accent)}
 .nav{padding:8px}
@@ -32,6 +34,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .badge{margin-left:auto;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
 .badge.m{background:var(--border);color:var(--text2)}
 .nav-div{height:1px;background:var(--border);margin:10px 8px}
+
+/* ─── Source filter list in sidebar ─── */
+.src-section{padding:4px 8px 8px}
+.src-label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);font-weight:600;padding:6px 12px 4px}
+.src-list{list-style:none}
+.src-list li{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:12px;color:var(--text2);cursor:pointer;transition:var(--trans);border:1px solid transparent;margin-bottom:1px}
+.src-list li:hover{background:var(--border);color:var(--heading)}
+.src-list li.active{background:var(--src-active);border-color:var(--src-active-border);color:var(--heading);font-weight:600}
+.src-list li .av{width:16px;height:16px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#0f172a;flex-shrink:0}
+.src-list li .cnt{margin-left:auto;font-size:10px;color:var(--text4);font-weight:400}
+.src-all{font-style:italic;color:var(--text3) !important}
+
 .sidebar-ft{margin-top:auto;padding:14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6;transition:var(--trans)}
 
 /* ─── Main ─── */
@@ -42,6 +56,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .flt{padding:5px 10px;border-radius:6px;font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);transition:var(--trans)}
 .spacer{flex:1}
 .mark-btn{padding:5px 10px;border-radius:6px;font-size:12px;color:var(--text2);background:transparent;border:1px solid var(--border2);cursor:pointer;transition:var(--trans)}
+
+/* ─── Active source indicator in topbar ─── */
+.active-src-tag{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:12px;color:var(--blue);background:var(--src-active);border:1px solid var(--src-active-border)}
+.active-src-tag .clear{cursor:pointer;font-size:14px;margin-left:2px;color:var(--text3)}
+.active-src-tag .clear:hover{color:var(--heading)}
 
 /* ─── Theme toggle ─── */
 .theme-toggle{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:12px;color:var(--text2);transition:var(--trans);user-select:none;flex-shrink:0}
@@ -90,9 +109,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cs{background:transparent;border-bottom:1px solid var(--bg2);padding:8px 4px;display:flex;align-items:center;gap:10px;transition:var(--trans)}
 .cs .t{font-size:13px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
-/* Minimal row */
-.mn{padding:7px 4px;border-bottom:1px solid var(--bg2);display:flex;align-items:center;gap:10px;opacity:.55;transition:var(--trans)}
+/* ─── Low-priority rows (collapsible) ─── */
+.mn{padding:7px 4px;border-bottom:1px solid var(--bg2);display:flex;align-items:center;gap:10px;opacity:.5;transition:opacity .2s,background .2s;cursor:pointer;border-radius:4px}
+.mn:hover{opacity:.75;background:var(--bg2)}
 .mn .t{font-size:12px;color:var(--text3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .expand-hint{font-size:10px;color:var(--text4);flex-shrink:0;transition:var(--trans)}
+.mn:hover .expand-hint{color:var(--text2)}
+
+/* Expanded low-priority detail */
+.mn-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out}
+.mn-detail.open{display:block}
+.mn.expanded{opacity:.85;background:var(--bg2);border-bottom:none;border-radius:4px 4px 0 0}
+.mn-detail .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:4px}
+.mn-detail .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+.mn-detail .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.mn-detail .acts{display:flex;gap:7px;flex-wrap:wrap}
+
+@keyframes slideDown{
+  from{opacity:0;transform:translateY(-4px)}
+  to{opacity:1;transform:translateY(0)}
+}
 
 /* Section labels */
 .sl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);font-weight:600;padding:10px 4px 4px}
@@ -118,7 +154,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ─── Mobile: ≤768px ─── */
 @media(max-width:768px){
-  .sidebar{position:fixed;left:-220px;top:0;bottom:0;width:210px;z-index:100;transition:left .25s ease}
+  .sidebar{position:fixed;left:-230px;top:0;bottom:0;width:220px;z-index:100;transition:left .25s ease}
   .sidebar.open{left:0}
   .overlay.show{display:block}
   .hamburger{display:block}
@@ -160,6 +196,23 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <a href="#"><span>📦</span>Sources</a>
     <a href="#"><span>⚙️</span>Settings</a>
   </div>
+
+  <!-- Source filter list — primary source filter -->
+  <div class="nav-div"></div>
+  <div class="src-section">
+    <div class="src-label">Filter by Source</div>
+    <ul class="src-list" id="srcList">
+      <li class="src-all active" data-source="all" onclick="filterSource(this,'all')">All Sources <span class="cnt">23</span></li>
+      <li data-source="rust" onclick="filterSource(this,'rust')"><span class="av" style="background:#f97316">RB</span>Rust Blog <span class="cnt">3</span></li>
+      <li data-source="eng" onclick="filterSource(this,'eng')"><span class="av" style="background:#8b5cf6">EB</span>Eng Blog <span class="cnt">5</span></li>
+      <li data-source="infoq" onclick="filterSource(this,'infoq')"><span class="av" style="background:#06b6d4">IQ</span>InfoQ <span class="cnt">4</span></li>
+      <li data-source="cloudflare" onclick="filterSource(this,'cloudflare')"><span class="av" style="background:#f472b6">CF</span>Cloudflare <span class="cnt">3</span></li>
+      <li data-source="pg" onclick="filterSource(this,'pg')"><span class="av" style="background:#34d399">PG</span>PG Blog <span class="cnt">2</span></li>
+      <li data-source="node" onclick="filterSource(this,'node')"><span class="av" style="background:#a78bfa">NJ</span>Node.js <span class="cnt">4</span></li>
+      <li data-source="gh" onclick="filterSource(this,'gh')"><span class="av" style="background:#fb923c">GH</span>GitHub <span class="cnt">2</span></li>
+    </ul>
+  </div>
+
   <div class="sidebar-ft"><b>?</b> shortcuts · <b>j/k</b> navigate · <b>o</b> open</div>
 </nav>
 
@@ -170,7 +223,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="tab">Saved</div>
     <div class="tab">All</div>
     <div style="width:1px;height:18px;background:var(--border)"></div>
-    <select class="flt"><option>All Sources</option></select>
+    <!-- Active source shown here when filtered (hidden by default) -->
+    <span class="active-src-tag" id="activeSrcTag" style="display:none">
+      <span id="activeSrcName">Rust Blog</span>
+      <span class="clear" onclick="clearSourceFilter()" title="Clear source filter">✕</span>
+    </span>
     <select class="flt"><option>★ All</option><option>★ 3+</option><option>★ 4+</option></select>
     <div class="spacer"></div>
     <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
@@ -251,26 +308,77 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <button class="b b-m" style="font-size:11px;padding:4px 8px">Read</button>
     </div>
 
-    <div class="sl">Low Priority</div>
+    <div class="sl">Low Priority <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click to expand</span></div>
 
-    <div class="mn">
+    <!-- Low-priority row 1: collapsed (default) -->
+    <div class="mn" id="lp1" onclick="toggleLowPriority('lp1')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
       <span class="t">New npm Package Naming Rules for 2026</span>
+      <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
       <span class="time">1d</span>
-      <button class="b b-m" style="font-size:10px;padding:3px 8px">✓</button>
+      <span class="expand-hint">▸</span>
     </div>
-    <div class="mn">
+    <div class="mn-detail" id="lp1-detail">
+      <div class="t">New npm Package Naming Rules for 2026</div>
+      <div class="s">npm is changing how package names are validated — stricter rules for scoped packages, new reserved-word list, and migration timeline for existing non-compliant names.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★★</span>
+        <span class="src"><span class="av" style="background:#a78bfa">NJ</span>Node.js Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+      </div>
+    </div>
+
+    <!-- Low-priority row 2: EXPANDED (demo) -->
+    <div class="mn expanded" id="lp2" onclick="toggleLowPriority('lp2')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
       <span class="t">GitHub Actions Now Supports Manual Approval Gates</span>
+      <span class="src"><span class="av" style="background:#fb923c">GH</span></span>
       <span class="time">2d</span>
-      <button class="b b-m" style="font-size:10px;padding:3px 8px">✓</button>
+      <span class="expand-hint">▾</span>
     </div>
-    <div class="mn">
+    <div class="mn-detail open" id="lp2-detail">
+      <div class="t">GitHub Actions Now Supports Manual Approval Gates</div>
+      <div class="s">GitHub has added manual approval steps for Actions workflows — teams can now gate deployments behind human review. Supports required reviewers, timeout policies, and Slack notifications.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★★</span>
+        <span class="src"><span class="av" style="background:#fb923c">GH</span>GitHub Blog</span>
+        <span class="time">2d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+      </div>
+    </div>
+
+    <!-- Low-priority row 3: collapsed (default) -->
+    <div class="mn" id="lp3" onclick="toggleLowPriority('lp3')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★</span>
       <span class="t">Weekly Roundup: JavaScript Framework Updates</span>
+      <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
       <span class="time">2d</span>
-      <button class="b b-m" style="font-size:10px;padding:3px 8px">✓</button>
+      <span class="expand-hint">▸</span>
     </div>
+    <div class="mn-detail" id="lp3-detail">
+      <div class="t">Weekly Roundup: JavaScript Framework Updates</div>
+      <div class="s">This week's framework roundup covers Svelte 5.2 improvements, React Server Components updates, and Vue 3.5 migration guide highlights.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★</span>
+        <span class="src"><span class="av" style="background:#a78bfa">NJ</span>Node.js Blog</span>
+        <span class="time">2d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -356,6 +464,47 @@ function closeMobileDrawers(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('chatPanel').classList.remove('open');
   document.getElementById('overlay').classList.remove('show');
+}
+
+// ─── Low-priority expand/collapse ───
+function toggleLowPriority(id){
+  var row=document.getElementById(id);
+  var detail=document.getElementById(id+'-detail');
+  var hint=row.querySelector('.expand-hint');
+  if(detail.classList.contains('open')){
+    detail.classList.remove('open');
+    row.classList.remove('expanded');
+    if(hint) hint.textContent='▸';
+  }else{
+    detail.classList.add('open');
+    row.classList.add('expanded');
+    if(hint) hint.textContent='▾';
+  }
+}
+
+// ─── Source filtering ───
+function filterSource(el,source){
+  // Update sidebar active state
+  var items=document.querySelectorAll('#srcList li');
+  items.forEach(function(li){li.classList.remove('active')});
+  el.classList.add('active');
+
+  // Update topbar source tag
+  var tag=document.getElementById('activeSrcTag');
+  var name=document.getElementById('activeSrcName');
+  if(source==='all'){
+    tag.style.display='none';
+  }else{
+    tag.style.display='inline-flex';
+    name.textContent=el.textContent.replace(/\d+$/,'').trim();
+  }
+}
+
+function clearSourceFilter(){
+  var items=document.querySelectorAll('#srcList li');
+  items.forEach(function(li){li.classList.remove('active')});
+  document.querySelector('#srcList li[data-source="all"]').classList.add('active');
+  document.getElementById('activeSrcTag').style.display='none';
 }
 </script>
 </body>
