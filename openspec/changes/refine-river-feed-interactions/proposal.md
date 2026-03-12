@@ -15,7 +15,7 @@ The River redesign v3 mockup has interaction gaps beyond those addressed in v3:
 - **Source filter sidebar**: change from single-select (radio) to multi-select toggles. Each source gets a checkbox indicator. A "Clear" link in the header resets all filters. The topbar shows one dismissable chip per active source. *(v3)*
 - **Card interactions — expand/collapse on ALL tiers**: Every card tier (Featured, High Priority, Worth a Look, Low Priority) gets a dedicated ▸/▾ expand/collapse button. Featured and HP default to expanded; Worth a Look and LP default to collapsed. *(v4 — extends v3's LP-only approach)*
 - **Card interactions — card-level click opens article**: Clicking anywhere on a card (except the expand button or action buttons) opens the article. Buttons use `event.stopPropagation()` to prevent interference. *(v4)*
-- **Section-level batch controls on EVERY section**: All four section headers (Featured, High Priority, Worth a Look, Low Priority) show both "Expand all" and "Collapse all" buttons. Buttons use progressive disclosure — visible only when they have work to do. *(v5 — replaces v4's WaL/LP-only collapse-all)*
+- **Section-level batch controls on EVERY section**: All four section headers (Featured, High Priority, Worth a Look, Low Priority) support both "Expand all" and "Collapse all" actions. Buttons use progressive disclosure — only the controls that currently have work to do are shown. *(v5 — replaces v4's WaL/LP-only collapse-all)*
 - **Version + GitHub**: the sidebar logo area shows version text (e.g., `v0.4.2`) and a small GitHub SVG icon linking to the repository, matching the existing `Nav.svelte` pattern. *(v3)*
 
 ## Capabilities
