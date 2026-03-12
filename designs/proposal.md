@@ -78,10 +78,12 @@ The chat panel slides in from the right and covers the feed on mobile. There's n
 ### Key layout decisions:
 
 **1. Tiered card prominence based on stars**
-- **5 stars**: Full-width featured card with border accent, expanded summary, takeaways visible, large action buttons
-- **4 stars**: Medium card — title + 2-line summary, visible actions
-- **3 stars**: Compact — title + 1-line summary, actions on hover
-- **1–2 stars**: Minimal row — title only, muted at 50% opacity. **Click to expand in-place** reveals summary + full action set (Read, Save, Mark read). Collapses back on second click. *(Refined in v2)*
+- **5 stars**: Full-width featured card with border accent, expanded summary, takeaways visible, large action buttons. Collapsible via ▾ button. *(Refined in v4)*
+- **4 stars**: Medium card — title + 2-line summary, visible actions. Collapsible via ▾ button. *(Refined in v4)*
+- **3 stars**: Compact row — title + source + time. **Click ▸ to expand in-place** reveals summary + full action set. *(Refined in v4)*
+- **1–2 stars**: Minimal row — title only, muted at 50% opacity. **Click ▸ to expand in-place** reveals summary + full action set (Read, Save, Mark read). Collapses back on second click. *(Refined in v2)*
+
+All tiers support expand/collapse via a dedicated ▸/▾ button. Clicking anywhere else on the card opens the article. *(Refined in v4)*
 
 This creates a natural visual river where the eye is drawn to high-value content first.
 
@@ -304,15 +306,75 @@ This same pattern applies consistently across all tiers: Featured and High Prior
 
 ---
 
+## Refinement v4 — Universal Expand/Collapse Across All Card Tiers
+
+This section documents changes made to the River v3 mockup to extend the expand/collapse interaction model to every card tier and unify the card-click behavior.
+
+### 1. Every card tier now has an expand/collapse affordance
+
+**Problem**: In v3, only low-priority cards (1–2★) had a ▸/▾ expand/collapse button. Featured (5★), High Priority (4★), and Worth a Look (3★) cards had fixed disclosure levels — their content was either always fully shown or always compact with no way to toggle. This inconsistency meant users couldn't scan-then-drill-down uniformly across the feed.
+
+**Resolution**: All four card tiers now have a dedicated ▸/▾ expand/collapse button:
+
+| Tier | Default state | Expand/collapse reveals/hides |
+|------|--------------|-------------------------------|
+| **Featured (5★)** | Expanded | Collapse hides summary, takeaways, and action buttons — showing just the featured label + title |
+| **High Priority (4★)** | Expanded | Collapse hides summary and side action buttons — showing just the title + stars + source + time row |
+| **Worth a Look (3★)** | Collapsed | Expand reveals a detail panel below the row with summary, metadata, and full action set |
+| **Low Priority (1–2★)** | Collapsed | Expand reveals a detail panel below the row with summary, metadata, and full action set (unchanged from v3) |
+
+The expand/collapse button is positioned consistently at the right edge of each card. Featured and High Priority cards show ▾ by default (indicating they can be collapsed). Worth a Look and Low Priority cards show ▸ by default (indicating they can be expanded).
+
+**Rationale**: A uniform interaction model removes guesswork — users learn one gesture that works everywhere. Collapsing a Featured card during triage lets users reclaim screen space for scanning. Expanding a Worth a Look row lets users inspect content without leaving the feed.
+
+### 2. Card-level click opens the article
+
+**Problem**: In v3, the article title was an `<a>` link and the card body was not clickable. This required precise targeting — on mobile, the title text is a narrow hit target. Users expected the whole card to be tappable.
+
+**Resolution**: The entire card is now a click target for opening the article. Clicking anywhere on the card — except the ▸/▾ expand button or action buttons (Read, Save, Chat, Mark read) — opens the article. The interaction model is:
+
+| Click target | Action |
+|---|---|
+| Card body / title | Opens the article |
+| ▸/▾ expand button | Toggles inline detail |
+| Action buttons (Read, Save, Chat, Mark read) | Performs the labeled action |
+
+Buttons use `event.stopPropagation()` to prevent triggering card navigation. Title text remains wrapped in an `<a>` tag for accessibility and keyboard navigation, but the card-level `onclick` provides the primary pointer interaction.
+
+**Rationale**: Making the entire card a click target is a standard mobile-first pattern (Material Design cards, iOS list rows). It provides a large, forgiving hit target. The expand button and action buttons are intentionally small and positioned at edges — they serve as secondary interactions that don't interfere with the primary "open article" gesture.
+
+### 3. Worth a Look section gets collapse-all
+
+**Problem**: With Worth a Look rows now expandable, users triaging multiple 3★ articles need a way to reset expanded rows — the same need that existed for Low Priority in v3.
+
+**Resolution**: The "Worth a Look" section header now shows a "Collapse all" button (same pattern as Low Priority) that appears when ≥1 row in that section is expanded. Clicking it collapses all expanded Worth a Look detail panels. The button hides when all rows are collapsed.
+
+Featured and High Priority sections do not get section-level controls — they typically contain few items (1–3 cards), so per-card toggle buttons are sufficient.
+
+### Summary of v4 mockup changes
+
+| Element | Before (v3) | After (v4) |
+|---------|------------|------------|
+| Featured card | Static — always fully expanded | Collapsible via ▾ button; collapse hides summary/takeaways/actions |
+| High Priority cards | Static — always show summary + side buttons | Collapsible via ▾ button; collapse hides summary + side action buttons |
+| Worth a Look rows | Static compact row with "Read" button | Expandable via ▸ button; expand reveals detail panel with summary + actions |
+| Low Priority rows | Expandable (unchanged) | Expandable (unchanged); card click now opens article |
+| Card click behavior | Title `<a>` link opens article | Entire card click opens article; expand button + action buttons excluded |
+| Worth a Look collapse-all | N/A | "Collapse all" button in section header when any row expanded |
+
+---
+
 ## Design Clarifications — Quick Reference
 
-These six points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2/v3 refinements above, collected here for fast lookup.
+These eight points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2/v3/v4 refinements above, collected here for fast lookup.
 
 | # | Concern | Answer |
 |---|---------|--------|
-| 1 | **Can compact / low-priority rows expand?** | Yes. 1–2 ★ rows are collapsed by default (muted, title-only). Click the ▸ button to expand in-place — no modal, no navigation. Click ▾ to collapse. |
-| 2 | **Are muted rows readable when expanded?** | Yes. Collapsed rows stay at 50 % opacity. On expand the header lifts to 85 % and the detail panel renders at **full contrast** inside a bordered card (same styling as "Worth a Look" tier). |
+| 1 | **Can every card tier expand/collapse?** | Yes. All four tiers (Featured, High Priority, Worth a Look, Low Priority) have a dedicated ▸/▾ button. Featured and HP default to expanded; WaL and LP default to collapsed. |
+| 2 | **Are muted rows readable when expanded?** | Yes. Collapsed low-priority rows stay at 50 % opacity. On expand the header lifts to 85 % and the detail panel renders at **full contrast** inside a bordered card. |
 | 3 | **Where do users filter by source?** | The **sidebar source list** is the single, authoritative source filter. It uses multi-select toggles — each source can be independently activated/deactivated. |
 | 4 | **Does the topbar duplicate source filtering?** | No. The topbar has **no source dropdown**. When sidebar source filters are active, the topbar shows read-only blue chips with each source name and ✕ to remove — purely indicators, not filter controls. |
-| 5 | **How do I open an article vs expand a low-priority row?** | Click the **title link** to open the article. Click the **▸ button** to expand the detail panel. These are separate click targets — no conflict. |
-| 6 | **Is there a quick way to collapse all expanded low-priority rows?** | Yes. A "Collapse all" button appears in the Low Priority section header when any row is expanded. It hides when all rows are collapsed. |
+| 5 | **How do I open an article?** | Click anywhere on the card (except the expand button or action buttons). The entire card is a click target. Title `<a>` links remain for accessibility/keyboard users. |
+| 6 | **How do I expand/collapse inline detail?** | Click the **▸/▾ button** at the right edge of the card. This toggles the detail panel without opening the article. The two actions never interfere. |
+| 7 | **Is there a quick way to collapse all expanded rows?** | Yes. "Collapse all" buttons appear in the Worth a Look and Low Priority section headers when any row in that section is expanded. They hide when all rows are collapsed. |
+| 8 | **Do Featured/HP cards have collapse-all?** | No. These sections have few items (1–3 cards), so per-card toggle buttons are sufficient. |

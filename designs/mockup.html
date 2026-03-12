@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>KnowledgeHub — River Redesign (v3)</title>
+<title>KnowledgeHub — River Redesign (v4)</title>
 <style>
 /* ─── Theme variables ─── */
 :root{--trans:background .2s,color .2s,border-color .2s,box-shadow .2s}
@@ -91,9 +91,26 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .feed::-webkit-scrollbar{width:5px}
 .feed::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:3px}
 
+/* ─── Universal expand/collapse button ─── */
+.expand-btn{font-size:10px;color:var(--text4);flex-shrink:0;transition:var(--trans);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;line-height:1}
+.expand-btn:hover{color:var(--text2);border-color:var(--border2)}
+
+/* ─── Card-level click target (all tiers) ─── */
+.feat,.cm,.cs,.mn{cursor:pointer}
+.feat:hover,.cm:hover{box-shadow:0 0 0 1px var(--border2)}
+.cs:hover{background:var(--bg2)}
+
+/* ─── Click flash feedback ─── */
+@keyframes clickFlash{
+  0%{box-shadow:0 0 0 2px var(--blue)}
+  100%{box-shadow:none}
+}
+.click-flash{animation:clickFlash .3s ease-out}
+
 /* Featured card */
 .feat{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:10px;padding:18px 20px;margin-bottom:18px;transition:var(--trans)}
-.feat-label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent);font-weight:600;margin-bottom:6px}
+.feat-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.feat-label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent);font-weight:600}
 .feat .t{font-size:19px;font-weight:700;color:var(--heading);margin-bottom:5px}
 .feat .t a{color:inherit;text-decoration:none}
 .feat .t a:hover{text-decoration:underline}
@@ -113,7 +130,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .b-ch{background:transparent;border:1px solid var(--border2);color:var(--text2)}
 .b-m{background:transparent;border:1px solid var(--border);color:var(--text3);font-weight:400}
 
-/* Compact cards — title is a link, card background click does NOT navigate */
+/* Featured collapsed: title + meta bar only */
+.feat.collapsed .card-detail{display:none}
+.feat.collapsed .t{margin-bottom:0}
+
+/* Compact cards — card click opens article */
 .cm{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;gap:12px;transition:var(--trans)}
 .cm .cb{flex:1;min-width:0}
 .cm .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:3px}
@@ -122,11 +143,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .cm .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .cm .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 
-/* Compact-single row */
+/* HP collapsed: hide summary and side action buttons */
+.cm.collapsed .card-detail{display:none}
+.cm.collapsed .side-acts{display:none}
+.cm.collapsed .t{margin-bottom:0}
+
+/* Compact-single row (Worth a Look) */
 .cs{background:transparent;border-bottom:1px solid var(--bg2);padding:8px 4px;display:flex;align-items:center;gap:10px;transition:var(--trans)}
 .cs .t{font-size:13px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cs .t a{color:inherit;text-decoration:none}
 .cs .t a:hover{text-decoration:underline}
+.cs.expanded{background:var(--bg2);border-bottom:none;border-radius:4px 4px 0 0}
+
+/* Worth a Look detail panel (mirrors low-priority detail) */
+.wal-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out;cursor:pointer}
+.wal-detail.open{display:block}
+.wal-detail .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:4px}
+.wal-detail .t a{color:inherit;text-decoration:none}
+.wal-detail .t a:hover{text-decoration:underline}
+.wal-detail .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+.wal-detail .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.wal-detail .acts{display:flex;gap:7px;flex-wrap:wrap}
 
 /* ─── Low-priority rows (collapsible) ─── */
 .mn{padding:7px 4px;border-bottom:1px solid var(--bg2);display:flex;align-items:center;gap:10px;opacity:.5;transition:opacity .2s,background .2s;border-radius:4px}
@@ -134,11 +171,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .mn .t{font-size:12px;color:var(--text3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mn .t a{color:inherit;text-decoration:none}
 .mn .t a:hover{text-decoration:underline;color:var(--text2)}
-.mn .expand-btn{font-size:10px;color:var(--text4);flex-shrink:0;transition:var(--trans);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;line-height:1}
-.mn .expand-btn:hover{color:var(--text2);border-color:var(--border2)}
 
 /* Expanded low-priority detail */
-.mn-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out}
+.mn-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out;cursor:pointer}
 .mn-detail.open{display:block}
 .mn.expanded{opacity:.85;background:var(--bg2);border-bottom:none;border-radius:4px 4px 0 0}
 .mn-detail .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:4px}
@@ -298,31 +333,41 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   </div>
 
   <div class="feed">
-    <div class="feat">
-      <div class="feat-label">★★★★★ Featured</div>
-      <div class="t"><a href="#article-1" onclick="event.preventDefault()">Understanding Rust's Borrow Checker: A Practical Guide</a></div>
-      <div class="s">The article explains ownership semantics through practical examples, comparing Rust's compile-time guarantees to C++ RAII and Swift's ARC model. Covers lifetime elision rules with clear before/after code.</div>
-      <ul class="tk">
-        <li>Key insight about lifetime elision reducing annotation noise by ~60%</li>
-        <li>Comparison with Swift's ARC highlights Rust's zero-cost advantage</li>
-      </ul>
-      <div class="meta">
-        <span class="src"><span class="av" style="background:#f97316">RB</span>Rust Blog</span>
-        <span class="time">2h ago</span>
+
+    <!-- ═══ FEATURED (5★) — expanded by default, collapsible ═══ -->
+    <div class="feat" id="feat1" onclick="openArticle(event,'#article-1')">
+      <div class="feat-hdr">
+        <div class="feat-label">★★★★★ Featured</div>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('feat1')" title="Collapse details" aria-label="Collapse">▾</button>
       </div>
-      <div class="acts">
-        <button class="b b-rd">Read Now ↗</button>
-        <button class="b b-sv">📌 Save</button>
-        <button class="b b-ch" onclick="toggleChat()">🤖 Chat</button>
+      <div class="t"><a href="#article-1" onclick="event.preventDefault()">Understanding Rust's Borrow Checker: A Practical Guide</a></div>
+      <div class="card-detail" id="feat1-detail">
+        <div class="s">The article explains ownership semantics through practical examples, comparing Rust's compile-time guarantees to C++ RAII and Swift's ARC model. Covers lifetime elision rules with clear before/after code.</div>
+        <ul class="tk">
+          <li>Key insight about lifetime elision reducing annotation noise by ~60%</li>
+          <li>Comparison with Swift's ARC highlights Rust's zero-cost advantage</li>
+        </ul>
+        <div class="meta">
+          <span class="src"><span class="av" style="background:#f97316">RB</span>Rust Blog</span>
+          <span class="time">2h ago</span>
+        </div>
+        <div class="acts">
+          <button class="b b-rd" onclick="event.stopPropagation()">Read Now ↗</button>
+          <button class="b b-sv" onclick="event.stopPropagation()">📌 Save</button>
+          <button class="b b-ch" onclick="event.stopPropagation();toggleChat()">🤖 Chat</button>
+        </div>
       </div>
     </div>
 
+    <!-- ═══ HIGH PRIORITY (4★) — expanded by default, collapsible ═══ -->
     <div class="sl">High Priority</div>
 
-    <div class="cm">
+    <div class="cm" id="hp1" onclick="openArticle(event,'#article-2')">
       <div class="cb">
         <div class="t"><a href="#article-2" onclick="event.preventDefault()">Cache Invalidation Strategies for Distributed Systems</a></div>
-        <div class="s">Two approaches to distributed cache invalidation — event-driven purging vs TTL with versioned keys. Benchmarks show 40% latency reduction.</div>
+        <div class="card-detail" id="hp1-detail">
+          <div class="s">Two approaches to distributed cache invalidation — event-driven purging vs TTL with versioned keys. Benchmarks show 40% latency reduction.</div>
+        </div>
         <div class="mr">
           <span class="stars">★★★★</span>
           <span class="src"><span class="av" style="background:#8b5cf6">EB</span>Eng Blog</span>
@@ -330,15 +375,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <div class="side-btns" style="display:flex;flex-direction:column;gap:5px;align-self:center">
-        <button class="b b-rd" style="font-size:11px;padding:5px 9px">Read ↗</button>
-        <button class="b b-sv" style="font-size:11px;padding:5px 9px">📌</button>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('hp1')" title="Collapse details" aria-label="Collapse">▾</button>
+        <div class="side-acts">
+          <button class="b b-rd" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+          <button class="b b-sv" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌</button>
+        </div>
       </div>
     </div>
 
-    <div class="cm">
+    <div class="cm" id="hp2" onclick="openArticle(event,'#article-3')">
       <div class="cb">
         <div class="t"><a href="#article-3" onclick="event.preventDefault()">Building Event-Driven Microservices: Kafka vs Pulsar</a></div>
-        <div class="s">A comparison of event streaming platforms covering throughput, ordering guarantees, consumer groups, and operational complexity.</div>
+        <div class="card-detail" id="hp2-detail">
+          <div class="s">A comparison of event streaming platforms covering throughput, ordering guarantees, consumer groups, and operational complexity.</div>
+        </div>
         <div class="mr">
           <span class="stars">★★★★</span>
           <span class="src"><span class="av" style="background:#06b6d4">IQ</span>InfoQ</span>
@@ -346,43 +396,81 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         </div>
       </div>
       <div class="side-btns" style="display:flex;flex-direction:column;gap:5px;align-self:center">
-        <button class="b b-rd" style="font-size:11px;padding:5px 9px">Read ↗</button>
-        <button class="b b-sv" style="font-size:11px;padding:5px 9px">📌</button>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('hp2')" title="Collapse details" aria-label="Collapse">▾</button>
+        <div class="side-acts">
+          <button class="b b-rd" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+          <button class="b b-sv" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌</button>
+        </div>
       </div>
     </div>
 
-    <div class="sl">Worth a Look</div>
+    <!-- ═══ WORTH A LOOK (3★) — collapsed by default, expandable ═══ -->
+    <div class="sl" id="walHeader">
+      Worth a Look
+      <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
+      <button class="collapse-all" id="walCollapseBtn" onclick="collapseSection('wal')" style="display:none">Collapse all</button>
+    </div>
 
-    <div class="cs">
+    <div class="cs" id="wal1" onclick="openArticle(event,'#article-4')">
       <span class="stars" style="flex-shrink:0">★★★</span>
       <span class="t"><a href="#article-4" onclick="event.preventDefault()">TLS 1.3 Explained: What Changed and Why It Matters</a></span>
       <span class="src"><span class="av" style="background:#f472b6">CF</span></span>
       <span class="time">1d</span>
-      <button class="b b-m" style="font-size:11px;padding:4px 8px">Read</button>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('wal1')" aria-label="Expand" title="Expand details">▸</button>
     </div>
-    <div class="cs">
+    <div class="wal-detail" id="wal1-detail" onclick="openArticle(event,'#article-4')">
+      <div class="t"><a href="#article-4" onclick="event.preventDefault()">TLS 1.3 Explained: What Changed and Why It Matters</a></div>
+      <div class="s">Overview of the TLS 1.3 handshake — reduced round trips, removed legacy cipher suites, and mandatory forward secrecy. Includes a clear diagram comparing TLS 1.2 vs 1.3 flows.</div>
+      <div class="mr">
+        <span class="stars">★★★</span>
+        <span class="src"><span class="av" style="background:#f472b6">CF</span>Cloudflare Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">🤖 Chat</button>
+      </div>
+    </div>
+
+    <div class="cs" id="wal2" onclick="openArticle(event,'#article-5')">
       <span class="stars" style="flex-shrink:0">★★★</span>
       <span class="t"><a href="#article-5" onclick="event.preventDefault()">Postgres 17 Performance Improvements: A Deep Dive</a></span>
       <span class="src"><span class="av" style="background:#34d399">PG</span></span>
       <span class="time">1d</span>
-      <button class="b b-m" style="font-size:11px;padding:4px 8px">Read</button>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('wal2')" aria-label="Expand" title="Expand details">▸</button>
+    </div>
+    <div class="wal-detail" id="wal2-detail" onclick="openArticle(event,'#article-5')">
+      <div class="t"><a href="#article-5" onclick="event.preventDefault()">Postgres 17 Performance Improvements: A Deep Dive</a></div>
+      <div class="s">Detailed benchmarks of Postgres 17's query planner improvements, including parallel index scans, incremental sort optimizations, and memory management changes.</div>
+      <div class="mr">
+        <span class="stars">★★★</span>
+        <span class="src"><span class="av" style="background:#34d399">PG</span>PG Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">🤖 Chat</button>
+      </div>
     </div>
 
+    <!-- ═══ LOW PRIORITY (1-2★) — collapsed by default, expandable ═══ -->
     <div class="sl" id="lpHeader">
       Low Priority
       <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
-      <button class="collapse-all" id="collapseAllBtn" onclick="collapseAllLowPriority()" style="display:none">Collapse all</button>
+      <button class="collapse-all" id="lpCollapseBtn" onclick="collapseSection('lp')" style="display:none">Collapse all</button>
     </div>
 
     <!-- Low-priority row 1: collapsed (default) -->
-    <div class="mn" id="lp1">
+    <div class="mn" id="lp1" onclick="openArticle(event,'#article-6')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
-      <span class="t"><a href="#article-6" onclick="event.stopPropagation()">New npm Package Naming Rules for 2026</a></span>
+      <span class="t"><a href="#article-6" onclick="event.preventDefault()">New npm Package Naming Rules for 2026</a></span>
       <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
       <span class="time">1d</span>
-      <button class="expand-btn" onclick="toggleLowPriority('lp1')" aria-label="Expand" title="Expand details">▸</button>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp1')" aria-label="Expand" title="Expand details">▸</button>
     </div>
-    <div class="mn-detail" id="lp1-detail">
+    <div class="mn-detail" id="lp1-detail" onclick="openArticle(event,'#article-6')">
       <div class="t"><a href="#article-6" onclick="event.preventDefault()">New npm Package Naming Rules for 2026</a></div>
       <div class="s">npm is changing how package names are validated — stricter rules for scoped packages, new reserved-word list, and migration timeline for existing non-compliant names.</div>
       <div class="mr">
@@ -391,21 +479,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span class="time">1d ago</span>
       </div>
       <div class="acts">
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
       </div>
     </div>
 
     <!-- Low-priority row 2: EXPANDED (demo) -->
-    <div class="mn expanded" id="lp2">
+    <div class="mn expanded" id="lp2" onclick="openArticle(event,'#article-7')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
-      <span class="t"><a href="#article-7" onclick="event.stopPropagation()">GitHub Actions Now Supports Manual Approval Gates</a></span>
+      <span class="t"><a href="#article-7" onclick="event.preventDefault()">GitHub Actions Now Supports Manual Approval Gates</a></span>
       <span class="src"><span class="av" style="background:#fb923c">GH</span></span>
       <span class="time">2d</span>
-      <button class="expand-btn" onclick="toggleLowPriority('lp2')" aria-label="Collapse" title="Collapse details">▾</button>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp2')" aria-label="Collapse" title="Collapse details">▾</button>
     </div>
-    <div class="mn-detail open" id="lp2-detail">
+    <div class="mn-detail open" id="lp2-detail" onclick="openArticle(event,'#article-7')">
       <div class="t"><a href="#article-7" onclick="event.preventDefault()">GitHub Actions Now Supports Manual Approval Gates</a></div>
       <div class="s">GitHub has added manual approval steps for Actions workflows — teams can now gate deployments behind human review. Supports required reviewers, timeout policies, and Slack notifications.</div>
       <div class="mr">
@@ -414,21 +502,21 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span class="time">2d ago</span>
       </div>
       <div class="acts">
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
       </div>
     </div>
 
     <!-- Low-priority row 3: collapsed (default) -->
-    <div class="mn" id="lp3">
+    <div class="mn" id="lp3" onclick="openArticle(event,'#article-8')">
       <span class="stars" style="flex-shrink:0;color:var(--text4)">★</span>
-      <span class="t"><a href="#article-8" onclick="event.stopPropagation()">Weekly Roundup: JavaScript Framework Updates</a></span>
+      <span class="t"><a href="#article-8" onclick="event.preventDefault()">Weekly Roundup: JavaScript Framework Updates</a></span>
       <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
       <span class="time">2d</span>
-      <button class="expand-btn" onclick="toggleLowPriority('lp3')" aria-label="Expand" title="Expand details">▸</button>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp3')" aria-label="Expand" title="Expand details">▸</button>
     </div>
-    <div class="mn-detail" id="lp3-detail">
+    <div class="mn-detail" id="lp3-detail" onclick="openArticle(event,'#article-8')">
       <div class="t"><a href="#article-8" onclick="event.preventDefault()">Weekly Roundup: JavaScript Framework Updates</a></div>
       <div class="s">This week's framework roundup covers Svelte 5.2 improvements, React Server Components updates, and Vue 3.5 migration guide highlights.</div>
       <div class="mr">
@@ -437,9 +525,9 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
         <span class="time">2d ago</span>
       </div>
       <div class="acts">
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">Read ↗</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px">📌 Save</button>
-        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)">✓ Mark read</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
       </div>
     </div>
 
@@ -530,44 +618,104 @@ function closeMobileDrawers(){
   document.getElementById('overlay').classList.remove('show');
 }
 
-// ─── Low-priority expand/collapse ───
-function toggleLowPriority(id){
-  var row=document.getElementById(id);
-  var detail=document.getElementById(id+'-detail');
-  var hint=row.querySelector('.expand-btn');
-  if(detail.classList.contains('open')){
-    detail.classList.remove('open');
-    row.classList.remove('expanded');
-    if(hint){hint.textContent='▸';hint.title='Expand details';hint.setAttribute('aria-label','Expand');}
-  }else{
-    detail.classList.add('open');
-    row.classList.add('expanded');
-    if(hint){hint.textContent='▾';hint.title='Collapse details';hint.setAttribute('aria-label','Collapse');}
+// ─── Card-level click: open article ───
+// Clicking a card (anywhere except buttons/links) opens the article.
+// In the mockup, we show a brief blue outline flash as feedback.
+function openArticle(event, url){
+  var el=event.target;
+  while(el && el!==event.currentTarget){
+    if(el.tagName==='BUTTON'||el.tagName==='A'||el.tagName==='SELECT'||el.tagName==='INPUT') return;
+    el=el.parentElement;
   }
-  updateCollapseAllButton();
+  // Visual feedback (mockup only — production would window.open(url,'_blank'))
+  var card=event.currentTarget;
+  card.classList.remove('click-flash');
+  void card.offsetWidth; // reflow to restart animation
+  card.classList.add('click-flash');
+  setTimeout(function(){card.classList.remove('click-flash');},350);
 }
 
-function collapseAllLowPriority(){
-  var rows=document.querySelectorAll('.mn.expanded');
-  rows.forEach(function(row){
-    var id=row.id;
-    var detail=document.getElementById(id+'-detail');
-    var hint=row.querySelector('.expand-btn');
-    detail.classList.remove('open');
-    row.classList.remove('expanded');
-    if(hint){hint.textContent='▸';hint.title='Expand details';hint.setAttribute('aria-label','Expand');}
-  });
-  updateCollapseAllButton();
+// ─── Universal expand/collapse for ALL card tiers ───
+// Featured & HP default to expanded (detail visible).
+// Worth a Look & LP default to collapsed (detail hidden).
+function toggleCard(id){
+  var card=document.getElementById(id);
+  var detail=document.getElementById(id+'-detail');
+  if(!card||!detail) return;
+
+  var btn=card.querySelector('.expand-btn');
+  var isFeat=card.classList.contains('feat');
+  var isHp=card.classList.contains('cm');
+  var isWal=card.classList.contains('cs');
+  var isLp=card.classList.contains('mn');
+
+  // Determine current visibility
+  var isVisible;
+  if(isWal||isLp){
+    isVisible=detail.classList.contains('open');
+  }else{
+    // Featured/HP: visible unless explicitly collapsed
+    isVisible=!card.classList.contains('collapsed');
+  }
+
+  if(isVisible){
+    // Collapse
+    if(isWal||isLp){
+      detail.classList.remove('open');
+      card.classList.remove('expanded');
+    }else{
+      card.classList.add('collapsed');
+    }
+    if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+  }else{
+    // Expand
+    if(isWal||isLp){
+      detail.classList.add('open');
+      card.classList.add('expanded');
+    }else{
+      card.classList.remove('collapsed');
+    }
+    if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+  }
+  updateCollapseAllButtons();
 }
 
-function updateCollapseAllButton(){
-  var expanded=document.querySelectorAll('.mn.expanded');
-  var btn=document.getElementById('collapseAllBtn');
-  btn.style.display=expanded.length>0?'inline-block':'none';
+// ─── Section-level collapse all ───
+function collapseSection(prefix){
+  if(prefix==='wal'){
+    document.querySelectorAll('.cs.expanded').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      if(detail) detail.classList.remove('open');
+      card.classList.remove('expanded');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='lp'){
+    document.querySelectorAll('.mn.expanded').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      if(detail) detail.classList.remove('open');
+      card.classList.remove('expanded');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }
+  updateCollapseAllButtons();
+}
+
+function updateCollapseAllButtons(){
+  var walExpanded=document.querySelectorAll('.cs.expanded');
+  var walBtn=document.getElementById('walCollapseBtn');
+  if(walBtn) walBtn.style.display=walExpanded.length>0?'inline-block':'none';
+
+  var lpExpanded=document.querySelectorAll('.mn.expanded');
+  var lpBtn=document.getElementById('lpCollapseBtn');
+  if(lpBtn) lpBtn.style.display=lpExpanded.length>0?'inline-block':'none';
 }
 
 // Initialize collapse-all visibility
-updateCollapseAllButton();
+updateCollapseAllButtons();
 
 // ─── Source filtering (multi-select toggles) ───
 function toggleSource(el,source){
