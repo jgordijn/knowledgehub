@@ -248,13 +248,71 @@ The core River metaphor is preserved: content flows top-to-bottom with decreasin
 
 ---
 
+## Refinement v3 — Interaction Clarity & Multi-Select Sources
+
+This section documents changes made to the River v2 mockup to resolve interaction ambiguities and add missing affordances.
+
+### 1. Sidebar source filters become multi-select toggles
+
+**Problem**: The v2 sidebar source list was single-select (radio-style) — clicking "Rust Blog" hid everything else. Users who follow 2–3 sources closely but want to exclude noise from the rest had no way to express "show me Rust Blog + InfoQ, hide everything else."
+
+**Resolution**: Each sidebar source item is now an independent toggle. Clicking a source activates/deactivates it without affecting other sources. Visual indicator: a small checkbox square replaces the implicit radio behavior. When active, the checkbox fills with a blue check. When no sources are selected, all sources are shown (unfiltered state). A "Clear" link appears in the section header when any filter is active.
+
+**Topbar feedback**: When multiple sources are active, the topbar shows one blue chip per active source, each with its own ✕ dismiss button. This replaces the single-source tag from v2.
+
+**Rationale**: Multi-select is strictly more expressive than single-select. The previous radio-style forced users to choose one source or all — no middle ground. Multi-select toggles are a familiar pattern (email label filters, GitHub project boards) and map naturally to "show me these, hide the rest."
+
+### 2. Card interactions: open-article vs expand/collapse without conflict
+
+**Problem**: In v2, the entire low-priority row was a click target for expand/collapse. This created a conflict: clicking the article title to open it would also toggle the expand state. There was no way to open an article directly from the collapsed row.
+
+**Resolution**: The two interactions are now separated:
+- **Title** is an `<a>` link — clicking it navigates to the article (or opens in a new tab). On the collapsed row, the title is the only inline link.
+- **Expand/collapse** uses a dedicated ▸/▾ button at the right edge of the row. Only this button toggles the detail panel.
+- The row background is no longer a click target.
+
+This same pattern applies consistently across all tiers: Featured and High Priority card titles are links; action buttons (Read ↗, Save, Chat) are separate click targets. "Worth a Look" row titles are links; the Read button is a separate target.
+
+**Rationale**: Separating navigation from disclosure is a standard accessibility pattern. It avoids the "I clicked to read but it expanded instead" frustration. The expand button is intentionally small and at the edge — it's a secondary action. The title link is front and center — it's the primary action.
+
+### 3. Visible "Collapse all" control for low-priority section
+
+**Problem**: When multiple low-priority rows are expanded, there's no quick way to reset the section. Users have to click each row's collapse button individually.
+
+**Resolution**: A "Collapse all" button appears in the "Low Priority" section header, but only when at least one row is expanded. It collapses all expanded detail panels in one click. When no rows are expanded, the button is hidden to avoid clutter.
+
+**Rationale**: This is a standard progressive-disclosure pattern — the batch action only appears when it's useful. It respects the "clean by default" principle while providing an escape hatch for power users who expand several rows during triage.
+
+### 4. Version text and GitHub link in sidebar
+
+**Problem**: The v2 mockup didn't show the app version or link to the GitHub repository. The real app (Nav.svelte) displays both — a version string next to the logo and a small GitHub icon that links to the repo.
+
+**Resolution**: The sidebar logo area now shows `v0.4.2` text next to the "KnowledgeHub" name, plus a small GitHub SVG icon linking to the repository. This matches the production app's existing pattern: version fetched from `/api/version`, GitHub icon as a subtle link.
+
+**Rationale**: The mockup should reflect real app chrome so design reviews aren't surprised by elements that "appear" in production. The version text helps users confirm they're running the expected release. The GitHub link provides a discoverable path to the repo without taking up navigation space.
+
+### Summary of v3 mockup changes
+
+| Element | Before (v2) | After (v3) |
+|---------|------------|------------|
+| Source filters | Single-select (radio) | Multi-select toggles with checkbox indicators |
+| Topbar source chips | Single chip when filtered | One chip per active source, each dismissable |
+| Sidebar "Clear" link | N/A (had "All Sources" reset item) | "Clear" link in section header, visible when filters active |
+| Low-priority row click | Entire row toggles expand/collapse | Title is a link (opens article); dedicated ▸ button expands |
+| Collapse all | None | Button in section header, visible when any row expanded |
+| Version + GitHub | Not shown | Version text + GitHub SVG icon in sidebar logo area |
+
+---
+
 ## Design Clarifications — Quick Reference
 
-These four points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2 refinements above, collected here for fast lookup.
+These six points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2/v3 refinements above, collected here for fast lookup.
 
 | # | Concern | Answer |
 |---|---------|--------|
-| 1 | **Can compact / low-priority rows expand?** | Yes. 1–2 ★ rows are collapsed by default (muted, title-only). Click or press Enter to expand in-place — no modal, no navigation. Click again to collapse. |
+| 1 | **Can compact / low-priority rows expand?** | Yes. 1–2 ★ rows are collapsed by default (muted, title-only). Click the ▸ button to expand in-place — no modal, no navigation. Click ▾ to collapse. |
 | 2 | **Are muted rows readable when expanded?** | Yes. Collapsed rows stay at 50 % opacity. On expand the header lifts to 85 % and the detail panel renders at **full contrast** inside a bordered card (same styling as "Worth a Look" tier). |
-| 3 | **Where do users filter by source?** | The **sidebar source list** is the single, authoritative source filter. It is always visible on desktop and shows avatar, name, and unread count per source. |
-| 4 | **Does the topbar duplicate source filtering?** | No. The topbar has **no source dropdown**. When a sidebar source filter is active, the topbar shows a read-only blue chip with the source name and an ✕ to clear — purely an indicator, not a filter control. |
+| 3 | **Where do users filter by source?** | The **sidebar source list** is the single, authoritative source filter. It uses multi-select toggles — each source can be independently activated/deactivated. |
+| 4 | **Does the topbar duplicate source filtering?** | No. The topbar has **no source dropdown**. When sidebar source filters are active, the topbar shows read-only blue chips with each source name and ✕ to remove — purely indicators, not filter controls. |
+| 5 | **How do I open an article vs expand a low-priority row?** | Click the **title link** to open the article. Click the **▸ button** to expand the detail panel. These are separate click targets — no conflict. |
+| 6 | **Is there a quick way to collapse all expanded low-priority rows?** | Yes. A "Collapse all" button appears in the Low Priority section header when any row is expanded. It hides when all rows are collapsed. |
