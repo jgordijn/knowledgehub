@@ -29,13 +29,17 @@
 - [x] 3.5 Add visual click-flash feedback (blue outline animation) for mockup demo
 - [x] 3.6 All expand buttons use `event.stopPropagation()` to prevent triggering card navigation
 
-## 4. Mockup: Section-Level Collapse All
+## 4. Mockup: Section-Level Batch Controls on Every Section
 
-- [x] 4.1 Add "Collapse all" button to Worth a Look section header (`#walCollapseBtn`), hidden by default
-- [x] 4.2 Keep "Collapse all" button in Low Priority section header (`#lpCollapseBtn`)
-- [x] 4.3 Implement `collapseSection(prefix)` that collapses all expanded cards in a section ('wal' or 'lp')
-- [x] 4.4 `updateCollapseAllButtons()` checks both WaL and LP sections, shows/hides buttons accordingly
-- [x] 4.5 `updateCollapseAllButtons()` called after every `toggleCard()` and `collapseSection()`, and on page load
+- [x] 4.1 Add section header `<div class="sl" id="featHeader">` above Featured card with both "Expand all" and "Collapse all" buttons
+- [x] 4.2 Update High Priority section header with `id="hpHeader"` and both "Expand all" and "Collapse all" buttons
+- [x] 4.3 Add "Expand all" button to Worth a Look section header alongside existing "Collapse all" (`#walExpandBtn`)
+- [x] 4.4 Add "Expand all" button to Low Priority section header alongside existing "Collapse all" (`#lpExpandBtn`)
+- [x] 4.5 Implement `expandSection(prefix)` that expands all collapsed cards in a section ('feat', 'hp', 'wal', 'lp')
+- [x] 4.6 Extend `collapseSection(prefix)` to handle 'feat' and 'hp' in addition to 'wal' and 'lp'
+- [x] 4.7 Rename `updateCollapseAllButtons()` → `updateSectionBatchButtons()` — manages visibility of both Expand all and Collapse all buttons across all 4 sections
+- [x] 4.8 `updateSectionBatchButtons()` called after every `toggleCard()`, `expandSection()`, `collapseSection()`, and on page load
+- [x] 4.9 Add CSS class `.section-btn` for generic section-level batch button styling (replaces `.collapse-all`)
 
 ## 5. Mockup: Version Text + GitHub Icon
 
@@ -50,5 +54,7 @@
 - [x] 6.3 Document card-level click-opens-article interaction model with click-target table
 - [x] 6.4 Document Worth a Look collapse-all extension
 - [x] 6.5 Add v4 summary table showing before/after for each element
-- [x] 6.6 Update "Design Clarifications — Quick Reference" table — expanded from 6 to 8 entries covering all-tier expand/collapse and card-click behavior
-- [x] 6.7 Update tiered card prominence description (section 1) with v4 expand/collapse annotations
+- [x] 6.6 Add "Refinement v5 — Section-Level Batch Controls on Every Section" section to `designs/proposal.md`
+- [x] 6.7 Document section-level batch controls with per-section table showing both Expand all and Collapse all
+- [x] 6.8 Update "Design Clarifications — Quick Reference" table — expanded from 8 to 9 entries covering section-level batch controls on all sections
+- [x] 6.9 Update tiered card prominence description (section 1) with v4 expand/collapse annotations

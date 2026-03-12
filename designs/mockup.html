@@ -190,8 +190,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* Section labels */
 .sl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);font-weight:600;padding:10px 4px 4px;display:flex;align-items:center;gap:8px}
-.sl .collapse-all{font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;text-transform:none;letter-spacing:0;transition:var(--trans)}
-.sl .collapse-all:hover{color:var(--heading);border-color:var(--border2)}
+.sl .section-btn{font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;text-transform:none;letter-spacing:0;transition:var(--trans)}
+.sl .section-btn:hover{color:var(--heading);border-color:var(--border2)}
 
 /* ─── Chat panel ─── */
 .chat{width:360px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:var(--trans)}
@@ -335,6 +335,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   <div class="feed">
 
     <!-- ═══ FEATURED (5★) — expanded by default, collapsible ═══ -->
+    <div class="sl" id="featHeader">
+      Featured
+      <button class="section-btn" id="featExpandBtn" onclick="expandSection('feat')">Expand all</button>
+      <button class="section-btn" id="featCollapseBtn" onclick="collapseSection('feat')">Collapse all</button>
+    </div>
+
     <div class="feat" id="feat1" onclick="openArticle(event,'#article-1')">
       <div class="feat-hdr">
         <div class="feat-label">★★★★★ Featured</div>
@@ -360,7 +366,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
 
     <!-- ═══ HIGH PRIORITY (4★) — expanded by default, collapsible ═══ -->
-    <div class="sl">High Priority</div>
+    <div class="sl" id="hpHeader">
+      High Priority
+      <button class="section-btn" id="hpExpandBtn" onclick="expandSection('hp')">Expand all</button>
+      <button class="section-btn" id="hpCollapseBtn" onclick="collapseSection('hp')">Collapse all</button>
+    </div>
 
     <div class="cm" id="hp1" onclick="openArticle(event,'#article-2')">
       <div class="cb">
@@ -408,7 +418,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="sl" id="walHeader">
       Worth a Look
       <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
-      <button class="collapse-all" id="walCollapseBtn" onclick="collapseSection('wal')" style="display:none">Collapse all</button>
+      <button class="section-btn" id="walExpandBtn" onclick="expandSection('wal')">Expand all</button>
+      <button class="section-btn" id="walCollapseBtn" onclick="collapseSection('wal')" style="display:none">Collapse all</button>
     </div>
 
     <div class="cs" id="wal1" onclick="openArticle(event,'#article-4')">
@@ -459,7 +470,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="sl" id="lpHeader">
       Low Priority
       <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
-      <button class="collapse-all" id="lpCollapseBtn" onclick="collapseSection('lp')" style="display:none">Collapse all</button>
+      <button class="section-btn" id="lpExpandBtn" onclick="expandSection('lp')">Expand all</button>
+      <button class="section-btn" id="lpCollapseBtn" onclick="collapseSection('lp')" style="display:none">Collapse all</button>
     </div>
 
     <!-- Low-priority row 1: collapsed (default) -->
@@ -677,12 +689,60 @@ function toggleCard(id){
     }
     if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
   }
-  updateCollapseAllButtons();
+  updateSectionBatchButtons();
+}
+
+// ─── Section-level expand all ───
+function expandSection(prefix){
+  if(prefix==='feat'){
+    document.querySelectorAll('.feat.collapsed').forEach(function(card){
+      card.classList.remove('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='hp'){
+    document.querySelectorAll('.cm.collapsed').forEach(function(card){
+      card.classList.remove('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='wal'){
+    document.querySelectorAll('.cs:not(.expanded)').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      card.classList.add('expanded');
+      if(detail) detail.classList.add('open');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='lp'){
+    document.querySelectorAll('.mn:not(.expanded)').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      card.classList.add('expanded');
+      if(detail) detail.classList.add('open');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }
+  updateSectionBatchButtons();
 }
 
 // ─── Section-level collapse all ───
 function collapseSection(prefix){
-  if(prefix==='wal'){
+  if(prefix==='feat'){
+    document.querySelectorAll('.feat:not(.collapsed)').forEach(function(card){
+      card.classList.add('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='hp'){
+    document.querySelectorAll('.cm:not(.collapsed)').forEach(function(card){
+      card.classList.add('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='wal'){
     document.querySelectorAll('.cs.expanded').forEach(function(card){
       var id=card.id;
       var detail=document.getElementById(id+'-detail');
@@ -701,21 +761,48 @@ function collapseSection(prefix){
       if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
     });
   }
-  updateCollapseAllButtons();
+  updateSectionBatchButtons();
 }
 
-function updateCollapseAllButtons(){
+// ─── Update section batch button visibility ───
+// Each section shows "Expand all" when any card is collapsed,
+// and "Collapse all" when any card is expanded.
+function updateSectionBatchButtons(){
+  // Featured: expanded = not .collapsed
+  var featAll=document.querySelectorAll('.feat');
+  var featCollapsed=document.querySelectorAll('.feat.collapsed');
+  var featExpandBtn=document.getElementById('featExpandBtn');
+  var featCollapseBtn=document.getElementById('featCollapseBtn');
+  if(featExpandBtn) featExpandBtn.style.display=featCollapsed.length>0?'inline-block':'none';
+  if(featCollapseBtn) featCollapseBtn.style.display=(featAll.length-featCollapsed.length)>0?'inline-block':'none';
+
+  // High Priority: expanded = not .collapsed
+  var hpAll=document.querySelectorAll('.cm');
+  var hpCollapsed=document.querySelectorAll('.cm.collapsed');
+  var hpExpandBtn=document.getElementById('hpExpandBtn');
+  var hpCollapseBtn=document.getElementById('hpCollapseBtn');
+  if(hpExpandBtn) hpExpandBtn.style.display=hpCollapsed.length>0?'inline-block':'none';
+  if(hpCollapseBtn) hpCollapseBtn.style.display=(hpAll.length-hpCollapsed.length)>0?'inline-block':'none';
+
+  // Worth a Look: expanded = .expanded
+  var walAll=document.querySelectorAll('.cs');
   var walExpanded=document.querySelectorAll('.cs.expanded');
-  var walBtn=document.getElementById('walCollapseBtn');
-  if(walBtn) walBtn.style.display=walExpanded.length>0?'inline-block':'none';
+  var walExpandBtn=document.getElementById('walExpandBtn');
+  var walCollapseBtn=document.getElementById('walCollapseBtn');
+  if(walExpandBtn) walExpandBtn.style.display=(walAll.length-walExpanded.length)>0?'inline-block':'none';
+  if(walCollapseBtn) walCollapseBtn.style.display=walExpanded.length>0?'inline-block':'none';
 
+  // Low Priority: expanded = .expanded
+  var lpAll=document.querySelectorAll('.mn');
   var lpExpanded=document.querySelectorAll('.mn.expanded');
-  var lpBtn=document.getElementById('lpCollapseBtn');
-  if(lpBtn) lpBtn.style.display=lpExpanded.length>0?'inline-block':'none';
+  var lpExpandBtn=document.getElementById('lpExpandBtn');
+  var lpCollapseBtn=document.getElementById('lpCollapseBtn');
+  if(lpExpandBtn) lpExpandBtn.style.display=(lpAll.length-lpExpanded.length)>0?'inline-block':'none';
+  if(lpCollapseBtn) lpCollapseBtn.style.display=lpExpanded.length>0?'inline-block':'none';
 }
 
-// Initialize collapse-all visibility
-updateCollapseAllButtons();
+// Initialize section batch button visibility
+updateSectionBatchButtons();
 
 // ─── Source filtering (multi-select toggles) ───
 function toggleSource(el,source){

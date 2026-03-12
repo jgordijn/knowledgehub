@@ -349,7 +349,7 @@ Buttons use `event.stopPropagation()` to prevent triggering card navigation. Tit
 
 **Resolution**: The "Worth a Look" section header now shows a "Collapse all" button (same pattern as Low Priority) that appears when ≥1 row in that section is expanded. Clicking it collapses all expanded Worth a Look detail panels. The button hides when all rows are collapsed.
 
-Featured and High Priority sections do not get section-level controls — they typically contain few items (1–3 cards), so per-card toggle buttons are sufficient.
+Featured and High Priority sections do not get section-level controls — they typically contain few items (1–3 cards), so per-card toggle buttons are sufficient. *(Revised in v5 — all sections now get batch controls.)*
 
 ### Summary of v4 mockup changes
 
@@ -364,9 +364,57 @@ Featured and High Priority sections do not get section-level controls — they t
 
 ---
 
+## Refinement v5 — Section-Level Batch Controls on Every Section
+
+This section documents changes made to the River v4 mockup to add consistent section-level "Expand all" and "Collapse all" controls to every feed section.
+
+### 1. Every section gets both "Expand all" and "Collapse all" buttons
+
+**Problem**: In v4, only the Worth a Look and Low Priority sections had a "Collapse all" button. Featured and High Priority sections had no section-level batch controls at all. Additionally, no section had an "Expand all" button — users who collapsed several cards had to re-expand them individually.
+
+**Resolution**: All four sections now have a section header with both batch controls:
+
+| Section | Expand all | Collapse all |
+|---------|-----------|-------------|
+| **Featured** | Shows when any card is collapsed | Shows when any card is expanded |
+| **High Priority** | Shows when any card is collapsed | Shows when any card is expanded |
+| **Worth a Look** | Shows when any card is collapsed | Shows when any card is expanded |
+| **Low Priority** | Shows when any card is collapsed | Shows when any card is expanded |
+
+Both buttons use progressive disclosure — they appear only when they have work to do. When all cards in a section are expanded, only "Collapse all" is visible. When all are collapsed, only "Expand all" is visible. When the section has a mix, both are visible.
+
+**Rationale**: Users explicitly expect batch controls on every section, even single-card sections like Featured. The v4 exception for Featured/HP ("few items, so per-card toggles suffice") underestimated user expectations for consistency. A uniform section header pattern is easier to learn and use.
+
+### 2. Featured section gets a section header
+
+**Problem**: Featured was the only section without a `<div class="sl">` section header. Its label ("★★★★★ Featured") lived inside the card's `feat-hdr`. This made it impossible to attach section-level controls.
+
+**Resolution**: A new section header `<div class="sl" id="featHeader">` is added above the Featured card. The card retains its internal "★★★★★ Featured" label (keeping the accent-colored styling). The section header provides the attachment point for batch controls.
+
+### 3. High Priority section header updated
+
+**Problem**: High Priority had a section header (`<div class="sl">High Priority</div>`) but no batch controls.
+
+**Resolution**: The header now includes both "Expand all" and "Collapse all" buttons, matching the pattern used by all other sections. An `id="hpHeader"` is added for consistency.
+
+### Summary of v5 mockup changes
+
+| Element | Before (v4) | After (v5) |
+|---------|------------|------------|
+| Featured section header | None (label inside card only) | New `<div class="sl">` header with Expand all / Collapse all buttons |
+| High Priority section header | Plain label, no batch controls | Expand all / Collapse all buttons added |
+| Worth a Look section header | Collapse all only | Both Expand all and Collapse all buttons |
+| Low Priority section header | Collapse all only | Both Expand all and Collapse all buttons |
+| JS: `expandSection()` | N/A | New function handles all 4 section types |
+| JS: `collapseSection()` | Handled 'wal' and 'lp' only | Extended to handle 'feat' and 'hp' |
+| JS: `updateSectionBatchButtons()` | `updateCollapseAllButtons()` — WaL and LP only | Renamed; manages all 4 sections, both expand and collapse visibility |
+| CSS: `.section-btn` | N/A (used `.collapse-all`) | New generic class for section-level batch buttons |
+
+---
+
 ## Design Clarifications — Quick Reference
 
-These eight points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2/v3/v4 refinements above, collected here for fast lookup.
+These nine points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2/v3/v4/v5 refinements above, collected here for fast lookup.
 
 | # | Concern | Answer |
 |---|---------|--------|
@@ -376,5 +424,6 @@ These eight points are the definitive answers to recurring review questions. The
 | 4 | **Does the topbar duplicate source filtering?** | No. The topbar has **no source dropdown**. When sidebar source filters are active, the topbar shows read-only blue chips with each source name and ✕ to remove — purely indicators, not filter controls. |
 | 5 | **How do I open an article?** | Click anywhere on the card (except the expand button or action buttons). The entire card is a click target. Title `<a>` links remain for accessibility/keyboard users. |
 | 6 | **How do I expand/collapse inline detail?** | Click the **▸/▾ button** at the right edge of the card. This toggles the detail panel without opening the article. The two actions never interfere. |
-| 7 | **Is there a quick way to collapse all expanded rows?** | Yes. "Collapse all" buttons appear in the Worth a Look and Low Priority section headers when any row in that section is expanded. They hide when all rows are collapsed. |
-| 8 | **Do Featured/HP cards have collapse-all?** | No. These sections have few items (1–3 cards), so per-card toggle buttons are sufficient. |
+| 7 | **Is there a quick way to expand/collapse all cards in a section?** | Yes. Every section header (Featured, High Priority, Worth a Look, Low Priority) has both "Expand all" and "Collapse all" buttons. They appear only when they have work to do — progressive disclosure. |
+| 8 | **Do Featured/HP cards have section-level batch controls?** | Yes (updated in v5). All four sections have identical batch control patterns. Even single-card sections like Featured support both buttons for consistency. |
+| 9 | **Do per-card expand/collapse buttons still exist?** | Yes. Section-level batch controls complement, not replace, the per-card ▸/▾ buttons. Both mechanisms coexist. |

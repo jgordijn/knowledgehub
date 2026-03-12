@@ -2,7 +2,7 @@
 
 The River redesign mockup (v2) established the core tiered-card feed layout, sidebar source filtering, and expandable low-priority rows. Review feedback identified four interaction gaps: single-select source filters are too restrictive, row-level click handling conflicts with article navigation, there's no batch collapse, and the mockup is missing production chrome (version, GitHub link).
 
-V3 addressed all four gaps. V4 extends the design further: expand/collapse is now universal across all card tiers, and the entire card is a click target for opening articles.
+V3 addressed all four gaps. V4 extends the design further: expand/collapse is now universal across all card tiers, and the entire card is a click target for opening articles. V5 adds section-level "Expand all" and "Collapse all" batch controls to every section (Featured, High Priority, Worth a Look, Low Priority).
 
 ## Goals / Non-Goals
 
@@ -11,7 +11,7 @@ V3 addressed all four gaps. V4 extends the design further: expand/collapse is no
 - Conflict-free click targets: dedicated ▸/▾ button for expand/collapse, card-level click for opening articles *(v3+v4)*
 - Expand/collapse on ALL four card tiers: Featured, High Priority, Worth a Look, Low Priority *(v4)*
 - Card-level click opens article — the entire card is a tap/click target *(v4)*
-- "Collapse all" affordance for Worth a Look and Low Priority sections *(v3+v4)*
+- Section-level "Expand all" and "Collapse all" batch controls on every section *(v5 — replaces v4's WaL/LP-only collapse-all)*
 - Version text + GitHub icon in the sidebar matching the production `Nav.svelte` *(v3)*
 
 **Non-Goals:**
@@ -60,11 +60,23 @@ V3 addressed all four gaps. V4 extends the design further: expand/collapse is no
 - Expand/collapse buttons call `event.stopPropagation()` in their handler
 - Action buttons (Read, Save, Chat, Mark read) also call `event.stopPropagation()`
 
-### 4. Collapse-all extended to Worth a Look section
+### 4. Section-level batch controls on every section
 
-**Decision:** The "Collapse all" button now appears in both the Worth a Look and Low Priority section headers, following the same progressive-disclosure pattern: visible when ≥1 row is expanded, hidden when all are collapsed.
+**Decision:** Every section header (Featured, High Priority, Worth a Look, Low Priority) now has both an "Expand all" and a "Collapse all" button. Both buttons use progressive disclosure: "Expand all" is visible when ≥1 card in the section is collapsed; "Collapse all" is visible when ≥1 card is expanded. When all cards share the same state, only the opposite action is shown.
 
-**Rationale:** With Worth a Look rows now expandable, users triaging multiple 3★ articles need the same batch-reset affordance that LP had. Featured and HP sections don't need collapse-all — they have few items (1–3 cards) where per-card toggles suffice.
+**Rationale:** The v4 exception for Featured/HP ("few items, per-card toggles suffice") underestimated user expectations for consistency. Users explicitly expect batch controls on every section. A uniform section header pattern is easier to learn and reduces cognitive load.
+
+**Per-section details:**
+- **Featured**: Gets a new `<div class="sl" id="featHeader">` section header above the card. The card retains its internal "★★★★★ Featured" label.
+- **High Priority**: Existing `<div class="sl">` header updated with `id="hpHeader"` and both batch buttons.
+- **Worth a Look**: Existing header updated to include "Expand all" alongside the existing "Collapse all".
+- **Low Priority**: Same update as Worth a Look — "Expand all" added.
+
+**Implementation:**
+- New `expandSection(prefix)` function handles all 4 section types
+- `collapseSection(prefix)` extended from 'wal'/'lp' to also handle 'feat'/'hp'
+- `updateSectionBatchButtons()` (renamed from `updateCollapseAllButtons()`) manages visibility of both buttons across all 4 sections
+- CSS class `.section-btn` replaces `.collapse-all` for generic section-level button styling
 
 ### 5. Version + GitHub match production chrome
 
@@ -80,6 +92,6 @@ All changes are to design/mockup files only:
 
 | File | Changes |
 |------|---------|
-| `designs/mockup.html` | Universal expand/collapse on all 4 tiers, card-level click handler, WaL detail panels, WaL collapse-all, multi-select source toggle JS/CSS, version+GitHub in sidebar |
-| `designs/proposal.md` | New "Refinement v4" section documenting universal expand/collapse and card-level click model, updated quick-reference table |
-| `openspec/changes/refine-river-feed-interactions/*` | Proposal, design, and tasks updated to cover v4 requirements |
+| `designs/mockup.html` | Universal expand/collapse on all 4 tiers, card-level click handler, WaL detail panels, section-level batch Expand all / Collapse all on all 4 sections, multi-select source toggle JS/CSS, version+GitHub in sidebar |
+| `designs/proposal.md` | New "Refinement v5" section documenting section-level batch controls on every section, updated quick-reference table |
+| `openspec/changes/refine-river-feed-interactions/*` | Proposal, design, and tasks updated to cover v5 requirements |
