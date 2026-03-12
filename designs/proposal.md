@@ -244,3 +244,17 @@ The core River metaphor is preserved: content flows top-to-bottom with decreasin
 | Source filtering | Topbar `<select>` dropdown | Sidebar source list (always visible) |
 | Topbar "All Sources" | `<select>` dropdown | Removed; replaced with active-source tag when filtered |
 | River ordering | Top→bottom by stars | Unchanged |
+
+
+---
+
+## Design Clarifications — Quick Reference
+
+These four points are the definitive answers to recurring review questions. They are already reflected in the mockup and the v2 refinements above, collected here for fast lookup.
+
+| # | Concern | Answer |
+|---|---------|--------|
+| 1 | **Can compact / low-priority rows expand?** | Yes. 1–2 ★ rows are collapsed by default (muted, title-only). Click or press Enter to expand in-place — no modal, no navigation. Click again to collapse. |
+| 2 | **Are muted rows readable when expanded?** | Yes. Collapsed rows stay at 50 % opacity. On expand the header lifts to 85 % and the detail panel renders at **full contrast** inside a bordered card (same styling as "Worth a Look" tier). |
+| 3 | **Where do users filter by source?** | The **sidebar source list** is the single, authoritative source filter. It is always visible on desktop and shows avatar, name, and unread count per source. |
+| 4 | **Does the topbar duplicate source filtering?** | No. The topbar has **no source dropdown**. When a sidebar source filter is active, the topbar shows a read-only blue chip with the source name and an ✕ to clear — purely an indicator, not a filter control. |
