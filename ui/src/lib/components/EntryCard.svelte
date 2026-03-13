@@ -222,6 +222,15 @@
 			<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
 		</h3>
 
+		<!-- Source + time (always visible) -->
+		<div class="mb-1.5 flex items-center gap-1.5">
+			<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+				<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+				{sourceName}
+			</span>
+			<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+		</div>
+
 		{#if expanded}
 			<div class="card-detail">
 				{#if isPending}
@@ -249,14 +258,9 @@
 					{/if}
 				{/if}
 
-				<!-- Meta: source + time -->
+				<!-- Meta: stars -->
 				<div class="mb-3 flex flex-wrap items-center gap-2.5">
 					<span class="stars text-[13px] tracking-wider text-amber-500 dark:text-amber-400">{starsDisplay(effectiveStars)}</span>
-					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
-						{sourceName}
-					</span>
-					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 				</div>
 
 				<!-- Referenced links -->
@@ -329,6 +333,15 @@
 			>{expanded ? '▾' : '▸'}</button>
 		</div>
 
+		<!-- Source + time (always visible) -->
+		<div class="mb-1 flex items-center gap-1.5">
+			<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+				<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+				{sourceName}
+			</span>
+			<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+		</div>
+
 		{#if expanded}
 			<div class="card-detail">
 				{#if isPending}
@@ -361,11 +374,6 @@
 					{#if !isPending}
 						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
 					{/if}
-					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
-						{sourceName}
-					</span>
-					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 				</div>
 
 				<!-- Referenced links -->
@@ -429,7 +437,10 @@
 			<span class="flex-1 truncate text-[13px] text-slate-600 dark:text-slate-300">
 				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
 			</span>
-			<span class="inline-flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+			<span class="inline-flex flex-shrink-0 items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+				<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+				<span class="hidden sm:inline max-w-[100px] truncate">{sourceName}</span>
+			</span>
 			<span class="flex-shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 			<button
 				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
@@ -447,6 +458,14 @@
 				<h3 class="mb-1 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
 					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
 				</h3>
+				<!-- Source + time -->
+				<div class="mb-1 flex items-center gap-1.5">
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
 				{#if isPending}
 					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
 						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -467,11 +486,6 @@
 					{#if !isPending}
 						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
 					{/if}
-					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
-						{sourceName}
-					</span>
-					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 				</div>
 
 				<!-- Referenced links -->
@@ -537,7 +551,10 @@
 			<span class="flex-1 truncate text-[12px] text-slate-400 dark:text-slate-500">
 				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline hover:text-slate-600 dark:hover:text-slate-400">{entry.title || 'Untitled'}</a>
 			</span>
-			<span class="inline-flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+			<span class="inline-flex flex-shrink-0 items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
+				<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+				<span class="hidden sm:inline max-w-[100px] truncate">{sourceName}</span>
+			</span>
 			<span class="flex-shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 			<button
 				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
@@ -555,6 +572,14 @@
 				<h3 class="mb-1 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
 					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
 				</h3>
+				<!-- Source + time -->
+				<div class="mb-1 flex items-center gap-1.5">
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
 				{#if isPending}
 					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
 						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
@@ -575,11 +600,6 @@
 					{#if !isPending}
 						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
 					{/if}
-					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
-						{sourceName}
-					</span>
-					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
 				</div>
 
 				<!-- Referenced links -->
