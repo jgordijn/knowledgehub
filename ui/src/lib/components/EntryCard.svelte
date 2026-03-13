@@ -169,7 +169,8 @@
 		}
 	}
 
-	// Card-level click handler (task 3.7) — preserved from existing code
+	// Card-level click handler — if collapsed, expand first; if expanded, open article.
+	// Clicking the title <a> always opens the article (handled by browser, we return early).
 	function handleCardClick(event: MouseEvent) {
 		let target = event.target as HTMLElement | null;
 		while (target && target !== event.currentTarget) {
@@ -181,6 +182,11 @@
 				return;
 			}
 			target = target.parentElement;
+		}
+		// If collapsed, expand instead of opening article
+		if (!expanded) {
+			onToggle?.();
+			return;
 		}
 		if (entry.url) {
 			markReadAndOpen();
