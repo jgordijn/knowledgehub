@@ -295,14 +295,25 @@
 
 	// Push sidebar data to store so layout can pass to Sidebar component
 	$effect(() => {
+		const tiers = [
+			{ label: 'Featured', id: 'section-featured', count: featuredEntries.length, icon: '⭐' },
+			{ label: 'High Priority', id: 'section-hp', count: hpEntries.length, icon: '🔥' },
+			{ label: 'Worth a Look', id: 'section-wal', count: walEntries.length, icon: '👀' },
+			{ label: 'Low Priority', id: 'section-lp', count: lpEntries.length, icon: '📋' },
+			{ label: 'Processing', id: 'section-pending', count: pendingEntries.length, icon: '⏳' },
+		].filter(t => t.count > 0);
+
 		sidebarData.set({
 			unreadCount,
 			bookmarkedCount,
 			resources,
 			selectedSources,
 			sourceCounts: sourceCounts(),
+			tierCounts: tiers,
+			readFilter,
 			onToggleSource: toggleSource,
-			onClearSources: clearSources
+			onClearSources: clearSources,
+			onSetReadFilter: (f) => { readFilter = f; }
 		});
 	});
 
@@ -475,7 +486,7 @@
 	{:else}
 		<!-- Featured (5★) -->
 		{#if featuredEntries.length > 0}
-			<div class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+			<div id="section-featured" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
 				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Featured</span>
 				{#if hasCollapsed(featuredEntries)}
 					<button onclick={() => expandAll(featuredEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
@@ -491,7 +502,7 @@
 
 		<!-- High Priority (4★) -->
 		{#if hpEntries.length > 0}
-			<div class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+			<div id="section-hp" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
 				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">High Priority</span>
 				{#if hasCollapsed(hpEntries)}
 					<button onclick={() => expandAll(hpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
@@ -507,7 +518,7 @@
 
 		<!-- Worth a Look (3★) -->
 		{#if walEntries.length > 0}
-			<div class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+			<div id="section-wal" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
 				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Worth a Look <span class="normal-case tracking-normal">— click ▸ to expand</span></span>
 				{#if hasCollapsed(walEntries)}
 					<button onclick={() => expandAll(walEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
@@ -523,7 +534,7 @@
 
 		<!-- Low Priority (1-2★) -->
 		{#if lpEntries.length > 0}
-			<div class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+			<div id="section-lp" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
 				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Low Priority <span class="normal-case tracking-normal">— click ▸ to expand</span></span>
 				{#if hasCollapsed(lpEntries)}
 					<button onclick={() => expandAll(lpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
@@ -539,7 +550,7 @@
 
 		<!-- Pending (0★ / processing) -->
 		{#if pendingEntries.length > 0}
-			<div class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+			<div id="section-pending" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
 				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Processing</span>
 			</div>
 			{#each pendingEntries as entry (entry.id)}

@@ -9,8 +9,11 @@
 		resources = [],
 		selectedSources = new Set<string>(),
 		sourceCounts = new Map<string, number>(),
+		tierCounts = [],
+		readFilter = 'unread',
 		onToggleSource,
 		onClearSources,
+		onSetReadFilter,
 		onCloseMobile
 	}: {
 		onLogout?: () => void;
@@ -19,8 +22,11 @@
 		resources?: { id: string; name: string }[];
 		selectedSources?: Set<string>;
 		sourceCounts?: Map<string, number>;
+		tierCounts?: { label: string; id: string; count: number; icon: string }[];
+		readFilter?: 'unread' | 'all' | 'bookmarked';
 		onToggleSource?: (id: string) => void;
 		onClearSources?: () => void;
+		onSetReadFilter?: (filter: 'unread' | 'all' | 'bookmarked') => void;
 		onCloseMobile?: () => void;
 	} = $props();
 
@@ -56,6 +62,26 @@
 	function handleNavClick() {
 		onCloseMobile?.();
 	}
+
+	function handleFeedClick(e: MouseEvent) {
+		e.preventDefault();
+		handleNavClick();
+		onSetReadFilter?.('unread');
+	}
+
+	function handleSavedClick(e: MouseEvent) {
+		e.preventDefault();
+		handleNavClick();
+		onSetReadFilter?.('bookmarked');
+	}
+
+	function scrollToSection(id: string) {
+		handleNavClick();
+		const el = document.getElementById(id);
+		if (el) {
+			el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+		}
+	}
 </script>
 
 <aside class="flex h-full flex-col border-r border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -85,9 +111,9 @@
 	<nav class="px-2">
 		<a
 			href="/"
-			onclick={handleNavClick}
+			onclick={handleFeedClick}
 			class="mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors
-				{page.url.pathname === '/'
+				{page.url.pathname === '/' && readFilter === 'unread'
 				? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-slate-50'
 				: 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-100'}"
 		>
@@ -98,9 +124,11 @@
 		</a>
 		<a
 			href="/"
-			onclick={(e) => { handleNavClick(); }}
-			data-tab="bookmarked"
-			class="mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-100 transition-colors"
+			onclick={handleSavedClick}
+			class="mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors
+				{page.url.pathname === '/' && readFilter === 'bookmarked'
+				? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-slate-50'
+				: 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-100'}"
 		>
 			<span>📌</span>Saved
 			{#if bookmarkedCount > 0}
@@ -141,8 +169,29 @@
 		{/if}
 	</nav>
 
+	<!-- Section jump links -->
+	{#if tierCounts.length > 0 && page.url.pathname === '/'}
+		<div class="mx-2 my-2.5 h-px bg-slate-200 dark:bg-slate-700"></div>
+
+		<div class="px-2">
+			<div class="px-3 pb-1 pt-1.5">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Sections</span>
+			</div>
+			{#each tierCounts as tier}
+				<button
+					onclick={() => scrollToSection(tier.id)}
+					class="mb-px flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-[12px] text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-50"
+				>
+					<span class="w-4 text-center text-[11px]">{tier.icon}</span>
+					<span class="flex-1">{tier.label}</span>
+					<span class="text-[10px] text-slate-400 dark:text-slate-500">{tier.count}</span>
+				</button>
+			{/each}
+		</div>
+	{/if}
+
 	<!-- Source filter section -->
-	{#if resources.length > 0}
+	{#if resources.length > 0 && page.url.pathname === '/'}
 		<div class="mx-2 my-2.5 h-px bg-slate-200 dark:bg-slate-700"></div>
 
 		<div class="flex-1 overflow-y-auto px-2 pb-2">

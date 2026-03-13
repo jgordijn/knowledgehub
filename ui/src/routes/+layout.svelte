@@ -21,8 +21,11 @@
 		resources: [] as { id: string; name: string }[],
 		selectedSources: new Set<string>(),
 		sourceCounts: new Map<string, number>(),
+		tierCounts: [] as { label: string; id: string; count: number; icon: string }[],
+		readFilter: 'unread' as 'unread' | 'all' | 'bookmarked',
 		onToggleSource: (_id: string) => {},
-		onClearSources: () => {}
+		onClearSources: () => {},
+		onSetReadFilter: (_f: 'unread' | 'all' | 'bookmarked') => {}
 	});
 
 	onMount(() => {
@@ -108,8 +111,11 @@
 				resources={sbData.resources}
 				selectedSources={sbData.selectedSources}
 				sourceCounts={sbData.sourceCounts}
+				tierCounts={sbData.tierCounts}
+				readFilter={sbData.readFilter}
 				onToggleSource={sbData.onToggleSource}
 				onClearSources={sbData.onClearSources}
+				onSetReadFilter={sbData.onSetReadFilter}
 			/>
 		</div>
 
@@ -135,8 +141,11 @@
 				resources={sbData.resources}
 				selectedSources={sbData.selectedSources}
 				sourceCounts={sbData.sourceCounts}
+				tierCounts={sbData.tierCounts}
+				readFilter={sbData.readFilter}
 				onToggleSource={sbData.onToggleSource}
 				onClearSources={sbData.onClearSources}
+				onSetReadFilter={sbData.onSetReadFilter}
 			/>
 		</div>
 
