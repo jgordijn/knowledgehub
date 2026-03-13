@@ -16,3 +16,5 @@ kh_data/
 .claude/
 .logs/
 __pycache__/
+.agent-run/
+.pi-sessions/

@@ -7,18 +7,20 @@
 	import LinkPanel from '$lib/components/LinkPanel.svelte';
 	import QuarantineBanner from '$lib/components/QuarantineBanner.svelte';
 	import QuickAddModal from '$lib/components/QuickAddModal.svelte';
+	import { sidebarData } from '$lib/stores/sidebar';
 
 	let entries = $state<RecordModel[]>([]);
 	let loading = $state(true);
 	let readFilter = $state<'unread' | 'all' | 'bookmarked'>('unread');
 	let starFilter = $state<number>(0); // 0 = all, 3/4/5 = minimum
-	let resourceFilter = $state<string>(''); // '' = all, or resource ID
-	let resourcesOpen = $state(false);
 	let markReadOpen = $state(false);
 	let unreadCount = $state(0);
 	let bookmarkedCount = $state(0);
 	let undoEntries = $state<RecordModel[]>([]);
 	let undoTimeout: ReturnType<typeof setTimeout> | undefined;
+
+	// Multi-select source filter (task 2.2)
+	let selectedSources = $state<Set<string>>(new Set());
 
 	// Chat state
 	let chatEntry = $state<RecordModel | null>(null);
@@ -31,6 +33,9 @@
 	let linkUrl = $state<string>('');
 
 	let unsub: UnsubscribeFunc | undefined;
+
+	// Expand/collapse state (task 4.2)
+	let expandedSet = $state<Set<string>>(new Set());
 
 	function effectiveStars(entry: RecordModel): number {
 		return entry.user_stars || entry.ai_stars || 0;
@@ -46,13 +51,99 @@
 
 	let resources = $state<{ id: string; name: string }[]>([]);
 
+	// Client-side filtering with multi-select source filter (task 2.3)
 	let filteredEntries = $derived(() => {
 		let result = entries;
 		if (starFilter > 0) {
 			result = result.filter((e) => effectiveStars(e) >= starFilter);
 		}
+		// Multi-select source filter: client-side
+		if (selectedSources.size > 0) {
+			result = result.filter((e) => selectedSources.has(e.resource));
+		}
 		return sortEntries(result);
 	});
+
+	// Tier grouping (task 4.1)
+	let featuredEntries = $derived(filteredEntries().filter((e) => effectiveStars(e) === 5));
+	let hpEntries = $derived(filteredEntries().filter((e) => effectiveStars(e) === 4));
+	let walEntries = $derived(filteredEntries().filter((e) => effectiveStars(e) === 3));
+	let lpEntries = $derived(filteredEntries().filter((e) => {
+		const s = effectiveStars(e);
+		return s >= 1 && s <= 2;
+	}));
+	let pendingEntries = $derived(filteredEntries().filter((e) => effectiveStars(e) === 0));
+
+	// Compute per-source entry counts (task 2.6)
+	let sourceCounts = $derived(() => {
+		const counts = new Map<string, number>();
+		for (const e of entries) {
+			counts.set(e.resource, (counts.get(e.resource) || 0) + 1);
+		}
+		return counts;
+	});
+
+	// Initialize expanded defaults when entries change (task 4.2)
+	function initExpandedDefaults() {
+		const newSet = new Set<string>();
+		for (const e of entries) {
+			const stars = effectiveStars(e);
+			if (stars >= 4) {
+				newSet.add(e.id);
+			}
+		}
+		expandedSet = newSet;
+	}
+
+	function toggleExpand(id: string) {
+		const newSet = new Set(expandedSet);
+		if (newSet.has(id)) {
+			newSet.delete(id);
+		} else {
+			newSet.add(id);
+		}
+		expandedSet = newSet;
+	}
+
+	// Section batch controls (task 5.1-5.3)
+	function expandAll(sectionEntries: RecordModel[]) {
+		const newSet = new Set(expandedSet);
+		for (const e of sectionEntries) {
+			newSet.add(e.id);
+		}
+		expandedSet = newSet;
+	}
+
+	function collapseAll(sectionEntries: RecordModel[]) {
+		const newSet = new Set(expandedSet);
+		for (const e of sectionEntries) {
+			newSet.delete(e.id);
+		}
+		expandedSet = newSet;
+	}
+
+	function hasCollapsed(sectionEntries: RecordModel[]): boolean {
+		return sectionEntries.some((e) => !expandedSet.has(e.id));
+	}
+
+	function hasExpanded(sectionEntries: RecordModel[]): boolean {
+		return sectionEntries.some((e) => expandedSet.has(e.id));
+	}
+
+	// Source filter callbacks (task 2.2)
+	function toggleSource(id: string) {
+		const newSet = new Set(selectedSources);
+		if (newSet.has(id)) {
+			newSet.delete(id);
+		} else {
+			newSet.add(id);
+		}
+		selectedSources = newSet;
+	}
+
+	function clearSources() {
+		selectedSources = new Set();
+	}
 
 	async function loadEntries() {
 		loading = true;
@@ -65,9 +156,6 @@
 			} else if (readFilter === 'bookmarked') {
 				filters.push('bookmarked = true');
 			}
-			if (resourceFilter) {
-				filters.push(`resource = '${resourceFilter}'`);
-			}
 			const result = await pb.collection('entries').getList(1, 200, {
 				sort: '-published_at,-discovered_at',
 				expand: 'resource',
@@ -75,6 +163,7 @@
 				requestKey: 'loadEntries'
 			});
 			entries = result.items;
+			initExpandedDefaults();
 		} catch (err) {
 			console.error('loadEntries failed:', err);
 		} finally {
@@ -123,12 +212,10 @@
 		}
 	}
 
-
 	function handleEntryUpdate(updated: RecordModel) {
 		const existing = entries.find((e) => e.id === updated.id);
 
 		if (readFilter === 'unread' && updated.is_read && existing) {
-			// Entry just marked as read on unread view — remove and offer undo
 			entries = entries.filter((e) => e.id !== updated.id);
 			undoEntries = [...undoEntries, { ...existing, ...updated }];
 			clearTimeout(undoTimeout);
@@ -157,7 +244,6 @@
 		loadBookmarkedCount();
 	}
 
-
 	async function markAsRead(olderThanDays?: number) {
 		markReadOpen = false;
 		let toMark = entries.filter((e) => !e.is_read);
@@ -169,11 +255,9 @@
 		await Promise.all(
 			toMark.map((e) => pb.collection('entries').update(e.id, { is_read: true }).catch(() => {}))
 		);
-		// Reload to reflect server-side filtering
 		await loadEntries();
 		loadUnreadCount();
 	}
-
 
 	function openChat(entry: RecordModel) {
 		chatEntry = entry;
@@ -201,35 +285,59 @@
 
 	let mounted = false;
 
-	// Reload entries when read or resource filter changes
+	// Reload entries when read filter changes
 	$effect(() => {
-		// Track the reactive dependencies
 		readFilter;
-		resourceFilter;
 		if (mounted) {
 			loadEntries();
 		}
+	});
+
+	// Push sidebar data to store so layout can pass to Sidebar component
+	$effect(() => {
+		const tiers = [
+			{ label: 'Featured', id: 'section-featured', count: featuredEntries.length, icon: '⭐' },
+			{ label: 'High Priority', id: 'section-hp', count: hpEntries.length, icon: '🔥' },
+			{ label: 'Worth a Look', id: 'section-wal', count: walEntries.length, icon: '👀' },
+			{ label: 'Low Priority', id: 'section-lp', count: lpEntries.length, icon: '📋' },
+			{ label: 'Processing', id: 'section-pending', count: pendingEntries.length, icon: '⏳' },
+		].filter(t => t.count > 0);
+
+		sidebarData.set({
+			unreadCount,
+			bookmarkedCount,
+			resources,
+			selectedSources,
+			sourceCounts: sourceCounts(),
+			tierCounts: tiers,
+			readFilter,
+			onToggleSource: toggleSource,
+			onClearSources: clearSources,
+			onSetReadFilter: (f) => { readFilter = f; }
+		});
 	});
 
 	onMount(async () => {
 		await Promise.all([loadEntries(), loadResources(), loadUnreadCount(), loadBookmarkedCount()]);
 		mounted = true;
 
-		// Request notification permission
 		if ('Notification' in window && Notification.permission === 'default') {
 			Notification.requestPermission();
 		}
 
-		// Subscribe to realtime updates
 		try {
 			unsub = await pb.collection('entries').subscribe('*', async (e) => {
 				if (e.action === 'create') {
-					// Fetch with expanded resource
 					try {
 						const full = await pb.collection('entries').getOne(e.record.id, {
 							expand: 'resource'
 						});
 						entries = [...entries, full];
+						// Add to expanded set if featured/HP
+						const stars = effectiveStars(full);
+						if (stars >= 4) {
+							expandedSet = new Set([...expandedSet, full.id]);
+						}
 						loadUnreadCount();
 						loadBookmarkedCount();
 						tryNotify(full);
@@ -257,60 +365,78 @@
 		unsub?.();
 		clearTimeout(undoTimeout);
 	});
+
+	// Helper to get resource name by id
+	function getResourceName(id: string): string {
+		return resources.find((r) => r.id === id)?.name ?? id;
+	}
 </script>
-
-
-
 
 <div class="space-y-4">
 	<QuarantineBanner />
 
-	<!-- Filters -->
-	<div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-		<!-- Read/unread tabs -->
+	<!-- Topbar: tabs + source chips + star filter + mark read (task 6.1-6.3) -->
+	<div class="flex flex-wrap items-center gap-2">
+		<!-- Read filter tabs (segmented control) -->
 		<div class="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
 			<button
 				onclick={() => (readFilter = 'unread')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'unread' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
+				class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors
+					{readFilter === 'unread' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 			>
-				Unread ({unreadCount})
-			</button>
-			<button
-				onclick={() => (readFilter = 'all')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
-			>
-				All
+				Unread{unreadCount > 0 ? ` ${unreadCount}` : ''}
 			</button>
 			<button
 				onclick={() => (readFilter = 'bookmarked')}
-				class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-					{readFilter === 'bookmarked' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
+				class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors
+					{readFilter === 'bookmarked' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
 			>
-				📌 Read Later{bookmarkedCount > 0 ? ` (${bookmarkedCount})` : ''}
+				Saved{bookmarkedCount > 0 ? ` ${bookmarkedCount}` : ''}
+			</button>
+			<button
+				onclick={() => (readFilter = 'all')}
+				class="rounded-md px-3 py-1.5 text-[13px] font-medium transition-colors
+					{readFilter === 'all' ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
+			>
+				All
 			</button>
 		</div>
 
-		<!-- Star filter -->
-		<div class="flex gap-1 rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
-			{#each [{ label: 'All', value: 0 }, { label: '3+', value: 3 }, { label: '4+', value: 4 }, { label: '5', value: 5 }] as opt}
-				<button
-					onclick={() => (starFilter = opt.value)}
-					class="rounded-md px-3 py-1.5 text-sm font-medium transition-colors
-						{starFilter === opt.value ? 'bg-white text-slate-900 shadow-sm dark:bg-slate-600 dark:text-slate-100' : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-100'}"
-				>
-					{opt.label}
-				</button>
-			{/each}
-		</div>
+		<!-- Active source chips (task 2.4) -->
+		{#if selectedSources.size > 0}
+			<div class="inline-flex flex-wrap items-center gap-1.5">
+				{#each [...selectedSources] as srcId}
+					<span class="inline-flex items-center gap-1 rounded-md border border-blue-500/30 bg-blue-50 px-2 py-0.5 text-[11px] text-blue-600 dark:border-blue-500/30 dark:bg-blue-900/20 dark:text-blue-400">
+						{getResourceName(srcId)}
+						<button
+							onclick={() => toggleSource(srcId)}
+							class="ml-0.5 text-[12px] leading-none text-slate-400 hover:text-slate-900 dark:text-slate-500 dark:hover:text-slate-50"
+							title="Remove filter"
+						>✕</button>
+					</span>
+				{/each}
+			</div>
+		{/if}
 
-		<!-- Mark as read -->
+		<!-- Star filter -->
+		<select
+			class="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 text-[12px] text-slate-500 transition-colors dark:border-slate-600 dark:bg-slate-900 dark:text-slate-400"
+			onchange={(e) => (starFilter = parseInt((e.target as HTMLSelectElement).value))}
+		>
+			<option value="0" selected={starFilter === 0}>★ All</option>
+			<option value="3" selected={starFilter === 3}>★ 3+</option>
+			<option value="4" selected={starFilter === 4}>★ 4+</option>
+			<option value="5" selected={starFilter === 5}>★ 5</option>
+		</select>
+
+		<div class="flex-1"></div>
+
+		<!-- Mark as read dropdown -->
 		<!-- svelte-ignore a11y_no_static_element_interactions -->
 		<div class="relative" onfocusout={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node)) markReadOpen = false; }}>
 			<button
 				onclick={() => (markReadOpen = !markReadOpen)}
-				class="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors dark:text-slate-400 dark:hover:bg-slate-700"
+				class="rounded-md border border-slate-300 px-2.5 py-1 text-[12px] font-medium text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-600 dark:text-slate-400 dark:hover:text-slate-100"
 			>
 				Mark read ▾
 			</button>
@@ -335,45 +461,7 @@
 		</div>
 	</div>
 
-	<!-- Resource filter (collapsible) -->
-	{#if resources.length > 1}
-		<div>
-			<button
-				onclick={() => (resourcesOpen = !resourcesOpen)}
-				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
-			>
-				<svg
-					class="h-3 w-3 transition-transform {resourcesOpen ? 'rotate-90' : ''}"
-					fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-				</svg>
-				Sources{resourceFilter ? ': ' + resources.find((r) => r.id === resourceFilter)?.name : ''}
-			</button>
-			{#if resourcesOpen}
-				<div class="mt-2 flex flex-wrap gap-1.5">
-					<button
-						onclick={() => (resourceFilter = '')}
-						class="rounded-full px-3 py-1 text-xs font-medium transition-colors
-							{resourceFilter === '' ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600'}"
-					>
-						All
-					</button>
-					{#each resources as res}
-						<button
-							onclick={() => (resourceFilter = res.id)}
-							class="rounded-full px-3 py-1 text-xs font-medium transition-colors
-								{resourceFilter === res.id ? 'bg-slate-800 text-white dark:bg-slate-200 dark:text-slate-900' : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-400 dark:hover:bg-slate-600'}"
-						>
-							{res.name}
-						</button>
-					{/each}
-				</div>
-			{/if}
-		</div>
-	{/if}
-
-	<!-- Undo banner (fixed to bottom so it doesn't shift content when it disappears) -->
+	<!-- Undo banner -->
 	{#if undoEntries.length > 0}
 		<div class="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-lg flex items-center justify-between rounded-lg bg-slate-700 px-4 py-2.5 text-sm text-white shadow-lg dark:bg-slate-600">
 			<span>
@@ -388,7 +476,7 @@
 		</div>
 	{/if}
 
-	<!-- Entries -->
+	<!-- Entries — tiered layout (tasks 4.1-4.5) -->
 	{#if loading}
 		<div class="py-12 text-center text-sm text-slate-400 dark:text-slate-500">Loading entries…</div>
 	{:else if filteredEntries().length === 0}
@@ -396,11 +484,79 @@
 			{readFilter === 'unread' ? 'No unread entries. Switch to "All" to see read entries.' : readFilter === 'bookmarked' ? 'No bookmarked entries. Use the bookmark icon to save articles for later.' : 'No entries yet. Add some resources to get started.'}
 		</div>
 	{:else}
-		<div class="grid gap-3">
-			{#each filteredEntries() as entry (entry.id)}
-				<EntryCard {entry} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
+		<!-- Featured (5★) -->
+		{#if featuredEntries.length > 0}
+			<div id="section-featured" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Featured</span>
+				{#if hasCollapsed(featuredEntries)}
+					<button onclick={() => expandAll(featuredEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
+				{/if}
+				{#if hasExpanded(featuredEntries)}
+					<button onclick={() => collapseAll(featuredEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Collapse all</button>
+				{/if}
+			</div>
+			{#each featuredEntries as entry (entry.id)}
+				<EntryCard {entry} expanded={expandedSet.has(entry.id)} onToggle={() => toggleExpand(entry.id)} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
 			{/each}
-		</div>
+		{/if}
+
+		<!-- High Priority (4★) -->
+		{#if hpEntries.length > 0}
+			<div id="section-hp" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">High Priority</span>
+				{#if hasCollapsed(hpEntries)}
+					<button onclick={() => expandAll(hpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
+				{/if}
+				{#if hasExpanded(hpEntries)}
+					<button onclick={() => collapseAll(hpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Collapse all</button>
+				{/if}
+			</div>
+			{#each hpEntries as entry (entry.id)}
+				<EntryCard {entry} expanded={expandedSet.has(entry.id)} onToggle={() => toggleExpand(entry.id)} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
+			{/each}
+		{/if}
+
+		<!-- Worth a Look (3★) -->
+		{#if walEntries.length > 0}
+			<div id="section-wal" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Worth a Look <span class="normal-case tracking-normal">— click ▸ to expand</span></span>
+				{#if hasCollapsed(walEntries)}
+					<button onclick={() => expandAll(walEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
+				{/if}
+				{#if hasExpanded(walEntries)}
+					<button onclick={() => collapseAll(walEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Collapse all</button>
+				{/if}
+			</div>
+			{#each walEntries as entry (entry.id)}
+				<EntryCard {entry} expanded={expandedSet.has(entry.id)} onToggle={() => toggleExpand(entry.id)} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
+			{/each}
+		{/if}
+
+		<!-- Low Priority (1-2★) -->
+		{#if lpEntries.length > 0}
+			<div id="section-lp" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Low Priority <span class="normal-case tracking-normal">— click ▸ to expand</span></span>
+				{#if hasCollapsed(lpEntries)}
+					<button onclick={() => expandAll(lpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Expand all</button>
+				{/if}
+				{#if hasExpanded(lpEntries)}
+					<button onclick={() => collapseAll(lpEntries)} class="rounded border border-slate-200 px-2 py-px text-[10px] font-medium text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-900 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-50">Collapse all</button>
+				{/if}
+			</div>
+			{#each lpEntries as entry (entry.id)}
+				<EntryCard {entry} expanded={expandedSet.has(entry.id)} onToggle={() => toggleExpand(entry.id)} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
+			{/each}
+		{/if}
+
+		<!-- Pending (0★ / processing) -->
+		{#if pendingEntries.length > 0}
+			<div id="section-pending" class="flex items-center gap-2 px-1 pt-2.5 pb-1">
+				<span class="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500">Processing</span>
+			</div>
+			{#each pendingEntries as entry (entry.id)}
+				<EntryCard {entry} expanded={expandedSet.has(entry.id)} onToggle={() => toggleExpand(entry.id)} onOpenChat={openChat} onOpenLink={openLink} onUpdate={handleEntryUpdate} />
+			{/each}
+		{/if}
 	{/if}
 </div>
 
@@ -413,7 +569,6 @@
 {#if linkEntry && linkUrl}
 	<LinkPanel url={linkUrl} entryId={linkEntry.id} entryTitle={linkEntry.title ?? 'Untitled'} onClose={closeLink} />
 {/if}
-
 
 <!-- Quick Add FAB -->
 <button

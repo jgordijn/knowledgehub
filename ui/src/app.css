@@ -1,3 +1,12 @@
 @import 'tailwindcss';
 @plugin '@tailwindcss/typography';
 @custom-variant dark (&:where(.dark, .dark *));
+
+/* Click-flash feedback animation for card taps */
+@keyframes clickFlash {
+  0% { box-shadow: 0 0 0 2px var(--color-blue-500); }
+  100% { box-shadow: none; }
+}
+.click-flash {
+  animation: clickFlash 0.3s ease-out;
+}

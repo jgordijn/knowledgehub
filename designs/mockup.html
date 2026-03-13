@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KnowledgeHub — River Redesign (v4)</title>
+<style>
+/* ─── Theme variables ─── */
+:root{--trans:background .2s,color .2s,border-color .2s,box-shadow .2s}
+[data-theme="dark"]{
+  --bg:#0f172a;--bg2:#1e293b;--border:#334155;--border2:#475569;
+  --text:#e2e8f0;--text2:#94a3b8;--text3:#64748b;--text4:#475569;
+  --heading:#f8fafc;--accent:#f59e0b;--blue:#3b82f6;
+  --card:#1e293b;--scroll:#334155;--code-bg:#334155;
+  --src-active:#1e3a5f;--src-active-border:#3b82f6;
+  --green:#22c55e;--green-bg:rgba(34,197,94,.12);
+}
+[data-theme="light"]{
+  --bg:#f8fafc;--bg2:#ffffff;--border:#e2e8f0;--border2:#cbd5e1;
+  --text:#334155;--text2:#64748b;--text3:#94a3b8;--text4:#cbd5e1;
+  --heading:#0f172a;--accent:#d97706;--blue:#2563eb;
+  --card:#ffffff;--scroll:#cbd5e1;--code-bg:#f1f5f9;
+  --src-active:#eff6ff;--src-active-border:#2563eb;
+  --green:#16a34a;--green-bg:rgba(22,163,74,.1);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);display:flex;height:100vh;overflow:hidden;transition:var(--trans)}
+
+/* ─── Sidebar ─── */
+.sidebar{width:220px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:var(--trans)}
+.logo{padding:20px 16px 12px;display:flex;align-items:center;gap:8px}
+.logo-text{font-size:17px;font-weight:700;color:var(--heading)}
+.logo-text span{color:var(--accent)}
+.logo-version{font-size:11px;color:var(--text4);font-weight:400}
+.logo-gh{color:var(--text4);transition:color .15s;display:inline-flex;align-items:center;flex-shrink:0}
+.logo-gh:hover{color:var(--text2)}
+.logo-gh svg{width:15px;height:15px}
+.nav{padding:8px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:var(--text2);text-decoration:none;font-size:13px;margin-bottom:2px;transition:var(--trans)}
+.nav a.active{background:var(--border);color:var(--heading)}
+.badge{margin-left:auto;background:var(--accent);color:var(--bg);font-size:11px;font-weight:700;padding:1px 7px;border-radius:10px}
+.badge.m{background:var(--border);color:var(--text2)}
+.nav-div{height:1px;background:var(--border);margin:10px 8px}
+
+/* ─── Source filter list in sidebar — multi-select toggles ─── */
+.src-section{padding:4px 8px 8px;overflow-y:auto;flex:1}
+.src-header{display:flex;align-items:center;justify-content:space-between;padding:6px 12px 4px}
+.src-label{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);font-weight:600}
+.src-clear{font-size:10px;color:var(--blue);cursor:pointer;background:none;border:none;font-weight:500;padding:0}
+.src-clear:hover{text-decoration:underline}
+.src-list{list-style:none}
+.src-list li{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:6px;font-size:12px;color:var(--text2);cursor:pointer;transition:var(--trans);border:1px solid transparent;margin-bottom:1px;user-select:none}
+.src-list li:hover{background:var(--border);color:var(--heading)}
+.src-list li.active{background:var(--src-active);border-color:var(--src-active-border);color:var(--heading);font-weight:600}
+.src-list li .av{width:16px;height:16px;border-radius:3px;display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#0f172a;flex-shrink:0}
+.src-list li .cnt{margin-left:auto;font-size:10px;color:var(--text4);font-weight:400}
+/* Multi-select toggle indicator */
+.src-list li .toggle-check{width:14px;height:14px;border-radius:3px;border:1.5px solid var(--border2);display:inline-flex;align-items:center;justify-content:center;font-size:9px;color:transparent;flex-shrink:0;transition:var(--trans)}
+.src-list li.active .toggle-check{background:var(--blue);border-color:var(--blue);color:#fff}
+
+.sidebar-ft{margin-top:auto;padding:14px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.6;transition:var(--trans)}
+
+/* ─── Main ─── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{padding:10px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;background:var(--bg2);flex-shrink:0;flex-wrap:wrap;transition:var(--trans)}
+.tab{padding:5px 12px;border-radius:6px;font-size:13px;color:var(--text2);border:1px solid transparent;cursor:pointer;transition:var(--trans)}
+.tab.active{background:var(--border);color:var(--heading);border-color:var(--border2)}
+.flt{padding:5px 10px;border-radius:6px;font-size:12px;color:var(--text2);background:var(--bg);border:1px solid var(--border);transition:var(--trans)}
+.spacer{flex:1}
+.mark-btn{padding:5px 10px;border-radius:6px;font-size:12px;color:var(--text2);background:transparent;border:1px solid var(--border2);cursor:pointer;transition:var(--trans)}
+
+/* ─── Active source indicators in topbar (multi-select) ─── */
+.active-src-tags{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap}
+.active-src-tag{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:5px;font-size:11px;color:var(--blue);background:var(--src-active);border:1px solid var(--src-active-border)}
+.active-src-tag .clear{cursor:pointer;font-size:12px;margin-left:1px;color:var(--text3);line-height:1}
+.active-src-tag .clear:hover{color:var(--heading)}
+
+/* ─── Theme toggle ─── */
+.theme-toggle{display:flex;align-items:center;gap:6px;padding:4px 10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg);cursor:pointer;font-size:12px;color:var(--text2);transition:var(--trans);user-select:none;flex-shrink:0}
+.theme-toggle:hover{border-color:var(--accent);color:var(--heading)}
+.theme-toggle .icon{font-size:15px;line-height:1}
+
+/* ─── Mobile hamburger ─── */
+.hamburger{display:none;background:none;border:none;color:var(--heading);font-size:22px;cursor:pointer;padding:4px 6px;flex-shrink:0}
+
+/* ─── Overlay backdrop ─── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:90}
+
+/* ─── Feed ─── */
+.feed{flex:1;overflow-y:auto;padding:18px 22px}
+.feed::-webkit-scrollbar{width:5px}
+.feed::-webkit-scrollbar-thumb{background:var(--scroll);border-radius:3px}
+
+/* ─── Universal expand/collapse button ─── */
+.expand-btn{font-size:10px;color:var(--text4);flex-shrink:0;transition:var(--trans);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 6px;line-height:1}
+.expand-btn:hover{color:var(--text2);border-color:var(--border2)}
+
+/* ─── Card-level click target (all tiers) ─── */
+.feat,.cm,.cs,.mn{cursor:pointer}
+.feat:hover,.cm:hover{box-shadow:0 0 0 1px var(--border2)}
+.cs:hover{background:var(--bg2)}
+
+/* ─── Click flash feedback ─── */
+@keyframes clickFlash{
+  0%{box-shadow:0 0 0 2px var(--blue)}
+  100%{box-shadow:none}
+}
+.click-flash{animation:clickFlash .3s ease-out}
+
+/* Featured card */
+.feat{background:var(--card);border:1px solid var(--border);border-left:4px solid var(--accent);border-radius:10px;padding:18px 20px;margin-bottom:18px;transition:var(--trans)}
+.feat-hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px}
+.feat-label{font-size:11px;text-transform:uppercase;letter-spacing:.7px;color:var(--accent);font-weight:600}
+.feat .t{font-size:19px;font-weight:700;color:var(--heading);margin-bottom:5px}
+.feat .t a{color:inherit;text-decoration:none}
+.feat .t a:hover{text-decoration:underline}
+.feat .s{font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:8px}
+.feat .tk{list-style:none;margin-bottom:12px}
+.feat .tk li{font-size:12px;color:var(--text);padding:2px 0 2px 14px;position:relative}
+.feat .tk li::before{content:"•";position:absolute;left:0;color:var(--accent)}
+.feat .meta{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.stars{color:var(--accent);font-size:13px;letter-spacing:1px}
+.src{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text3)}
+.av{width:18px;height:18px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#0f172a;flex-shrink:0}
+.time{font-size:11px;color:var(--text4);margin-left:auto}
+.acts{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+.b{padding:6px 12px;border-radius:6px;font-size:12px;font-weight:600;border:none;cursor:pointer;display:inline-flex;align-items:center;gap:4px;transition:var(--trans)}
+.b-rd{background:var(--blue);color:#fff}
+.b-sv{background:transparent;border:1px solid var(--accent);color:var(--accent)}
+.b-ch{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.b-m{background:transparent;border:1px solid var(--border);color:var(--text3);font-weight:400}
+
+/* Featured collapsed: title + meta bar only */
+.feat.collapsed .card-detail{display:none}
+.feat.collapsed .t{margin-bottom:0}
+
+/* Compact cards — card click opens article */
+.cm{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:8px;display:flex;gap:12px;transition:var(--trans)}
+.cm .cb{flex:1;min-width:0}
+.cm .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:3px}
+.cm .t a{color:inherit;text-decoration:none}
+.cm .t a:hover{text-decoration:underline}
+.cm .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:6px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.cm .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+
+/* HP collapsed: hide summary and side action buttons */
+.cm.collapsed .card-detail{display:none}
+.cm.collapsed .side-acts{display:none}
+.cm.collapsed .t{margin-bottom:0}
+
+/* Compact-single row (Worth a Look) */
+.cs{background:transparent;border-bottom:1px solid var(--bg2);padding:8px 4px;display:flex;align-items:center;gap:10px;transition:var(--trans)}
+.cs .t{font-size:13px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cs .t a{color:inherit;text-decoration:none}
+.cs .t a:hover{text-decoration:underline}
+.cs.expanded{background:var(--bg2);border-bottom:none;border-radius:4px 4px 0 0}
+
+/* Worth a Look detail panel (mirrors low-priority detail) */
+.wal-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out;cursor:pointer}
+.wal-detail.open{display:block}
+.wal-detail .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:4px}
+.wal-detail .t a{color:inherit;text-decoration:none}
+.wal-detail .t a:hover{text-decoration:underline}
+.wal-detail .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+.wal-detail .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.wal-detail .acts{display:flex;gap:7px;flex-wrap:wrap}
+
+/* ─── Low-priority rows (collapsible) ─── */
+.mn{padding:7px 4px;border-bottom:1px solid var(--bg2);display:flex;align-items:center;gap:10px;opacity:.5;transition:opacity .2s,background .2s;border-radius:4px}
+.mn:hover{opacity:.75;background:var(--bg2)}
+.mn .t{font-size:12px;color:var(--text3);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mn .t a{color:inherit;text-decoration:none}
+.mn .t a:hover{text-decoration:underline;color:var(--text2)}
+
+/* Expanded low-priority detail */
+.mn-detail{display:none;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin:-2px 0 8px 0;animation:slideDown .15s ease-out;cursor:pointer}
+.mn-detail.open{display:block}
+.mn.expanded{opacity:.85;background:var(--bg2);border-bottom:none;border-radius:4px 4px 0 0}
+.mn-detail .t{font-size:14px;font-weight:600;color:var(--heading);margin-bottom:4px}
+.mn-detail .t a{color:inherit;text-decoration:none}
+.mn-detail .t a:hover{text-decoration:underline}
+.mn-detail .s{font-size:12px;color:var(--text2);line-height:1.5;margin-bottom:8px}
+.mn-detail .mr{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.mn-detail .acts{display:flex;gap:7px;flex-wrap:wrap}
+
+@keyframes slideDown{
+  from{opacity:0;transform:translateY(-4px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+/* Section labels */
+.sl{font-size:10px;text-transform:uppercase;letter-spacing:.6px;color:var(--text4);font-weight:600;padding:10px 4px 4px;display:flex;align-items:center;gap:8px}
+.sl .section-btn{font-size:10px;font-weight:500;color:var(--text3);cursor:pointer;background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;text-transform:none;letter-spacing:0;transition:var(--trans)}
+.sl .section-btn:hover{color:var(--heading);border-color:var(--border2)}
+
+/* ─── Chat panel ─── */
+.chat{width:360px;background:var(--bg2);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;transition:var(--trans)}
+.ch-hd{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;transition:var(--trans)}
+.ch-hd .cht{font-size:13px;font-weight:600;color:var(--heading);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ch-x{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer}
+.ch-ctx{padding:10px 14px;background:var(--bg);border-bottom:1px solid var(--border);font-size:11px;color:var(--text3);line-height:1.5;transition:var(--trans)}
+.ch-ctx b{color:var(--text2);font-weight:600}
+.ch-body{flex:1;overflow-y:auto;padding:14px}
+.chip{display:inline-block;padding:7px 10px;border:1px solid var(--border);border-radius:7px;font-size:11px;color:var(--text2);margin:0 5px 7px 0;transition:var(--trans)}
+.msg{margin-bottom:12px}
+.msg.u{text-align:right}
+.bbl{display:inline-block;max-width:88%;padding:9px 12px;border-radius:9px;font-size:12px;line-height:1.5}
+.msg.u .bbl{background:var(--blue);color:#fff;border-bottom-right-radius:2px}
+.msg.ai .bbl{background:var(--code-bg);color:var(--text);border-bottom-left-radius:2px;transition:var(--trans)}
+.ch-in{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:7px;transition:var(--trans)}
+.ch-in input{flex:1;padding:8px 12px;border-radius:7px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;outline:none;transition:var(--trans)}
+.ch-in input:focus{border-color:var(--blue)}
+.ch-in button{padding:8px 12px;border-radius:7px;background:var(--blue);color:#fff;border:none;font-size:12px;font-weight:600;cursor:pointer}
+
+/* ─── Mobile: ≤768px ─── */
+@media(max-width:768px){
+  .sidebar{position:fixed;left:-230px;top:0;bottom:0;width:220px;z-index:100;transition:left .25s ease}
+  .sidebar.open{left:0}
+  .overlay.show{display:block}
+  .hamburger{display:block}
+  .chat{position:fixed;right:-100%;top:0;bottom:0;width:100%;max-width:400px;z-index:100;transition:right .25s ease}
+  .chat.open{right:0}
+  .topbar{padding:8px 12px;gap:6px}
+  .feed{padding:12px}
+  .feat{padding:14px 14px}
+  .feat .t{font-size:16px}
+  .cm{padding:10px 12px}
+  .cm .side-btns{flex-direction:row!important}
+  .theme-toggle span.label{display:none}
+}
+
+/* ─── Small phones: ≤400px ─── */
+@media(max-width:400px){
+  .topbar{gap:4px;padding:6px 8px}
+  .tab{padding:4px 8px;font-size:12px}
+  .flt{font-size:11px;padding:4px 7px}
+  .feed{padding:8px}
+  .feat{padding:10px 12px}
+  .feat .t{font-size:15px}
+  .feat .s{font-size:12px}
+  .acts .b{padding:5px 8px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- Backdrop overlay for mobile drawers -->
+<div class="overlay" id="overlay" onclick="closeMobileDrawers()"></div>
+
+<nav class="sidebar" id="sidebar">
+  <div class="logo">
+    <div>
+      <span class="logo-text">Knowledge<span>Hub</span></span>
+      <span class="logo-version">v0.4.2</span>
+    </div>
+    <a href="https://github.com/jgordijn/knowledgehub" target="_blank" rel="noopener noreferrer" class="logo-gh" aria-label="GitHub repository" title="View on GitHub">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"/></svg>
+    </a>
+  </div>
+  <div class="nav">
+    <a href="#" class="active"><span>📡</span>Feed<span class="badge">23</span></a>
+    <a href="#"><span>📌</span>Saved<span class="badge m">4</span></a>
+    <div class="nav-div"></div>
+    <a href="#"><span>📦</span>Sources</a>
+    <a href="#"><span>⚙️</span>Settings</a>
+  </div>
+
+  <!-- Source filter list — multi-select toggles -->
+  <div class="nav-div"></div>
+  <div class="src-section">
+    <div class="src-header">
+      <span class="src-label">Filter by Source</span>
+      <button class="src-clear" id="srcClear" onclick="clearAllSources()" style="display:inline">Clear</button>
+    </div>
+    <ul class="src-list" id="srcList">
+      <li class="active" data-source="rust" onclick="toggleSource(this,'rust')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#f97316">RB</span>Rust Blog <span class="cnt">3</span>
+      </li>
+      <li class="active" data-source="eng" onclick="toggleSource(this,'eng')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#8b5cf6">EB</span>Eng Blog <span class="cnt">5</span>
+      </li>
+      <li data-source="infoq" onclick="toggleSource(this,'infoq')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#06b6d4">IQ</span>InfoQ <span class="cnt">4</span>
+      </li>
+      <li data-source="cloudflare" onclick="toggleSource(this,'cloudflare')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#f472b6">CF</span>Cloudflare <span class="cnt">3</span>
+      </li>
+      <li data-source="pg" onclick="toggleSource(this,'pg')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#34d399">PG</span>PG Blog <span class="cnt">2</span>
+      </li>
+      <li data-source="node" onclick="toggleSource(this,'node')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#a78bfa">NJ</span>Node.js <span class="cnt">4</span>
+      </li>
+      <li data-source="gh" onclick="toggleSource(this,'gh')">
+        <span class="toggle-check">✓</span>
+        <span class="av" style="background:#fb923c">GH</span>GitHub <span class="cnt">2</span>
+      </li>
+    </ul>
+  </div>
+
+  <div class="sidebar-ft"><b>?</b> shortcuts · <b>j/k</b> navigate · <b>o</b> open</div>
+</nav>
+
+<div class="main">
+  <div class="topbar">
+    <button class="hamburger" id="menuBtn" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+    <div class="tab active">Unread 23</div>
+    <div class="tab">Saved</div>
+    <div class="tab">All</div>
+    <div style="width:1px;height:18px;background:var(--border)"></div>
+    <!-- Active source chips shown when filtering (multi-select) -->
+    <span class="active-src-tags" id="activeSrcTags">
+      <span class="active-src-tag" data-tag="rust">
+        Rust Blog <span class="clear" onclick="deselectSource('rust')" title="Remove filter">✕</span>
+      </span>
+      <span class="active-src-tag" data-tag="eng">
+        Eng Blog <span class="clear" onclick="deselectSource('eng')" title="Remove filter">✕</span>
+      </span>
+    </span>
+    <select class="flt"><option>★ All</option><option>★ 3+</option><option>★ 4+</option></select>
+    <div class="spacer"></div>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+      <span class="icon" id="themeIcon">🌙</span>
+      <span class="label">Dark</span>
+    </button>
+    <button class="mark-btn">Mark read ▾</button>
+  </div>
+
+  <div class="feed">
+
+    <!-- ═══ FEATURED (5★) — expanded by default, collapsible ═══ -->
+    <div class="sl" id="featHeader">
+      Featured
+      <button class="section-btn" id="featExpandBtn" onclick="expandSection('feat')">Expand all</button>
+      <button class="section-btn" id="featCollapseBtn" onclick="collapseSection('feat')">Collapse all</button>
+    </div>
+
+    <div class="feat" id="feat1" onclick="openArticle(event,'#article-1')">
+      <div class="feat-hdr">
+        <div class="feat-label">★★★★★ Featured</div>
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('feat1')" title="Collapse details" aria-label="Collapse">▾</button>
+      </div>
+      <div class="t"><a href="#article-1" onclick="event.preventDefault()">Understanding Rust's Borrow Checker: A Practical Guide</a></div>
+      <div class="card-detail" id="feat1-detail">
+        <div class="s">The article explains ownership semantics through practical examples, comparing Rust's compile-time guarantees to C++ RAII and Swift's ARC model. Covers lifetime elision rules with clear before/after code.</div>
+        <ul class="tk">
+          <li>Key insight about lifetime elision reducing annotation noise by ~60%</li>
+          <li>Comparison with Swift's ARC highlights Rust's zero-cost advantage</li>
+        </ul>
+        <div class="meta">
+          <span class="src"><span class="av" style="background:#f97316">RB</span>Rust Blog</span>
+          <span class="time">2h ago</span>
+        </div>
+        <div class="acts">
+          <button class="b b-rd" onclick="event.stopPropagation()">Read Now ↗</button>
+          <button class="b b-sv" onclick="event.stopPropagation()">📌 Save</button>
+          <button class="b b-ch" onclick="event.stopPropagation();toggleChat()">🤖 Chat</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ HIGH PRIORITY (4★) — expanded by default, collapsible ═══ -->
+    <div class="sl" id="hpHeader">
+      High Priority
+      <button class="section-btn" id="hpExpandBtn" onclick="expandSection('hp')">Expand all</button>
+      <button class="section-btn" id="hpCollapseBtn" onclick="collapseSection('hp')">Collapse all</button>
+    </div>
+
+    <div class="cm" id="hp1" onclick="openArticle(event,'#article-2')">
+      <div class="cb">
+        <div class="t"><a href="#article-2" onclick="event.preventDefault()">Cache Invalidation Strategies for Distributed Systems</a></div>
+        <div class="card-detail" id="hp1-detail">
+          <div class="s">Two approaches to distributed cache invalidation — event-driven purging vs TTL with versioned keys. Benchmarks show 40% latency reduction.</div>
+        </div>
+        <div class="mr">
+          <span class="stars">★★★★</span>
+          <span class="src"><span class="av" style="background:#8b5cf6">EB</span>Eng Blog</span>
+          <span class="time">4h ago</span>
+        </div>
+      </div>
+      <div class="side-btns" style="display:flex;flex-direction:column;gap:5px;align-self:center">
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('hp1')" title="Collapse details" aria-label="Collapse">▾</button>
+        <div class="side-acts">
+          <button class="b b-rd" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+          <button class="b b-sv" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="cm" id="hp2" onclick="openArticle(event,'#article-3')">
+      <div class="cb">
+        <div class="t"><a href="#article-3" onclick="event.preventDefault()">Building Event-Driven Microservices: Kafka vs Pulsar</a></div>
+        <div class="card-detail" id="hp2-detail">
+          <div class="s">A comparison of event streaming platforms covering throughput, ordering guarantees, consumer groups, and operational complexity.</div>
+        </div>
+        <div class="mr">
+          <span class="stars">★★★★</span>
+          <span class="src"><span class="av" style="background:#06b6d4">IQ</span>InfoQ</span>
+          <span class="time">6h ago</span>
+        </div>
+      </div>
+      <div class="side-btns" style="display:flex;flex-direction:column;gap:5px;align-self:center">
+        <button class="expand-btn" onclick="event.stopPropagation();toggleCard('hp2')" title="Collapse details" aria-label="Collapse">▾</button>
+        <div class="side-acts">
+          <button class="b b-rd" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+          <button class="b b-sv" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ WORTH A LOOK (3★) — collapsed by default, expandable ═══ -->
+    <div class="sl" id="walHeader">
+      Worth a Look
+      <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
+      <button class="section-btn" id="walExpandBtn" onclick="expandSection('wal')">Expand all</button>
+      <button class="section-btn" id="walCollapseBtn" onclick="collapseSection('wal')" style="display:none">Collapse all</button>
+    </div>
+
+    <div class="cs" id="wal1" onclick="openArticle(event,'#article-4')">
+      <span class="stars" style="flex-shrink:0">★★★</span>
+      <span class="t"><a href="#article-4" onclick="event.preventDefault()">TLS 1.3 Explained: What Changed and Why It Matters</a></span>
+      <span class="src"><span class="av" style="background:#f472b6">CF</span></span>
+      <span class="time">1d</span>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('wal1')" aria-label="Expand" title="Expand details">▸</button>
+    </div>
+    <div class="wal-detail" id="wal1-detail" onclick="openArticle(event,'#article-4')">
+      <div class="t"><a href="#article-4" onclick="event.preventDefault()">TLS 1.3 Explained: What Changed and Why It Matters</a></div>
+      <div class="s">Overview of the TLS 1.3 handshake — reduced round trips, removed legacy cipher suites, and mandatory forward secrecy. Includes a clear diagram comparing TLS 1.2 vs 1.3 flows.</div>
+      <div class="mr">
+        <span class="stars">★★★</span>
+        <span class="src"><span class="av" style="background:#f472b6">CF</span>Cloudflare Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">🤖 Chat</button>
+      </div>
+    </div>
+
+    <div class="cs" id="wal2" onclick="openArticle(event,'#article-5')">
+      <span class="stars" style="flex-shrink:0">★★★</span>
+      <span class="t"><a href="#article-5" onclick="event.preventDefault()">Postgres 17 Performance Improvements: A Deep Dive</a></span>
+      <span class="src"><span class="av" style="background:#34d399">PG</span></span>
+      <span class="time">1d</span>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('wal2')" aria-label="Expand" title="Expand details">▸</button>
+    </div>
+    <div class="wal-detail" id="wal2-detail" onclick="openArticle(event,'#article-5')">
+      <div class="t"><a href="#article-5" onclick="event.preventDefault()">Postgres 17 Performance Improvements: A Deep Dive</a></div>
+      <div class="s">Detailed benchmarks of Postgres 17's query planner improvements, including parallel index scans, incremental sort optimizations, and memory management changes.</div>
+      <div class="mr">
+        <span class="stars">★★★</span>
+        <span class="src"><span class="av" style="background:#34d399">PG</span>PG Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">🤖 Chat</button>
+      </div>
+    </div>
+
+    <!-- ═══ LOW PRIORITY (1-2★) — collapsed by default, expandable ═══ -->
+    <div class="sl" id="lpHeader">
+      Low Priority
+      <span style="font-weight:400;font-size:9px;color:var(--text4);text-transform:none;letter-spacing:0">— click ▸ to expand</span>
+      <button class="section-btn" id="lpExpandBtn" onclick="expandSection('lp')">Expand all</button>
+      <button class="section-btn" id="lpCollapseBtn" onclick="collapseSection('lp')" style="display:none">Collapse all</button>
+    </div>
+
+    <!-- Low-priority row 1: collapsed (default) -->
+    <div class="mn" id="lp1" onclick="openArticle(event,'#article-6')">
+      <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
+      <span class="t"><a href="#article-6" onclick="event.preventDefault()">New npm Package Naming Rules for 2026</a></span>
+      <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
+      <span class="time">1d</span>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp1')" aria-label="Expand" title="Expand details">▸</button>
+    </div>
+    <div class="mn-detail" id="lp1-detail" onclick="openArticle(event,'#article-6')">
+      <div class="t"><a href="#article-6" onclick="event.preventDefault()">New npm Package Naming Rules for 2026</a></div>
+      <div class="s">npm is changing how package names are validated — stricter rules for scoped packages, new reserved-word list, and migration timeline for existing non-compliant names.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★★</span>
+        <span class="src"><span class="av" style="background:#a78bfa">NJ</span>Node.js Blog</span>
+        <span class="time">1d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
+      </div>
+    </div>
+
+    <!-- Low-priority row 2: EXPANDED (demo) -->
+    <div class="mn expanded" id="lp2" onclick="openArticle(event,'#article-7')">
+      <span class="stars" style="flex-shrink:0;color:var(--text4)">★★</span>
+      <span class="t"><a href="#article-7" onclick="event.preventDefault()">GitHub Actions Now Supports Manual Approval Gates</a></span>
+      <span class="src"><span class="av" style="background:#fb923c">GH</span></span>
+      <span class="time">2d</span>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp2')" aria-label="Collapse" title="Collapse details">▾</button>
+    </div>
+    <div class="mn-detail open" id="lp2-detail" onclick="openArticle(event,'#article-7')">
+      <div class="t"><a href="#article-7" onclick="event.preventDefault()">GitHub Actions Now Supports Manual Approval Gates</a></div>
+      <div class="s">GitHub has added manual approval steps for Actions workflows — teams can now gate deployments behind human review. Supports required reviewers, timeout policies, and Slack notifications.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★★</span>
+        <span class="src"><span class="av" style="background:#fb923c">GH</span>GitHub Blog</span>
+        <span class="time">2d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
+      </div>
+    </div>
+
+    <!-- Low-priority row 3: collapsed (default) -->
+    <div class="mn" id="lp3" onclick="openArticle(event,'#article-8')">
+      <span class="stars" style="flex-shrink:0;color:var(--text4)">★</span>
+      <span class="t"><a href="#article-8" onclick="event.preventDefault()">Weekly Roundup: JavaScript Framework Updates</a></span>
+      <span class="src"><span class="av" style="background:#a78bfa">NJ</span></span>
+      <span class="time">2d</span>
+      <button class="expand-btn" onclick="event.stopPropagation();toggleCard('lp3')" aria-label="Expand" title="Expand details">▸</button>
+    </div>
+    <div class="mn-detail" id="lp3-detail" onclick="openArticle(event,'#article-8')">
+      <div class="t"><a href="#article-8" onclick="event.preventDefault()">Weekly Roundup: JavaScript Framework Updates</a></div>
+      <div class="s">This week's framework roundup covers Svelte 5.2 improvements, React Server Components updates, and Vue 3.5 migration guide highlights.</div>
+      <div class="mr">
+        <span class="stars" style="color:var(--text4)">★</span>
+        <span class="src"><span class="av" style="background:#a78bfa">NJ</span>Node.js Blog</span>
+        <span class="time">2d ago</span>
+      </div>
+      <div class="acts">
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">Read ↗</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px" onclick="event.stopPropagation()">📌 Save</button>
+        <button class="b b-m" style="font-size:11px;padding:5px 9px;color:var(--blue);border-color:var(--blue)" onclick="event.stopPropagation()">✓ Mark read</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<aside class="chat" id="chatPanel">
+  <div class="ch-hd">
+    <span>🤖</span>
+    <span class="cht">Chat — Rust's Borrow Checker</span>
+    <button class="ch-x" onclick="toggleChat()">✕</button>
+  </div>
+  <div class="ch-ctx"><b>Context:</b> Ownership semantics, lifetime elision, comparison with C++ RAII and Swift ARC…</div>
+  <div class="ch-body">
+    <div style="margin-bottom:14px">
+      <span class="chip">Summarize the key argument</span>
+      <span class="chip">Practical implications?</span>
+      <span class="chip">What does the author get wrong?</span>
+    </div>
+    <div class="msg u"><div class="bbl">How does lifetime elision reduce boilerplate in practice?</div></div>
+    <div class="msg ai"><div class="bbl">Rust's lifetime elision rules automatically infer lifetimes in ~60% of function signatures. A function like <code>fn first(s: &amp;str) → &amp;str</code> doesn't need explicit annotations because the compiler applies three elision rules.</div></div>
+    <div class="msg u"><div class="bbl">How does this compare to Swift's ARC?</div></div>
+    <div class="msg ai"><div class="bbl">Swift's ARC handles memory at runtime via reference counting with a small per-retain/release cost. Rust achieves the same safety at compile time with zero runtime overhead — the tradeoff is satisfying the borrow checker upfront.</div></div>
+  </div>
+  <div class="ch-in">
+    <input type="text" placeholder="Ask about this article…">
+    <button>Send</button>
+  </div>
+</aside>
+
+<script>
+// Theme toggle
+function toggleTheme(){
+  var html=document.documentElement;
+  var icon=document.getElementById('themeIcon');
+  var label=document.querySelector('.theme-toggle .label');
+  if(html.getAttribute('data-theme')==='dark'){
+    html.setAttribute('data-theme','light');
+    icon.textContent='☀️';
+    label.textContent='Light';
+    localStorage.setItem('kh-theme','light');
+  }else{
+    html.setAttribute('data-theme','dark');
+    icon.textContent='🌙';
+    label.textContent='Dark';
+    localStorage.setItem('kh-theme','dark');
+  }
+}
+// Restore saved theme
+(function(){
+  var saved=localStorage.getItem('kh-theme');
+  if(saved==='light'){
+    document.documentElement.setAttribute('data-theme','light');
+    var icon=document.getElementById('themeIcon');
+    var label=document.querySelector('.theme-toggle .label');
+    if(icon)icon.textContent='☀️';
+    if(label)label.textContent='Light';
+  }
+})();
+
+// Mobile sidebar toggle
+function toggleSidebar(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('overlay').classList.toggle('show');
+}
+
+// Chat panel toggle (works as slide-out on mobile, inline toggle on desktop)
+function toggleChat(){
+  var panel=document.getElementById('chatPanel');
+  var overlay=document.getElementById('overlay');
+  if(window.innerWidth<=768){
+    panel.classList.toggle('open');
+    overlay.classList.toggle('show');
+  }else{
+    // On desktop, toggle visibility
+    if(panel.style.display==='none'){
+      panel.style.display='flex';
+    }else{
+      panel.style.display='none';
+    }
+  }
+}
+
+// Close all mobile drawers
+function closeMobileDrawers(){
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('chatPanel').classList.remove('open');
+  document.getElementById('overlay').classList.remove('show');
+}
+
+// ─── Card-level click: open article ───
+// Clicking a card (anywhere except buttons/links) opens the article.
+// In the mockup, we show a brief blue outline flash as feedback.
+function openArticle(event, url){
+  var el=event.target;
+  while(el && el!==event.currentTarget){
+    if(el.tagName==='BUTTON'||el.tagName==='A'||el.tagName==='SELECT'||el.tagName==='INPUT') return;
+    el=el.parentElement;
+  }
+  // Visual feedback (mockup only — production would window.open(url,'_blank'))
+  var card=event.currentTarget;
+  card.classList.remove('click-flash');
+  void card.offsetWidth; // reflow to restart animation
+  card.classList.add('click-flash');
+  setTimeout(function(){card.classList.remove('click-flash');},350);
+}
+
+// ─── Universal expand/collapse for ALL card tiers ───
+// Featured & HP default to expanded (detail visible).
+// Worth a Look & LP default to collapsed (detail hidden).
+function toggleCard(id){
+  var card=document.getElementById(id);
+  var detail=document.getElementById(id+'-detail');
+  if(!card||!detail) return;
+
+  var btn=card.querySelector('.expand-btn');
+  var isFeat=card.classList.contains('feat');
+  var isHp=card.classList.contains('cm');
+  var isWal=card.classList.contains('cs');
+  var isLp=card.classList.contains('mn');
+
+  // Determine current visibility
+  var isVisible;
+  if(isWal||isLp){
+    isVisible=detail.classList.contains('open');
+  }else{
+    // Featured/HP: visible unless explicitly collapsed
+    isVisible=!card.classList.contains('collapsed');
+  }
+
+  if(isVisible){
+    // Collapse
+    if(isWal||isLp){
+      detail.classList.remove('open');
+      card.classList.remove('expanded');
+    }else{
+      card.classList.add('collapsed');
+    }
+    if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+  }else{
+    // Expand
+    if(isWal||isLp){
+      detail.classList.add('open');
+      card.classList.add('expanded');
+    }else{
+      card.classList.remove('collapsed');
+    }
+    if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+  }
+  updateSectionBatchButtons();
+}
+
+// ─── Section-level expand all ───
+function expandSection(prefix){
+  if(prefix==='feat'){
+    document.querySelectorAll('.feat.collapsed').forEach(function(card){
+      card.classList.remove('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='hp'){
+    document.querySelectorAll('.cm.collapsed').forEach(function(card){
+      card.classList.remove('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='wal'){
+    document.querySelectorAll('.cs:not(.expanded)').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      card.classList.add('expanded');
+      if(detail) detail.classList.add('open');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }else if(prefix==='lp'){
+    document.querySelectorAll('.mn:not(.expanded)').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      card.classList.add('expanded');
+      if(detail) detail.classList.add('open');
+      if(btn){btn.textContent='▾';btn.title='Collapse details';btn.setAttribute('aria-label','Collapse');}
+    });
+  }
+  updateSectionBatchButtons();
+}
+
+// ─── Section-level collapse all ───
+function collapseSection(prefix){
+  if(prefix==='feat'){
+    document.querySelectorAll('.feat:not(.collapsed)').forEach(function(card){
+      card.classList.add('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='hp'){
+    document.querySelectorAll('.cm:not(.collapsed)').forEach(function(card){
+      card.classList.add('collapsed');
+      var btn=card.querySelector('.expand-btn');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='wal'){
+    document.querySelectorAll('.cs.expanded').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      if(detail) detail.classList.remove('open');
+      card.classList.remove('expanded');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }else if(prefix==='lp'){
+    document.querySelectorAll('.mn.expanded').forEach(function(card){
+      var id=card.id;
+      var detail=document.getElementById(id+'-detail');
+      var btn=card.querySelector('.expand-btn');
+      if(detail) detail.classList.remove('open');
+      card.classList.remove('expanded');
+      if(btn){btn.textContent='▸';btn.title='Expand details';btn.setAttribute('aria-label','Expand');}
+    });
+  }
+  updateSectionBatchButtons();
+}
+
+// ─── Update section batch button visibility ───
+// Each section shows "Expand all" when any card is collapsed,
+// and "Collapse all" when any card is expanded.
+function updateSectionBatchButtons(){
+  // Featured: expanded = not .collapsed
+  var featAll=document.querySelectorAll('.feat');
+  var featCollapsed=document.querySelectorAll('.feat.collapsed');
+  var featExpandBtn=document.getElementById('featExpandBtn');
+  var featCollapseBtn=document.getElementById('featCollapseBtn');
+  if(featExpandBtn) featExpandBtn.style.display=featCollapsed.length>0?'inline-block':'none';
+  if(featCollapseBtn) featCollapseBtn.style.display=(featAll.length-featCollapsed.length)>0?'inline-block':'none';
+
+  // High Priority: expanded = not .collapsed
+  var hpAll=document.querySelectorAll('.cm');
+  var hpCollapsed=document.querySelectorAll('.cm.collapsed');
+  var hpExpandBtn=document.getElementById('hpExpandBtn');
+  var hpCollapseBtn=document.getElementById('hpCollapseBtn');
+  if(hpExpandBtn) hpExpandBtn.style.display=hpCollapsed.length>0?'inline-block':'none';
+  if(hpCollapseBtn) hpCollapseBtn.style.display=(hpAll.length-hpCollapsed.length)>0?'inline-block':'none';
+
+  // Worth a Look: expanded = .expanded
+  var walAll=document.querySelectorAll('.cs');
+  var walExpanded=document.querySelectorAll('.cs.expanded');
+  var walExpandBtn=document.getElementById('walExpandBtn');
+  var walCollapseBtn=document.getElementById('walCollapseBtn');
+  if(walExpandBtn) walExpandBtn.style.display=(walAll.length-walExpanded.length)>0?'inline-block':'none';
+  if(walCollapseBtn) walCollapseBtn.style.display=walExpanded.length>0?'inline-block':'none';
+
+  // Low Priority: expanded = .expanded
+  var lpAll=document.querySelectorAll('.mn');
+  var lpExpanded=document.querySelectorAll('.mn.expanded');
+  var lpExpandBtn=document.getElementById('lpExpandBtn');
+  var lpCollapseBtn=document.getElementById('lpCollapseBtn');
+  if(lpExpandBtn) lpExpandBtn.style.display=(lpAll.length-lpExpanded.length)>0?'inline-block':'none';
+  if(lpCollapseBtn) lpCollapseBtn.style.display=lpExpanded.length>0?'inline-block':'none';
+}
+
+// Initialize section batch button visibility
+updateSectionBatchButtons();
+
+// ─── Source filtering (multi-select toggles) ───
+function toggleSource(el,source){
+  el.classList.toggle('active');
+  syncSourceTags();
+}
+
+function deselectSource(source){
+  var li=document.querySelector('#srcList li[data-source="'+source+'"]');
+  if(li) li.classList.remove('active');
+  syncSourceTags();
+}
+
+function clearAllSources(){
+  var items=document.querySelectorAll('#srcList li');
+  items.forEach(function(li){li.classList.remove('active')});
+  syncSourceTags();
+}
+
+function syncSourceTags(){
+  var container=document.getElementById('activeSrcTags');
+  var clearBtn=document.getElementById('srcClear');
+  var actives=document.querySelectorAll('#srcList li.active');
+
+  // Build tag chips
+  container.innerHTML='';
+  actives.forEach(function(li){
+    var source=li.getAttribute('data-source');
+    // Extract display name (text content minus the count)
+    var name=li.textContent.replace(/[✓\d]+$/,'').trim();
+    // Remove the avatar letters from the start
+    name=name.replace(/^[A-Z]{2}\s*/,'');
+    var chip=document.createElement('span');
+    chip.className='active-src-tag';
+    chip.setAttribute('data-tag',source);
+    chip.innerHTML=name+' <span class="clear" onclick="deselectSource(\''+source+'\')" title="Remove filter">✕</span>';
+    container.appendChild(chip);
+  });
+
+  // Show/hide "Clear" link
+  clearBtn.style.display=actives.length>0?'inline':'none';
+
+  // Hide tag container when nothing selected (shows all)
+  container.style.display=actives.length>0?'inline-flex':'none';
+}
+</script>
+</body>
+</html>

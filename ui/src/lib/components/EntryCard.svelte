@@ -6,21 +6,54 @@
 
 	let {
 		entry,
+		expanded = true,
+		onToggle,
 		onOpenChat,
 		onOpenLink,
 		onUpdate
 	}: {
 		entry: RecordModel;
+		expanded?: boolean;
+		onToggle?: () => void;
 		onOpenChat: (entry: RecordModel) => void;
 		onOpenLink: (entry: RecordModel, url: string) => void;
 		onUpdate: (entry: RecordModel) => void;
 	} = $props();
 
 	let effectiveStars = $derived(entry.user_stars || entry.ai_stars || 0);
+	// Tier mapping (task 3.1)
+	let tier = $derived<'featured' | 'hp' | 'wal' | 'lp'>(
+		effectiveStars >= 5 ? 'featured' :
+		effectiveStars === 4 ? 'hp' :
+		effectiveStars === 3 ? 'wal' : 'lp'
+	);
 	let isFragment = $derived(!!entry.is_fragment);
 	let isPending = $derived(entry.processing_status === 'pending' || (!entry.summary && !isFragment));
 	let sourceName = $derived(entry.expand?.resource?.name ?? 'Unknown source');
 	let displayTime = $derived(entry.published_at || entry.discovered_at);
+
+	const avatarColors = [
+		'#f97316', '#8b5cf6', '#06b6d4', '#f472b6', '#34d399',
+		'#a78bfa', '#fb923c', '#38bdf8', '#f87171', '#4ade80'
+	];
+
+	function getSourceColor(): string {
+		const name = sourceName;
+		let hash = 0;
+		for (let i = 0; i < name.length; i++) {
+			hash = ((hash << 5) - hash) + name.charCodeAt(i);
+			hash |= 0;
+		}
+		return avatarColors[Math.abs(hash) % avatarColors.length];
+	}
+
+	function getSourceInitials(): string {
+		const words = sourceName.trim().split(/\s+/);
+		if (words.length >= 2) {
+			return (words[0][0] + words[1][0]).toUpperCase();
+		}
+		return sourceName.slice(0, 2).toUpperCase();
+	}
 
 	const mediaExtensions = new Set([
 		'.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp', '.avif',
@@ -42,7 +75,6 @@
 			if (path.endsWith(ext)) return true;
 		}
 		if (mediaHosts.has(url.hostname)) return true;
-		// Common image/video CDN path patterns
 		if (/\/(images?|img|media|assets|static|uploads|photos?|thumbnails?)\//i.test(path)) {
 			const lastSegment = path.split('/').pop() || '';
 			if (/\.\w{2,4}$/.test(lastSegment) && !lastSegment.endsWith('.html') && !lastSegment.endsWith('.htm')) return true;
@@ -68,7 +100,6 @@
 				if (seen.has(full)) continue;
 				if (full === entry.url) continue;
 				if (isMediaURL(url)) continue;
-				// Skip if the anchor only wraps an image (no meaningful text)
 				if (a.querySelector('img') && !(a.textContent || '').trim()) continue;
 				seen.add(full);
 				const text = (a.textContent || '').trim() || url.hostname + url.pathname;
@@ -138,215 +169,476 @@
 		}
 	}
 
+	// Card-level click handler — if collapsed, expand first; if expanded, open article.
+	// Clicking the title <a> always opens the article (handled by browser, we return early).
 	function handleCardClick(event: MouseEvent) {
-		// Walk up from the click target to find if it's within an interactive element
 		let target = event.target as HTMLElement | null;
 		while (target && target !== event.currentTarget) {
 			const tag = target.tagName?.toLowerCase();
 			if (tag === 'a' || tag === 'button' || tag === 'input' || tag === 'select' || tag === 'textarea') {
-				return; // Let the interactive element handle it
+				return;
 			}
-			// Also check for elements with role="button" (e.g. star rating)
 			if (target.getAttribute?.('role') === 'button') {
 				return;
 			}
 			target = target.parentElement;
 		}
-		// Open article in new tab and mark as read
+		// If collapsed, expand instead of opening article
+		if (!expanded) {
+			onToggle?.();
+			return;
+		}
 		if (entry.url) {
 			markReadAndOpen();
 			window.open(entry.url, '_blank', 'noopener');
 		}
 	}
+
+	function starsDisplay(count: number): string {
+		return '★'.repeat(count);
+	}
 </script>
 
 <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
-<div
-	onclick={handleCardClick}
-	class="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
-		{entry.is_read ? 'opacity-70' : ''}"
->
-	<!-- Top row: stars + source + time -->
-	<div class="mb-2 flex items-center justify-between gap-2">
-		<div class="flex items-center gap-3">
-			{#if isPending}
-				<div class="flex items-center gap-1 text-slate-400 dark:text-slate-500">
-					<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-						<circle
-							class="opacity-25"
-							cx="12"
-							cy="12"
-							r="10"
-							stroke="currentColor"
-							stroke-width="4"
-						></circle>
-						<path
-							class="opacity-75"
-							fill="currentColor"
-							d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-						></path>
-					</svg>
-				</div>
-			{:else}
-				<StarRating
-					aiStars={entry.ai_stars}
-					userStars={entry.user_stars}
-					onRate={handleRate}
-				/>
-			{/if}
-			<span class="text-xs text-slate-500 dark:text-slate-400">{sourceName}</span>
-		</div>
-		<span class="shrink-0 text-xs text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
-	</div>
 
-	<!-- Title -->
-	<h3 class="mb-1 text-sm font-semibold text-slate-900 leading-snug dark:text-slate-100">
-		<a
-			href={entry.url}
-			target="_blank"
-			rel="noopener"
-			onclick={markReadAndOpen}
-			class="hover:text-blue-600 dark:hover:text-blue-400"
-		>
-			{entry.title || 'Untitled'}
-		</a>
-	</h3>
-
-	<!-- Summary, fragment content, or pending -->
-	{#if isPending}
-		<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
-			<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-				<circle
-					class="opacity-25"
-					cx="12"
-					cy="12"
-					r="10"
-					stroke="currentColor"
-					stroke-width="4"
-				></circle>
-				<path
-					class="opacity-75"
-					fill="currentColor"
-					d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-				></path>
-			</svg>
-			Processing…
-		</div>
-	{:else if isFragment}
-		<div class="fragment-content mb-3 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
-			{@html sanitizeHTML(entry.raw_content)}
-		</div>
-	{:else}
-		<p class="mb-1 text-sm text-slate-600 leading-relaxed dark:text-slate-400">
-			{entry.summary}
-		</p>
-		{#if entry.takeaways?.length}
-			<ul class="mb-3 ml-4 list-disc space-y-0.5">
-				{#each entry.takeaways as takeaway}
-					<li class="text-xs text-slate-500 leading-snug dark:text-slate-400">{takeaway}</li>
-				{/each}
-			</ul>
-		{:else}
-			<div class="mb-2"></div>
-		{/if}
-	{/if}
-
-	<!-- Referenced links -->
-	{#if referencedLinks().length > 0}
-		<div class="mb-2">
+{#if tier === 'featured'}
+	<!-- ═══ FEATURED (5★) ═══ -->
+	<div
+		onclick={handleCardClick}
+		class="cursor-pointer rounded-xl border border-slate-200 border-l-4 border-l-amber-500 bg-white p-[18px_20px] shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:border-l-amber-400 dark:bg-slate-800
+			{entry.is_read ? 'opacity-70' : ''}"
+	>
+		<div class="mb-1.5 flex items-start justify-between">
+			<span class="text-[11px] font-semibold uppercase tracking-wider text-amber-500 dark:text-amber-400">★★★★★ Featured</span>
 			<button
-				onclick={() => (showLinks = !showLinks)}
-				class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
-			>
-				<svg
-					class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}"
-					fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
-				>
-					<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-				</svg>
-				🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
-			</button>
-			{#if showLinks}
-				<div class="mt-1.5 space-y-1 pl-4">
-					{#each referencedLinks() as link}
-						<div class="flex items-center gap-1.5">
-							<a
-								href={link.href}
-								target="_blank"
-								rel="noopener"
-								class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300"
-								title={link.href}
-							>
-								{link.text}
-							</a>
-							<button
-								onclick={() => onOpenLink(entry, link.href)}
-								class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50"
-								title="Get AI summary"
-							>
-								Summarize
-							</button>
-						</div>
-					{/each}
-				</div>
-			{/if}
+				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
+				class="flex-shrink-0 rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
+				title={expanded ? 'Collapse details' : 'Expand details'}
+				aria-label={expanded ? 'Collapse' : 'Expand'}
+			>{expanded ? '▾' : '▸'}</button>
 		</div>
-	{/if}
 
+		<h3 class="mb-1.5 text-[19px] font-bold leading-snug text-slate-900 dark:text-slate-50">
+			<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+		</h3>
 
-	<!-- Actions -->
-	<div class="flex items-center gap-1">
-		<!-- Read/unread toggle -->
-		<button
-			onclick={toggleRead}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
-				{entry.is_read
-				? 'text-green-600 hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900/30'
-				: 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-700'}"
-			title={entry.is_read ? 'Mark as unread' : 'Mark as read'}
-		>
-			✓
-		</button>
+		{#if expanded}
+			<div class="card-detail">
+				{#if isPending}
+					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+						</svg>
+						Processing…
+					</div>
+				{:else if isFragment}
+					<div class="fragment-content mb-3 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">
+						{@html sanitizeHTML(entry.raw_content)}
+					</div>
+				{:else}
+					<p class="mb-2 text-[13px] leading-relaxed text-slate-500 dark:text-slate-400">{entry.summary}</p>
+					{#if entry.takeaways?.length}
+						<ul class="mb-3">
+							{#each entry.takeaways as takeaway}
+								<li class="relative py-0.5 pl-3.5 text-[12px] text-slate-600 dark:text-slate-300">
+									<span class="absolute left-0 text-amber-500">•</span>{takeaway}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
 
-		<!-- Bookmark toggle -->
-		<button
-			onclick={toggleBookmark}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
-				{entry.bookmarked
-				? 'text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30'
-				: 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-700'}"
-			title={entry.bookmarked ? 'Remove from Read Later' : 'Read Later'}
-		>
-			<svg class="h-4 w-4" viewBox="0 0 24 24" fill={entry.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
-				<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-			</svg>
-		</button>
+				<!-- Meta: source + time -->
+				<div class="mb-3 flex flex-wrap items-center gap-2.5">
+					<span class="stars text-[13px] tracking-wider text-amber-500 dark:text-amber-400">{starsDisplay(effectiveStars)}</span>
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
 
-		<!-- Chat button -->
-		<button
-			onclick={() => onOpenChat(entry)}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-			title="Chat about this article"
-		>
-			🤖
-		</button>
+				<!-- Referenced links -->
+				{#if referencedLinks().length > 0}
+					<div class="mb-2">
+						<button
+							onclick={() => (showLinks = !showLinks)}
+							class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
+						>
+							<svg
+								class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}"
+								fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+							</svg>
+							🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+						</button>
+						{#if showLinks}
+							<div class="mt-1.5 space-y-1 pl-4">
+								{#each referencedLinks() as link}
+									<div class="flex items-center gap-1.5">
+										<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
+										<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
 
-		<!-- Open link -->
-		<a
-			href={entry.url}
-			target="_blank"
-			rel="noopener"
-			onclick={markReadAndOpen}
-			class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-			title="Open article"
-		>
-			↗
-		</a>
+				<!-- Actions -->
+				<div class="flex flex-wrap gap-[7px]">
+					<button onclick={toggleBookmark}
+						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
+							{entry.bookmarked
+							? 'border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400'
+							: 'border-amber-500/50 text-amber-500/70 dark:border-amber-400/50 dark:text-amber-400/70'}">
+						{entry.bookmarked ? '📌 Saved' : 'Save'}
+					</button>
+					<button onclick={() => onOpenChat(entry)}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-[12px] font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-600 dark:text-slate-400 dark:hover:text-slate-100">
+						🤖 Chat
+					</button>
+					<button onclick={toggleRead}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] text-slate-400 transition-colors hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+						title={entry.is_read ? 'Mark as unread' : 'Mark as read'}>
+						{entry.is_read ? '✓ Read' : 'Mark read'}
+					</button>
+				</div>
+			</div>
+		{/if}
 	</div>
-</div>
 
+{:else if tier === 'hp'}
+	<!-- ═══ HIGH PRIORITY (4★) ═══ -->
+	<div
+		onclick={handleCardClick}
+		class="cursor-pointer rounded-lg border border-slate-200 bg-white p-[12px_16px] shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
+			{entry.is_read ? 'opacity-70' : ''}"
+	>
+		<!-- Header: title + expand button -->
+		<div class="flex items-start justify-between gap-2">
+			<h3 class="mb-1 text-[14px] font-semibold leading-snug text-slate-900 dark:text-slate-50">
+				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+			</h3>
+			<button
+				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
+				class="mt-0.5 flex-shrink-0 rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
+				title={expanded ? 'Collapse details' : 'Expand details'}
+			>{expanded ? '▾' : '▸'}</button>
+		</div>
+
+		{#if expanded}
+			<div class="card-detail">
+				{#if isPending}
+					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+						</svg>
+						Processing…
+					</div>
+				{:else if isFragment}
+					<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">
+						{@html sanitizeHTML(entry.raw_content)}
+					</div>
+				{:else}
+					<p class="mb-1.5 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">{entry.summary}</p>
+					{#if entry.takeaways?.length}
+						<ul class="mb-2">
+							{#each entry.takeaways as takeaway}
+								<li class="relative py-0.5 pl-3.5 text-[12px] text-slate-600 dark:text-slate-300">
+									<span class="absolute left-0 text-amber-500">•</span>{takeaway}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
+
+				<!-- Meta -->
+				<div class="flex flex-wrap items-center gap-2">
+					{#if !isPending}
+						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
+					{/if}
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
+
+				<!-- Referenced links -->
+				{#if referencedLinks().length > 0}
+					<div class="mt-2">
+						<button
+							onclick={() => (showLinks = !showLinks)}
+							class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
+						>
+							<svg class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+							</svg>
+							🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+						</button>
+						{#if showLinks}
+							<div class="mt-1.5 space-y-1 pl-4">
+								{#each referencedLinks() as link}
+									<div class="flex items-center gap-1.5">
+										<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
+										<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Actions -->
+				<div class="mt-2 flex flex-wrap gap-[7px]">
+					<button onclick={toggleBookmark}
+						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
+							{entry.bookmarked
+							? 'border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400'
+							: 'border-amber-500/50 text-amber-500/70 dark:border-amber-400/50 dark:text-amber-400/70'}">
+						{entry.bookmarked ? '📌 Saved' : 'Save'}
+					</button>
+					<button onclick={() => onOpenChat(entry)}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-[12px] font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-600 dark:text-slate-400 dark:hover:text-slate-100">
+						🤖 Chat
+					</button>
+					<button onclick={toggleRead}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] text-slate-400 transition-colors hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+						title={entry.is_read ? 'Mark as unread' : 'Mark as read'}>
+						{entry.is_read ? '✓ Read' : 'Mark read'}
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
+
+{:else if tier === 'wal'}
+	<!-- ═══ WORTH A LOOK (3★) ═══ -->
+	<div>
+		<!-- Compact row -->
+		<div
+			onclick={handleCardClick}
+			class="flex cursor-pointer items-center gap-2.5 rounded px-1 py-2 transition-colors
+				{expanded ? 'rounded-b-none bg-slate-50 dark:bg-slate-800' : 'border-b border-slate-100 hover:bg-slate-50 dark:border-slate-800 dark:hover:bg-slate-800'}"
+		>
+			<span class="text-[13px] tracking-wider text-amber-500 dark:text-amber-400">{starsDisplay(effectiveStars)}</span>
+			<span class="flex-1 truncate text-[13px] text-slate-600 dark:text-slate-300">
+				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+			</span>
+			<span class="inline-flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+			<span class="flex-shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+			<button
+				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
+				class="flex-shrink-0 rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
+				title={expanded ? 'Collapse' : 'Expand'}
+			>{expanded ? '▾' : '▸'}</button>
+		</div>
+
+		<!-- Detail panel (task 3.5) -->
+		{#if expanded}
+			<div
+				onclick={handleCardClick}
+				class="animate-slideDown cursor-pointer rounded-lg border border-slate-200 bg-white p-[12px_16px] -mt-0.5 mb-2 dark:border-slate-700 dark:bg-slate-800"
+			>
+				<h3 class="mb-1 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
+					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+				</h3>
+				{#if isPending}
+					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+						</svg>
+						Processing…
+					</div>
+				{:else if isFragment}
+					<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+						{@html sanitizeHTML(entry.raw_content)}
+					</div>
+				{:else}
+					<p class="mb-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">{entry.summary}</p>
+				{/if}
+
+				<div class="mb-2 flex flex-wrap items-center gap-2">
+					{#if !isPending}
+						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
+					{/if}
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
+
+				<!-- Referenced links -->
+				{#if referencedLinks().length > 0}
+					<div class="mb-2">
+						<button
+							onclick={() => (showLinks = !showLinks)}
+							class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
+						>
+							<svg class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+							</svg>
+							🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+						</button>
+						{#if showLinks}
+							<div class="mt-1.5 space-y-1 pl-4">
+								{#each referencedLinks() as link}
+									<div class="flex items-center gap-1.5">
+										<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
+										<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Actions -->
+				<div class="flex flex-wrap gap-[7px]">
+					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen}
+						class="inline-flex items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-600">Read</a>
+					<button onclick={toggleBookmark}
+						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
+							{entry.bookmarked
+							? 'border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400'
+							: 'border-amber-500/50 text-amber-500/70 dark:border-amber-400/50 dark:text-amber-400/70'}">
+						{entry.bookmarked ? '📌 Saved' : 'Save'}
+					</button>
+					<button onclick={() => onOpenChat(entry)}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-[12px] font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-600 dark:text-slate-400 dark:hover:text-slate-100">
+						🤖 Chat
+					</button>
+					<button onclick={toggleRead}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] text-slate-400 transition-colors hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+						title={entry.is_read ? 'Mark as unread' : 'Mark as read'}>
+						{entry.is_read ? '✓ Read' : 'Mark read'}
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
+
+{:else}
+	<!-- ═══ LOW PRIORITY (1-2★) ═══ -->
+	<div>
+		<!-- Minimal muted row (task 3.6) -->
+		<div
+			onclick={handleCardClick}
+			class="flex cursor-pointer items-center gap-2.5 rounded px-1 py-[7px] transition-[opacity,background]
+				{expanded ? 'rounded-b-none bg-slate-50 opacity-85 dark:bg-slate-800' : 'border-b border-slate-100 opacity-50 hover:bg-slate-50 hover:opacity-75 dark:border-slate-800 dark:hover:bg-slate-800'}"
+		>
+			<span class="text-[13px] tracking-wider text-amber-500 dark:text-amber-400">{starsDisplay(effectiveStars)}</span>
+			<span class="flex-1 truncate text-[12px] text-slate-400 dark:text-slate-500">
+				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline hover:text-slate-600 dark:hover:text-slate-400">{entry.title || 'Untitled'}</a>
+			</span>
+			<span class="inline-flex h-[18px] w-[18px] flex-shrink-0 items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+			<span class="flex-shrink-0 text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+			<button
+				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
+				class="flex-shrink-0 rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
+				title={expanded ? 'Collapse' : 'Expand'}
+			>{expanded ? '▾' : '▸'}</button>
+		</div>
+
+		<!-- Detail panel -->
+		{#if expanded}
+			<div
+				onclick={handleCardClick}
+				class="animate-slideDown cursor-pointer rounded-lg border border-slate-200 bg-white p-[12px_16px] -mt-0.5 mb-2 dark:border-slate-700 dark:bg-slate-800"
+			>
+				<h3 class="mb-1 text-[14px] font-semibold text-slate-900 dark:text-slate-50">
+					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+				</h3>
+				{#if isPending}
+					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+						</svg>
+						Processing…
+					</div>
+				{:else if isFragment}
+					<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
+						{@html sanitizeHTML(entry.raw_content)}
+					</div>
+				{:else}
+					<p class="mb-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">{entry.summary}</p>
+				{/if}
+
+				<div class="mb-2 flex flex-wrap items-center gap-2">
+					{#if !isPending}
+						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
+					{/if}
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
+
+				<!-- Referenced links -->
+				{#if referencedLinks().length > 0}
+					<div class="mb-2">
+						<button
+							onclick={() => (showLinks = !showLinks)}
+							class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
+						>
+							<svg class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+							</svg>
+							🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+						</button>
+						{#if showLinks}
+							<div class="mt-1.5 space-y-1 pl-4">
+								{#each referencedLinks() as link}
+									<div class="flex items-center gap-1.5">
+										<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
+										<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
+									</div>
+								{/each}
+							</div>
+						{/if}
+					</div>
+				{/if}
+
+				<!-- Actions -->
+				<div class="flex flex-wrap gap-[7px]">
+					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen}
+						class="inline-flex items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-600">Read</a>
+					<button onclick={toggleBookmark}
+						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
+							{entry.bookmarked
+							? 'border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400'
+							: 'border-amber-500/50 text-amber-500/70 dark:border-amber-400/50 dark:text-amber-400/70'}">
+						{entry.bookmarked ? '📌 Saved' : 'Save'}
+					</button>
+					<button onclick={toggleRead}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] text-slate-400 transition-colors hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+						title={entry.is_read ? 'Mark as unread' : 'Mark as read'}>
+						{entry.is_read ? '✓ Read' : 'Mark read'}
+					</button>
+				</div>
+			</div>
+		{/if}
+	</div>
+{/if}
 
 <style>
+	/* slideDown animation for WaL and LP detail panels (task 3.9) */
+	@keyframes slideDown {
+		from { opacity: 0; transform: translateY(-4px); }
+		to { opacity: 1; transform: translateY(0); }
+	}
+	:global(.animate-slideDown) {
+		animation: slideDown 0.15s ease-out;
+	}
+
 	/* Style rendered HTML from fragment feeds */
 	.fragment-content :global(a) {
 		color: var(--color-blue-600);
