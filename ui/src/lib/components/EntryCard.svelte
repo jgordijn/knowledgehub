@@ -353,11 +353,11 @@
 						Processing…
 					</div>
 				{:else if isFragment}
-					<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">
+				<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">
 						{@html sanitizeHTML(entry.raw_content)}
 					</div>
 				{:else}
-					<p class="mb-1.5 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">{entry.summary}</p>
+				<p class="mb-1.5 text-[12px] leading-relaxed text-slate-500 dark:text-slate-400">{entry.summary}</p>
 					{#if entry.takeaways?.length}
 						<ul class="mb-2">
 							{#each entry.takeaways as takeaway}
