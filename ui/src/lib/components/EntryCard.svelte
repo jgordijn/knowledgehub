@@ -283,10 +283,6 @@
 
 				<!-- Actions -->
 				<div class="flex flex-wrap gap-[7px]">
-					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen}
-						class="inline-flex items-center gap-1 rounded-md bg-blue-500 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-600">
-						Read Now
-					</a>
 					<button onclick={toggleBookmark}
 						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
 							{entry.bookmarked
@@ -315,112 +311,103 @@
 		class="cursor-pointer rounded-lg border border-slate-200 bg-white p-[12px_16px] shadow-sm transition-shadow hover:shadow-md dark:border-slate-700 dark:bg-slate-800
 			{entry.is_read ? 'opacity-70' : ''}"
 	>
-		<div class="flex gap-3">
-			<div class="min-w-0 flex-1">
-				<!-- Title -->
-				<h3 class="mb-1 text-[14px] font-semibold leading-snug text-slate-900 dark:text-slate-50">
-					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
-				</h3>
+		<!-- Header: title + expand button -->
+		<div class="flex items-start justify-between gap-2">
+			<h3 class="mb-1 text-[14px] font-semibold leading-snug text-slate-900 dark:text-slate-50">
+				<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen} class="hover:underline">{entry.title || 'Untitled'}</a>
+			</h3>
+			<button
+				onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
+				class="mt-0.5 flex-shrink-0 rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
+				title={expanded ? 'Collapse details' : 'Expand details'}
+			>{expanded ? '▾' : '▸'}</button>
+		</div>
 
-				{#if expanded}
-					<div class="card-detail">
-						{#if isPending}
-							<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
-								<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-									<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-									<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-								</svg>
-								Processing…
-							</div>
-						{:else if isFragment}
-							<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">
-								{@html sanitizeHTML(entry.raw_content)}
-							</div>
-						{:else}
-							<p class="mb-1.5 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">{entry.summary}</p>
-							{#if entry.takeaways?.length}
-								<ul class="mb-2">
-									{#each entry.takeaways as takeaway}
-										<li class="relative py-0.5 pl-3.5 text-[12px] text-slate-600 dark:text-slate-300">
-											<span class="absolute left-0 text-amber-500">•</span>{takeaway}
-										</li>
-									{/each}
-								</ul>
-							{/if}
-						{/if}
+		{#if expanded}
+			<div class="card-detail">
+				{#if isPending}
+					<div class="flex items-center gap-2 py-2 text-sm text-slate-400 dark:text-slate-500">
+						<svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+							<circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+							<path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+						</svg>
+						Processing…
+					</div>
+				{:else if isFragment}
+					<div class="fragment-content mb-2 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">
+						{@html sanitizeHTML(entry.raw_content)}
+					</div>
+				{:else}
+					<p class="mb-1.5 text-[12px] leading-relaxed text-slate-500 line-clamp-2 dark:text-slate-400">{entry.summary}</p>
+					{#if entry.takeaways?.length}
+						<ul class="mb-2">
+							{#each entry.takeaways as takeaway}
+								<li class="relative py-0.5 pl-3.5 text-[12px] text-slate-600 dark:text-slate-300">
+									<span class="absolute left-0 text-amber-500">•</span>{takeaway}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				{/if}
 
-						<!-- Meta -->
-						<div class="flex flex-wrap items-center gap-2">
-							{#if !isPending}
-								<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
-							{/if}
-							<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-								<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
-								{sourceName}
-							</span>
-							<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
-						</div>
+				<!-- Meta -->
+				<div class="flex flex-wrap items-center gap-2">
+					{#if !isPending}
+						<StarRating aiStars={entry.ai_stars} userStars={entry.user_stars} onRate={handleRate} />
+					{/if}
+					<span class="inline-flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
+						<span class="inline-flex h-[18px] w-[18px] items-center justify-center rounded text-[9px] font-bold text-slate-900" style="background: {getSourceColor()}">{getSourceInitials()}</span>
+						{sourceName}
+					</span>
+					<span class="ml-auto text-[11px] text-slate-400 dark:text-slate-500">{relativeTime(displayTime)}</span>
+				</div>
 
-						<!-- Referenced links -->
-						{#if referencedLinks().length > 0}
-							<div class="mt-2">
-								<button
-									onclick={() => (showLinks = !showLinks)}
-									class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
-								>
-									<svg class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-										<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
-									</svg>
-									🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
-								</button>
-								{#if showLinks}
-									<div class="mt-1.5 space-y-1 pl-4">
-										{#each referencedLinks() as link}
-											<div class="flex items-center gap-1.5">
-												<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
-												<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
-											</div>
-										{/each}
+				<!-- Referenced links -->
+				{#if referencedLinks().length > 0}
+					<div class="mt-2">
+						<button
+							onclick={() => (showLinks = !showLinks)}
+							class="flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-700 transition-colors dark:text-slate-400 dark:hover:text-slate-300"
+						>
+							<svg class="h-3 w-3 transition-transform {showLinks ? 'rotate-90' : ''}" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+								<path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
+							</svg>
+							🔗 {referencedLinks().length} referenced {referencedLinks().length === 1 ? 'link' : 'links'}
+						</button>
+						{#if showLinks}
+							<div class="mt-1.5 space-y-1 pl-4">
+								{#each referencedLinks() as link}
+									<div class="flex items-center gap-1.5">
+										<a href={link.href} target="_blank" rel="noopener" class="text-xs text-blue-600 hover:text-blue-800 hover:underline text-left truncate max-w-[280px] dark:text-blue-400 dark:hover:text-blue-300" title={link.href}>{link.text}</a>
+										<button onclick={() => onOpenLink(entry, link.href)} class="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors dark:text-blue-400 dark:bg-blue-900/30 dark:hover:bg-blue-900/50" title="Get AI summary">Summarize</button>
 									</div>
-								{/if}
+								{/each}
 							</div>
 						{/if}
 					</div>
 				{/if}
-			</div>
 
-			<!-- Side buttons -->
-			{#if expanded}
-				<div class="flex flex-shrink-0 flex-col items-end gap-1.5">
-					<button
-						onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
-						class="rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
-						title={expanded ? 'Collapse details' : 'Expand details'}
-					>{expanded ? '▾' : '▸'}</button>
-					<a href={entry.url} target="_blank" rel="noopener" onclick={markReadAndOpen}
-						class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm text-slate-400 hover:bg-slate-50 hover:text-slate-600 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
-						title="Open article">↗</a>
+				<!-- Actions -->
+				<div class="mt-2 flex flex-wrap gap-[7px]">
 					<button onclick={toggleBookmark}
-						class="flex h-8 min-w-[44px] items-center justify-center rounded-md text-sm
+						class="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-[12px] font-semibold transition-colors
 							{entry.bookmarked
-							? 'text-amber-500 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/30'
-							: 'text-slate-400 hover:bg-slate-50 dark:text-slate-500 dark:hover:bg-slate-700'}"
-						title={entry.bookmarked ? 'Remove from Saved' : 'Save'}>
-						<svg class="h-4 w-4" viewBox="0 0 24 24" fill={entry.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2">
-							<path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-						</svg>
+							? 'border-amber-500 text-amber-500 dark:border-amber-400 dark:text-amber-400'
+							: 'border-amber-500/50 text-amber-500/70 dark:border-amber-400/50 dark:text-amber-400/70'}">
+						{entry.bookmarked ? '📌 Saved' : 'Save'}
+					</button>
+					<button onclick={() => onOpenChat(entry)}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-300 px-3 py-1.5 text-[12px] font-semibold text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-600 dark:text-slate-400 dark:hover:text-slate-100">
+						🤖 Chat
+					</button>
+					<button onclick={toggleRead}
+						class="inline-flex items-center gap-1 rounded-md border border-slate-200 px-3 py-1.5 text-[12px] text-slate-400 transition-colors hover:text-slate-600 dark:border-slate-700 dark:text-slate-500 dark:hover:text-slate-300"
+						title={entry.is_read ? 'Mark as unread' : 'Mark as read'}>
+						{entry.is_read ? '✓ Read' : 'Mark read'}
 					</button>
 				</div>
-			{:else}
-				<div class="flex flex-shrink-0 items-start">
-					<button
-						onclick={(e) => { e.stopPropagation(); onToggle?.(); }}
-						class="rounded border border-slate-200 px-1.5 py-px text-[10px] text-slate-400 transition-colors hover:border-slate-400 hover:text-slate-600 dark:border-slate-600 dark:text-slate-500 dark:hover:border-slate-400 dark:hover:text-slate-300"
-						title="Expand details"
-					>▸</button>
-				</div>
-			{/if}
-		</div>
+			</div>
+		{/if}
 	</div>
 
 {:else if tier === 'wal'}
