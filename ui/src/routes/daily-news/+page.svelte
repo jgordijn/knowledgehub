@@ -9,7 +9,8 @@
 		dailyNewsRegenerateButtonLabel,
 		dailyNewsCanRegenerate,
 		type DailyNewsDigestDTO,
-		type DailyNewsDigestListDTO
+		type DailyNewsDigestListDTO,
+		type DailyNewsEntryReferenceDTO
 	} from '$lib/daily-news-ui';
 	import pb from '$lib/pb';
 
@@ -23,6 +24,9 @@
 	let generateLoading = $state(false);
 	let regenerateLoading = $state(false);
 	let actionError = $state('');
+	let referenceModal = $state<DailyNewsEntryReferenceDTO | null>(null);
+	let referenceLoading = $state(false);
+	let referenceError = $state('');
 	const archiveLimit = 10;
 	let displayDigest = $derived(selectedDigest ?? latestDigest);
 	let stateMessage = $derived(dailyNewsStateMessage(displayDigest));
@@ -87,6 +91,20 @@
 		}
 	}
 
+	async function openEntryReference(entryID: string) {
+		if (!displayDigest) return;
+		referenceLoading = true;
+		referenceError = '';
+		referenceModal = null;
+		try {
+			referenceModal = (await pb.send(`/api/daily-news/digests/${displayDigest.id}/entries/${entryID}`, { method: 'GET' })) as DailyNewsEntryReferenceDTO;
+		} catch {
+			referenceError = 'Could not open the referenced entry.';
+		} finally {
+			referenceLoading = false;
+		}
+	}
+
 	onMount(() => {
 		void loadDigests();
 	});
@@ -124,7 +142,37 @@
 			<p class="mt-1 text-sm opacity-80">{stateMessage.message}</p>
 		</div>
 	{:else if displayDigest?.status === 'success'}
-		<DailyNewsDigest digest={displayDigest} />
+		<DailyNewsDigest digest={displayDigest} onOpenEntry={openEntryReference} />
+	{/if}
+
+	{#if referenceLoading || referenceError || referenceModal}
+		<div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4">
+			<div class="w-full max-w-xl rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800">
+				<div class="flex items-start justify-between gap-4">
+					<h2 class="text-xl font-semibold text-slate-950 dark:text-slate-50">Referenced entry</h2>
+					<button type="button" class="text-sm text-slate-500 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white" onclick={() => { referenceModal = null; referenceError = ''; }}>Close</button>
+				</div>
+				{#if referenceLoading}
+					<p class="mt-4 text-sm text-slate-500 dark:text-slate-300">Loading referenced entry…</p>
+				{:else if referenceError}
+					<p class="mt-4 text-sm text-red-600 dark:text-red-300">{referenceError}</p>
+				{:else if referenceModal?.available && referenceModal.entry}
+					<article class="mt-4 space-y-3 text-slate-700 dark:text-slate-200">
+						<p class="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-300">{referenceModal.entry.source_name || 'KnowledgeHub entry'} · {referenceModal.entry.effective_stars ?? 0}★</p>
+						<h3 class="text-2xl font-bold text-slate-950 dark:text-slate-50">{referenceModal.entry.title}</h3>
+						{#if referenceModal.entry.summary}<p>{referenceModal.entry.summary}</p>{/if}
+						{#if referenceModal.entry.takeaways?.length}
+							<ul class="list-disc pl-5 text-sm">
+								{#each referenceModal.entry.takeaways as takeaway}<li>{takeaway}</li>{/each}
+							</ul>
+						{/if}
+						<a class="text-sm font-semibold text-amber-600 underline dark:text-amber-300" href={referenceModal.entry.url} target="_blank" rel="noopener noreferrer">Open original article</a>
+					</article>
+				{:else}
+					<p class="mt-4 text-sm text-slate-600 dark:text-slate-300">{referenceModal?.message || 'Referenced entry is no longer available.'}</p>
+				{/if}
+			</div>
+		</div>
 	{/if}
 
 	<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">

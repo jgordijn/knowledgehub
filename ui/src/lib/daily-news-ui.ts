@@ -20,6 +20,21 @@ export type DailyNewsDigestDTO = {
 	local_date?: string;
 	generated_at?: string;
 	error_message?: string;
+	referenced_entry_ids?: string[];
+};
+
+export type DailyNewsEntryReferenceDTO = {
+	available: boolean;
+	message?: string;
+	entry?: {
+		id: string;
+		title: string;
+		url: string;
+		summary?: string;
+		takeaways?: string[];
+		effective_stars?: number;
+		source_name?: string;
+	};
 };
 
 export type DailyNewsDigestListDTO = {
@@ -98,9 +113,27 @@ function neutralizeDangerousMarkdownLinks(markdown: string): string {
 	});
 }
 
-export function renderDailyNewsMarkdown(markdown: string | null | undefined): string {
+function escapeHTML(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+export function renderDailyNewsReferences(markdown: string, referencedIDs: string[] = []): string {
+	const allowed = new Set(referencedIDs);
+	return markdown.replace(/\[\[kh-entry:([A-Za-z0-9_-]+)\]\]/g, (_marker, entryID: string) => {
+		if (!allowed.has(entryID)) return '';
+		const safeID = escapeHTML(entryID);
+		return `<button type="button" class="daily-news-entry-ref" data-entry-id="${safeID}">Open referenced entry</button>`;
+	});
+}
+
+export function renderDailyNewsMarkdown(markdown: string | null | undefined, referencedIDs: string[] = []): string {
 	if (!markdown) return '';
-	const html = dailyNewsMarked.parse(neutralizeDangerousMarkdownLinks(markdown)) as string;
+	const html = dailyNewsMarked.parse(renderDailyNewsReferences(neutralizeDangerousMarkdownLinks(markdown), referencedIDs)) as string;
 	return DOMPurify.sanitize(html, {
 		ALLOWED_TAGS: [
 			'h1',

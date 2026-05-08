@@ -86,3 +86,12 @@ Review count (post-implementation): 0/5
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Check attempted: `cd ui && bun run check` still fails on pre-existing diagnostics in `vite.config.ts`, `LinkPanel.svelte`, `QuickAddModal.svelte`, and existing a11y warnings; no new Daily News diagnostics were reported.
 - Started task group 6.1-6.4 locally: entry-reference rendering, digest-scoped route, modal behavior, and unavailable handling share Daily News DTO/helper/page contracts plus `internal/routes/daily_news.go`, so they are **not parallelized**. Settings tasks 7.x are separable in concept but also likely touch the same Daily News page/settings route registration later; deferred until reference contracts are complete.
+- Completed task group 6.1-6.4 locally:
+  - Added red/green digest-scoped route tests for referenced entry DTOs, owner enforcement, referenced-membership enforcement, auth denial, and unavailable deleted references.
+  - Implemented `GET /api/daily-news/digests/{digestId}/entries/{entryId}` plus sanitized entry-card DTOs and returned stored digest reference IDs in digest DTOs.
+  - Added red/green UI helper coverage for validated inline `[[kh-entry:<entry_id>]]` markers, rendering controls only for stored references.
+  - Added Daily News reference controls, modal fetch/display, and unavailable-entry modal state on `/daily-news`.
+  - Marked OpenSpec tasks 6.1-6.4 complete.
+- Tests run: `go test ./internal/routes -run TestHandleDailyNewsEntryReference -count=1`.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsEntryReference|TestHandleDailyNewsListDigests|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate' -count=1`.

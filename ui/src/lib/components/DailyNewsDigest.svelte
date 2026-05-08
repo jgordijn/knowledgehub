@@ -5,10 +5,17 @@
 		type DailyNewsDigestDTO
 	} from '$lib/daily-news-ui';
 
-	let { digest }: { digest: DailyNewsDigestDTO } = $props();
+	let { digest, onOpenEntry }: { digest: DailyNewsDigestDTO; onOpenEntry?: (entryID: string) => void } = $props();
 
-	let renderedBody = $derived(renderDailyNewsMarkdown(digest.body_markdown));
+	let renderedBody = $derived(renderDailyNewsMarkdown(digest.body_markdown, digest.referenced_entry_ids));
 	let subsetMessage = $derived(dailyNewsSubsetMessage(digest));
+
+	function handleReferenceClick(event: MouseEvent) {
+		const target = event.target as HTMLElement | null;
+		const button = target?.closest<HTMLButtonElement>('[data-entry-id]');
+		const entryID = button?.dataset.entryId;
+		if (entryID) onOpenEntry?.(entryID);
+	}
 </script>
 
 <article class="overflow-hidden rounded-3xl border border-slate-200 bg-stone-50 shadow-sm dark:border-slate-700 dark:bg-slate-900">
@@ -24,7 +31,7 @@
 		{/if}
 	</header>
 
-	<div class="daily-news-body px-6 py-6 font-serif text-slate-900 dark:text-slate-100">
+	<div class="daily-news-body px-6 py-6 font-serif text-slate-900 dark:text-slate-100" onclick={handleReferenceClick} role="presentation">
 		{@html renderedBody}
 	</div>
 </article>
@@ -51,6 +58,7 @@
 	.daily-news-body :global(ul) { list-style: disc; padding-left: 1.4rem; }
 	.daily-news-body :global(ol) { list-style: decimal; padding-left: 1.4rem; }
 	.daily-news-body :global(a) { color: #b45309; text-decoration: underline; }
+	.daily-news-body :global(.daily-news-entry-ref) { border-radius: 9999px; background: #f59e0b; color: white; padding: 0.15rem 0.55rem; font-family: sans-serif; font-size: 0.8rem; font-weight: 700; }
 	.daily-news-body :global(blockquote) { border-left: 4px solid #f59e0b; padding-left: 1rem; font-style: italic; }
 	.daily-news-body :global(table) { width: 100%; border-collapse: collapse; }
 	.daily-news-body :global(th),

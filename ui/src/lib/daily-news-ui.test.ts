@@ -10,6 +10,7 @@ import {
 	dailyNewsGenerateButtonLabel,
 	dailyNewsRegenerateButtonLabel,
 	dailyNewsCanRegenerate,
+	renderDailyNewsReferences,
 	type DailyNewsDigestDTO
 } from './daily-news-ui';
 
@@ -81,6 +82,16 @@ Top **story** with [safe link](https://example.com).
 		expect(dailyNewsCanRegenerate({ id: 'f', status: 'failed' })).toBe(true);
 		expect(dailyNewsCanRegenerate({ id: 'p', status: 'pending' })).toBe(false);
 		expect(dailyNewsCanRegenerate(null)).toBe(false);
+	});
+
+	it('renders validated inline KnowledgeHub entry markers as in-app controls only for stored references', () => {
+		const html = renderDailyNewsReferences('Read [[kh-entry:entry1]], ignore [[kh-entry:missing]], and repeat [[kh-entry:entry1]].', ['entry1']);
+
+		expect(html).toContain('data-entry-id="entry1"');
+		expect(html).toContain('Open referenced entry');
+		expect(html).not.toContain('data-entry-id="missing"');
+		expect(html).not.toContain('[[kh-entry:entry1]]');
+		expect(html).not.toContain('[[kh-entry:missing]]');
 	});
 
 	it('describes pending, running, failed, and empty digest states', () => {

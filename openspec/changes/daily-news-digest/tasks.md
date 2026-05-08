@@ -39,10 +39,10 @@
 
 ## 6. Entry Reference Modal
 
-- [ ] 6.1 Add failing UI and route tests for opening an entry card from a Daily News reference through a digest-scoped endpoint, including digest ownership, referenced-entry membership, current entry visibility, sanitized DTO shape, unavailable state, and no cross-user existence leak.
-- [ ] 6.2 Implement internal entry reference rendering from validated structured digest references and inline `[[kh-entry:<entry_id>]]` marker locations, not model-generated Markdown URLs.
-- [ ] 6.3 Implement the digest-scoped entry-reference read route and entry-card modal behavior that reuses existing entry card display/actions where practical.
-- [ ] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible, while keeping archived digest body snapshots visible to the digest owner.
+- [x] 6.1 Add failing UI and route tests for opening an entry card from a Daily News reference through a digest-scoped endpoint, including digest ownership, referenced-entry membership, current entry visibility, sanitized DTO shape, unavailable state, and no cross-user existence leak.
+- [x] 6.2 Implement internal entry reference rendering from validated structured digest references and inline `[[kh-entry:<entry_id>]]` marker locations, not model-generated Markdown URLs.
+- [x] 6.3 Implement the digest-scoped entry-reference read route and entry-card modal behavior that reuses existing entry card display/actions where practical.
+- [x] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible, while keeping archived digest body snapshots visible to the digest owner.
 
 ## 7. Daily News Settings UI
 
