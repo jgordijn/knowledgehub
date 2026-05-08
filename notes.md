@@ -25,3 +25,7 @@ Review count (post-implementation): 0/5
 - Completed task 3.1 locally:
   - Added red/green prompt construction coverage for summaries, takeaways, stars, source labels, dates, IDs, bounded/delimited extra instructions, prompt-injection boundaries, deterministic capping, and candidate/included metadata.
 - Tests run: `go test ./internal/engine -run TestBuildDailyNewsPrompt -count=1`.
+- Completed task group 3.2-3.5 locally:
+  - Added red/green tests for structured JSON generation, invalid-reference filtering, duplicate reference deduplication, malformed AI response errors, sanitized failed-state recording, and successful empty-window "No articles today" output.
+  - Implemented Daily News AI completion wrapper use, response parsing/validation against included candidate IDs, empty-window digest result, and failure recording via existing sanitized terminal job helper.
+- Tests run: `go test ./internal/ai ./internal/engine -run 'TestGenerateDailyNewsDigest|TestRecordDailyNewsFailure|TestBuildDailyNewsPrompt|TestSetCompleteFunc' -count=1`.

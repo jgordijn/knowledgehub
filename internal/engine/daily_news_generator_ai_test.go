@@ -38,12 +38,14 @@ func TestGenerateDailyNewsDigestStructuredJSONAndReferences(t *testing.T) {
 func TestGenerateDailyNewsDigestRejectsMalformedResponse(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
+	resource := testutil.CreateResource(t, app, "Source", "https://example.com/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "A", "https://example.com/a", "a")
 	restore := ai.SetCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
 		return `not json`, nil
 	})
 	defer restore()
 
-	if _, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: "key", Model: "model"}); err == nil {
+	if _, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: "key", Model: "model", Candidates: []*core.Record{entry}}); err == nil {
 		t.Fatalf("expected malformed response error")
 	}
 }

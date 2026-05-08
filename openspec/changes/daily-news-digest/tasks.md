@@ -15,10 +15,10 @@
 ## 3. AI Digest Generation
 
 - [x] 3.1 Add failing tests for Daily News prompt construction using entry summaries, takeaways, stars, sources, dates, IDs, 2000-code-point bounded/delimited user extra instructions, prompt-injection text in article fields, deterministic candidate capping, and candidate_count/included_count metadata.
-- [ ] 3.2 Implement AI digest generator that requests structured JSON containing title, Markdown body, and referenced entry IDs.
-- [ ] 3.3 Add failing tests for invalid AI references, duplicate reference deduplication, unvalidated inline `[[kh-entry:<entry_id>]]` markers, and malformed AI responses.
-- [ ] 3.4 Implement AI response parsing, same-user entry-reference validation, and safe failed-state recording.
-- [ ] 3.5 Add tests and implementation for empty windows producing a successful "No articles today" digest.
+- [x] 3.2 Implement AI digest generator that requests structured JSON containing title, Markdown body, and referenced entry IDs.
+- [x] 3.3 Add failing tests for invalid AI references, duplicate reference deduplication, unvalidated inline `[[kh-entry:<entry_id>]]` markers, and malformed AI responses.
+- [x] 3.4 Implement AI response parsing, same-user entry-reference validation, and safe failed-state recording.
+- [x] 3.5 Add tests and implementation for empty windows producing a successful "No articles today" digest.
 
 ## 4. Manual Generation APIs
 

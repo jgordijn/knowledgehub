@@ -1,12 +1,14 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
 	"time"
 	"unicode/utf8"
 
+	"github.com/jgordijn/knowledgehub/internal/ai"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -26,6 +28,30 @@ type DailyNewsPromptMeta struct {
 	UsedSubset               bool
 	BoundedExtraInstructions string
 	IncludedEntryIDs         []string
+}
+
+type DailyNewsGenerateInput struct {
+	APIKey            string
+	Model             string
+	Window            DailyNewsWindow
+	Candidates        []*core.Record
+	ExtraInstructions string
+	SourceNames       map[string]string
+}
+
+type DailyNewsGenerateResult struct {
+	Title              string
+	BodyMarkdown       string
+	ReferencedEntryIDs []string
+	CandidateCount     int
+	IncludedCount      int
+	UsedSubset         bool
+}
+
+type dailyNewsAIResponse struct {
+	Title              string   `json:"title"`
+	BodyMarkdown       string   `json:"body_markdown"`
+	ReferencedEntryIDs []string `json:"referenced_entry_ids"`
 }
 
 func BuildDailyNewsPrompt(input DailyNewsPromptInput) (string, DailyNewsPromptMeta) {
@@ -61,6 +87,60 @@ func BuildDailyNewsPrompt(input DailyNewsPromptInput) (string, DailyNewsPromptMe
 		b.WriteString("</ARTICLE_DATA>\n")
 	}
 	return b.String(), meta
+}
+
+func GenerateDailyNewsDigest(app core.App, input DailyNewsGenerateInput) (DailyNewsGenerateResult, error) {
+	prompt, meta := BuildDailyNewsPrompt(DailyNewsPromptInput{
+		Window:            input.Window,
+		Candidates:        input.Candidates,
+		ExtraInstructions: input.ExtraInstructions,
+		SourceNames:       input.SourceNames,
+	})
+	if meta.IncludedCount == 0 {
+		return DailyNewsGenerateResult{Title: "No articles today", BodyMarkdown: "# No articles today\n\nNo articles today.", CandidateCount: meta.CandidateCount, IncludedCount: 0, UsedSubset: meta.UsedSubset}, nil
+	}
+	response, err := ai.Complete(input.APIKey, input.Model, []ai.Message{
+		{Role: "system", Content: "Generate a Daily News digest as structured JSON only."},
+		{Role: "user", Content: prompt},
+	})
+	if err != nil {
+		return DailyNewsGenerateResult{}, err
+	}
+	parsed, err := ParseDailyNewsAIResponse(response, meta.IncludedEntryIDs)
+	if err != nil {
+		return DailyNewsGenerateResult{}, err
+	}
+	parsed.CandidateCount = meta.CandidateCount
+	parsed.IncludedCount = meta.IncludedCount
+	parsed.UsedSubset = meta.UsedSubset
+	return parsed, nil
+}
+
+func ParseDailyNewsAIResponse(response string, validEntryIDs []string) (DailyNewsGenerateResult, error) {
+	var parsed dailyNewsAIResponse
+	if err := json.Unmarshal([]byte(response), &parsed); err != nil {
+		return DailyNewsGenerateResult{}, fmt.Errorf("malformed daily news AI response")
+	}
+	if strings.TrimSpace(parsed.Title) == "" || strings.TrimSpace(parsed.BodyMarkdown) == "" {
+		return DailyNewsGenerateResult{}, fmt.Errorf("malformed daily news AI response")
+	}
+	valid := make(map[string]bool, len(validEntryIDs))
+	for _, id := range validEntryIDs {
+		valid[id] = true
+	}
+	refs := make([]string, 0, len(parsed.ReferencedEntryIDs))
+	seen := map[string]bool{}
+	for _, id := range parsed.ReferencedEntryIDs {
+		if valid[id] && !seen[id] {
+			seen[id] = true
+			refs = append(refs, id)
+		}
+	}
+	return DailyNewsGenerateResult{Title: parsed.Title, BodyMarkdown: parsed.BodyMarkdown, ReferencedEntryIDs: refs}, nil
+}
+
+func RecordDailyNewsFailure(app core.App, digestID string, cause error) error {
+	return CompleteDailyNewsJob(app, digestID, "failed", sanitizeDailyNewsError(cause.Error()), time.Now())
 }
 
 func selectDailyNewsPromptCandidates(candidates []*core.Record, limit int) []*core.Record {
