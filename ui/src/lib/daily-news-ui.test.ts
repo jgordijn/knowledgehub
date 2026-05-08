@@ -53,6 +53,14 @@ Top **story** with [safe link](https://example.com).
 		expect(html).not.toContain('href="//evil.example"');
 	});
 
+	it('strips raw model-supplied HTML controls while preserving validated entry markers', () => {
+		const html = renderDailyNewsMarkdown('Raw <button data-entry-id="evil">Open evil</button> and marker [[kh-entry:entry1]].', ['entry1']);
+
+		expect(html).toContain('data-entry-id="entry1"');
+		expect(html).not.toContain('data-entry-id="evil"');
+		expect(html).not.toContain('<button data-entry-id="evil"');
+	});
+
 	it('explains when the digest used a subset of candidates', () => {
 		const digest: DailyNewsDigestDTO = {
 			id: 'digest1',

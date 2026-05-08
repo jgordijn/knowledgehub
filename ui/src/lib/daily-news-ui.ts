@@ -159,6 +159,10 @@ function escapeHTML(value: string): string {
 		.replace(/'/g, '&#39;');
 }
 
+function neutralizeRawHTML(markdown: string): string {
+	return markdown.replace(/<\/?[A-Za-z][^>]*>/g, '');
+}
+
 export function renderDailyNewsReferences(markdown: string, referencedIDs: string[] = []): string {
 	const allowed = new Set(referencedIDs);
 	return markdown.replace(/\[\[kh-entry:([A-Za-z0-9_-]+)\]\]/g, (_marker, entryID: string) => {
@@ -170,7 +174,8 @@ export function renderDailyNewsReferences(markdown: string, referencedIDs: strin
 
 export function renderDailyNewsMarkdown(markdown: string | null | undefined, referencedIDs: string[] = []): string {
 	if (!markdown) return '';
-	const html = dailyNewsMarked.parse(renderDailyNewsReferences(neutralizeDangerousMarkdownLinks(markdown), referencedIDs)) as string;
+	const safeMarkdown = neutralizeRawHTML(neutralizeDangerousMarkdownLinks(markdown));
+	const html = dailyNewsMarked.parse(renderDailyNewsReferences(safeMarkdown, referencedIDs)) as string;
 	return DOMPurify.sanitize(html, {
 		ALLOWED_TAGS: [
 			'h1',
