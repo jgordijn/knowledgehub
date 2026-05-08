@@ -240,6 +240,26 @@ func TestHandleDailyNewsGenerateNowReusesExistingActiveJob(t *testing.T) {
 	}
 }
 
+func TestHandleDailyNewsGenerateNowReusesPreDueManualJobAcrossSeconds(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "predue-active@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	now := mustTime("2026-05-08T05:30:01Z")
+	_, first, err := HandleDailyNewsGenerateNow(app, user.Id, now)
+	if err != nil {
+		t.Fatalf("first generate failed: %v", err)
+	}
+
+	status, second, err := HandleDailyNewsGenerateNow(app, user.Id, now.Add(2*time.Second))
+	if err != nil {
+		t.Fatalf("second generate failed: %v", err)
+	}
+	if status != http.StatusAccepted || second.ID != first.ID {
+		t.Fatalf("expected pre-due active job reuse across seconds, status=%d first=%s second=%s", status, first.ID, second.ID)
+	}
+}
+
 func TestHandleDailyNewsGenerateNowReturnsSuccessfulSameDayDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
@@ -259,6 +279,32 @@ func TestHandleDailyNewsGenerateNowReturnsSuccessfulSameDayDigest(t *testing.T) 
 	}
 	if status != http.StatusOK || again.ID != dto.ID || again.Status != "success" {
 		t.Fatalf("expected existing success, status=%d dto=%+v", status, again)
+	}
+}
+
+func TestHandleDailyNewsGenerateNowReturnsActiveScheduledRegeneration(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "active-scheduled@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	status, dto, err := HandleDailyNewsGenerateNow(app, user.Id, mustTime("2026-05-08T07:30:00Z"))
+	if err != nil || status != http.StatusAccepted {
+		t.Fatalf("queue failed: status=%d err=%v", status, err)
+	}
+	if err := engine.CompleteDailyNewsJob(app, dto.ID, "success", "", mustTime("2026-05-08T07:45:00Z")); err != nil {
+		t.Fatalf("complete failed: %v", err)
+	}
+	status, regenerating, err := HandleDailyNewsRegenerate(app, user.Id, dto.ID, mustTime("2026-05-08T08:05:00Z"))
+	if err != nil || status != http.StatusAccepted || regenerating.Status != "pending" {
+		t.Fatalf("regenerate failed: status=%d dto=%+v err=%v", status, regenerating, err)
+	}
+
+	status, again, err := HandleDailyNewsGenerateNow(app, user.Id, mustTime("2026-05-08T08:06:00Z"))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status != http.StatusAccepted || again.ID != dto.ID || again.Status != "pending" {
+		t.Fatalf("expected active scheduled regeneration, status=%d dto=%+v", status, again)
 	}
 }
 
