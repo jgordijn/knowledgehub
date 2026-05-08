@@ -11,4 +11,9 @@ Review count (post-implementation): 0/5
 
 - Selected OpenSpec change: `daily-news-digest`.
 - Read proposal, design, daily-news spec, feed-view spec, and tasks.
-- Starting red/green TDD for task 1.1.
+- Completed task group 1.1-1.4 locally:
+  - Added red tests for Daily News collection schema/rules/indexes and default settings materialization.
+  - Implemented `daily_news_settings` and `daily_digests` collections with owner-scoped read rules, denied generic mutations, and unique lock indexes.
+  - Added startup/default materialization for `_superusers` with idempotent get-or-create behavior.
+  - Added `internal/testutil` Daily News collection registration and helper creators.
+- Tests run: `go test ./cmd/knowledgehub -run 'TestRegisterCollections_CreatesDailyNewsCollections|TestEnsureDailyNewsDefaultSettingsForSuperusers' -count=1`; `go test ./internal/testutil -count=1`; `go test ./internal/ai -run TestSettings -count=1`.

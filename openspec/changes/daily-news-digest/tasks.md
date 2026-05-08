@@ -1,9 +1,9 @@
 ## 1. Data Model and Test Fixtures
 
-- [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, defense-in-depth owner-scoped auth rules, read-only user-facing digest collection access, denied generic settings create/delete, persisted defaults, one-settings-record-per-user uniqueness, explicit server-route owner enforcement for `_superusers`, and user ownership.
-- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index, digest trigger/concrete SQLite-backed lock-key/snapshot/attempt/heartbeat fields, non-empty active/success lock unique indexes, and denying generic user-facing digest create/update/delete rules.
-- [ ] 1.3 Add testutil helpers for creating Daily News settings and digest records.
-- [ ] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
+- [x] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, defense-in-depth owner-scoped auth rules, read-only user-facing digest collection access, denied generic settings create/delete, persisted defaults, one-settings-record-per-user uniqueness, explicit server-route owner enforcement for `_superusers`, and user ownership.
+- [x] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index, digest trigger/concrete SQLite-backed lock-key/snapshot/attempt/heartbeat fields, non-empty active/success lock unique indexes, and denying generic user-facing digest create/update/delete rules.
+- [x] 1.3 Add testutil helpers for creating Daily News settings and digest records.
+- [x] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
 
 ## 2. Digest Window and Scheduling Logic
 
