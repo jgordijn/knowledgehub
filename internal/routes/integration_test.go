@@ -100,6 +100,46 @@ func TestDailyNewsRegisteredRoutesRequireAuthAndServeAuthenticatedSettings(t *te
 	}
 }
 
+func TestDailyNewsRegisteredDigestDetailRouteReturnsOwnedDigest(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	settingsReq := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	settingsReq.Header.Set("Authorization", token)
+	settingsRec := httptest.NewRecorder()
+	mux.ServeHTTP(settingsRec, settingsReq)
+	if settingsRec.Code != http.StatusOK {
+		t.Fatalf("settings failed: %d body=%s", settingsRec.Code, settingsRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(settingsRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "automatic")
+	digest.Set("title", "Route Digest")
+	digest.Set("body_markdown", "# Route Digest")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/daily-news/digests/"+digest.Id, nil)
+	req.Header.Set("Authorization", token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected digest detail success, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var dto DailyNewsDigestDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &dto); err != nil {
+		t.Fatalf("decode digest: %v", err)
+	}
+	if dto.ID != digest.Id || dto.User != settings.User || dto.Title != "Route Digest" {
+		t.Fatalf("unexpected digest dto: %+v", dto)
+	}
+}
+
 func TestDailyNewsRegisteredDigestRouteReturnsNullableEmptyState(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
