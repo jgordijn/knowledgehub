@@ -16,6 +16,7 @@ func registerCollections(app core.App) {
 	ensureSettingsCollection(app)
 	ensureDailyNewsSettingsCollection(app)
 	ensureDailyDigestsCollection(app)
+	ensureDailyNewsDefaultSettings(app)
 	ensureSuperuserAuthTokenDuration(app)
 	migrateCollections(app)
 	ensureQuickAddResource(app)
@@ -310,6 +311,44 @@ func ensureDailyDigestsCollection(app core.App) {
 	if err := app.Save(collection); err != nil {
 		log.Printf("Failed to create daily_digests collection: %v", err)
 	}
+}
+
+func ensureDailyNewsDefaultSettings(app core.App) {
+	users, err := app.FindAllRecords(core.CollectionNameSuperusers)
+	if err != nil {
+		log.Printf("Failed to enumerate superusers for Daily News settings: %v", err)
+		return
+	}
+	for _, user := range users {
+		if _, err := getOrCreateDailyNewsSettings(app, user.Id); err != nil {
+			log.Printf("Failed to materialize Daily News settings for user %s: %v", user.Id, err)
+		}
+	}
+}
+
+func getOrCreateDailyNewsSettings(app core.App, userID string) (*core.Record, error) {
+	existing, err := app.FindFirstRecordByFilter("daily_news_settings", "user = {:user}", map[string]any{"user": userID})
+	if err == nil {
+		return existing, nil
+	}
+	collection, err := app.FindCollectionByNameOrId("daily_news_settings")
+	if err != nil {
+		return nil, err
+	}
+	record := core.NewRecord(collection)
+	record.Set("user", userID)
+	record.Set("enabled", true)
+	record.Set("generation_time", "08:00")
+	record.Set("timezone", "Europe/Amsterdam")
+	record.Set("extra_instructions", "")
+	if err := app.Save(record); err != nil {
+		// If a concurrent creator won the unique constraint race, return the winner.
+		if existing, findErr := app.FindFirstRecordByFilter("daily_news_settings", "user = {:user}", map[string]any{"user": userID}); findErr == nil {
+			return existing, nil
+		}
+		return nil, err
+	}
+	return record, nil
 }
 
 func getCollectionId(app core.App, name string) string {
