@@ -1,6 +1,6 @@
 ## 1. Data Model and Test Fixtures
 
-- [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, owner-scoped auth rules, read-only user-facing digest collection access, persisted defaults, one-settings-record-per-user uniqueness, and user ownership.
+- [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, owner-scoped auth rules, read-only user-facing digest collection access, denied generic settings create/delete, persisted defaults, one-settings-record-per-user uniqueness, and user ownership.
 - [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index and denying generic user-facing digest create/update/delete rules.
 - [ ] 1.3 Add testutil helpers for creating Daily News settings and digest records.
 - [ ] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
@@ -9,7 +9,7 @@
 
 - [ ] 2.1 Add failing tests for digest input window selection: previous successful digest, failed digest non-advancement, first 24-hour fallback, published_at match, and discovered_at match.
 - [ ] 2.2 Implement digest candidate query logic using entries visible to the target user.
-- [ ] 2.3 Add failing tests for timezone due checks, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, atomic active job duplicate prevention under concurrent manual/scheduled attempts, and DST edge cases.
+- [ ] 2.3 Add failing tests for timezone due checks, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active `pending -> running -> success|failed` status transitions, failed retry behavior, atomic active job duplicate prevention under concurrent manual/scheduled attempts, and DST edge cases.
 - [ ] 2.4 Implement scheduler integration that checks enabled users discovered from materialized `_superusers` settings and starts due digest jobs with transactional/unique active-job claiming.
 
 ## 3. AI Digest Generation
@@ -22,7 +22,7 @@
 
 ## 4. Manual Generation APIs
 
-- [ ] 4.1 Add failing route/API tests for authenticated manual Generate now behavior, same-day successful digest idempotency, active job reuse, failed digest retry, and owner scoping.
+- [ ] 4.1 Add failing route/API tests for authenticated asynchronous manual Generate now behavior, `202 Accepted` newly queued jobs, `200 OK` same-day successful digest idempotency, active job reuse, failed digest retry, and owner scoping.
 - [ ] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
 - [ ] 4.3 Add failing route/API tests for Regenerate overwriting an owned existing digest, preserving its period/local date, and denying cross-user regeneration.
 - [ ] 4.4 Implement regeneration overwrite behavior in a server-side route with status, content, references, counts, and generated timestamp updates.
@@ -32,7 +32,7 @@
 
 - [ ] 5.1 Add failing UI/unit tests for Daily News navigation visibility and page loading states.
 - [ ] 5.2 Add Daily News navigation item and route.
-- [ ] 5.3 Implement latest digest display with sanitized Markdown rendering, strict handling of raw HTML/images/untrusted links, subset indication, and newspaper-like visual styling.
+- [ ] 5.3 Implement latest digest display with sanitized Markdown rendering, explicit element/link allowlist, strict handling of raw HTML/images/dangerous URL schemes/untrusted links, subset indication, and newspaper-like visual styling.
 - [ ] 5.4 Implement pending, failed, and "No articles today" UI states.
 - [ ] 5.5 Add paginated or load-more previous digest browsing and selection.
 - [ ] 5.6 Add Generate now and Regenerate controls with loading and error states.
@@ -42,7 +42,7 @@
 - [ ] 6.1 Add failing UI tests for opening an entry card from a Daily News reference.
 - [ ] 6.2 Implement internal entry reference rendering from validated structured digest references, not model-generated Markdown URLs.
 - [ ] 6.3 Implement entry-card modal behavior that reuses existing entry card display/actions where practical.
-- [ ] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible.
+- [ ] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible, while keeping archived digest body snapshots visible to the digest owner.
 
 ## 7. Daily News Settings UI
 
