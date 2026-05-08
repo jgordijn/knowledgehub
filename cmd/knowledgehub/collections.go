@@ -14,6 +14,8 @@ func registerCollections(app core.App) {
 	ensureEntriesCollection(app)
 	ensurePreferencesCollection(app)
 	ensureSettingsCollection(app)
+	ensureDailyNewsSettingsCollection(app)
+	ensureDailyDigestsCollection(app)
 	ensureSuperuserAuthTokenDuration(app)
 	migrateCollections(app)
 	ensureQuickAddResource(app)
@@ -234,6 +236,79 @@ func ensureSettingsCollection(app core.App) {
 
 	if err := app.Save(collection); err != nil {
 		log.Printf("Failed to create app_settings collection: %v", err)
+	}
+}
+
+func ensureDailyNewsSettingsCollection(app core.App) {
+	if _, err := app.FindCollectionByNameOrId("daily_news_settings"); err == nil {
+		return
+	}
+
+	collection := core.NewBaseCollection("daily_news_settings")
+	collection.Fields.Add(&core.AutodateField{Name: "created", OnCreate: true})
+	collection.Fields.Add(&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+	collection.Fields.Add(&core.RelationField{Name: "user", CollectionId: getCollectionId(app, core.CollectionNameSuperusers), Required: true, MaxSelect: 1})
+	collection.Fields.Add(&core.BoolField{Name: "enabled"})
+	collection.Fields.Add(&core.TextField{Name: "generation_time", Required: true, Max: 5})
+	collection.Fields.Add(&core.TextField{Name: "timezone", Required: true, Max: 100})
+	collection.Fields.Add(&core.TextField{Name: "extra_instructions", Max: 8000})
+	collection.ListRule = types.Pointer("user = @request.auth.id")
+	collection.ViewRule = types.Pointer("user = @request.auth.id")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("user = @request.auth.id")
+	collection.DeleteRule = types.Pointer("")
+	collection.Indexes = append(collection.Indexes, "CREATE UNIQUE INDEX idx_daily_news_settings_user ON daily_news_settings (user)")
+
+	if err := app.Save(collection); err != nil {
+		log.Printf("Failed to create daily_news_settings collection: %v", err)
+	}
+}
+
+func ensureDailyDigestsCollection(app core.App) {
+	if _, err := app.FindCollectionByNameOrId("daily_digests"); err == nil {
+		return
+	}
+
+	collection := core.NewBaseCollection("daily_digests")
+	collection.Fields.Add(&core.AutodateField{Name: "created", OnCreate: true})
+	collection.Fields.Add(&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+	collection.Fields.Add(&core.RelationField{Name: "user", CollectionId: getCollectionId(app, core.CollectionNameSuperusers), Required: true, MaxSelect: 1})
+	collection.Fields.Add(&core.TextField{Name: "local_date", Required: true, Max: 10})
+	collection.Fields.Add(&core.DateField{Name: "period_start"})
+	collection.Fields.Add(&core.DateField{Name: "period_end"})
+	collection.Fields.Add(&core.SelectField{Name: "status", Required: true, Values: []string{"pending", "running", "success", "failed"}, MaxSelect: 1})
+	collection.Fields.Add(&core.SelectField{Name: "trigger", Required: true, Values: []string{"automatic", "manual"}, MaxSelect: 1})
+	collection.Fields.Add(&core.TextField{Name: "title", Max: 500})
+	collection.Fields.Add(&core.EditorField{Name: "body_markdown"})
+	collection.Fields.Add(&core.JSONField{Name: "referenced_entry_ids", MaxSize: 10000})
+	collection.Fields.Add(&core.NumberField{Name: "candidate_count"})
+	collection.Fields.Add(&core.NumberField{Name: "included_count"})
+	collection.Fields.Add(&core.BoolField{Name: "used_subset"})
+	collection.Fields.Add(&core.BoolField{Name: "has_successful_snapshot"})
+	collection.Fields.Add(&core.DateField{Name: "last_success_at"})
+	collection.Fields.Add(&core.TextField{Name: "error_message", Max: 1000})
+	collection.Fields.Add(&core.DateField{Name: "queued_at"})
+	collection.Fields.Add(&core.DateField{Name: "started_at"})
+	collection.Fields.Add(&core.DateField{Name: "heartbeat_at"})
+	collection.Fields.Add(&core.DateField{Name: "attempt_finished_at"})
+	collection.Fields.Add(&core.TextField{Name: "window_key", Max: 300})
+	collection.Fields.Add(&core.TextField{Name: "active_window_key", Max: 300})
+	collection.Fields.Add(&core.TextField{Name: "scheduled_day_key", Max: 200})
+	collection.Fields.Add(&core.TextField{Name: "active_scheduled_day_key", Max: 200})
+	collection.Fields.Add(&core.TextField{Name: "successful_scheduled_day_key", Max: 200})
+	collection.ListRule = types.Pointer("user = @request.auth.id")
+	collection.ViewRule = types.Pointer("user = @request.auth.id")
+	collection.CreateRule = types.Pointer("")
+	collection.UpdateRule = types.Pointer("")
+	collection.DeleteRule = types.Pointer("")
+	collection.Indexes = append(collection.Indexes,
+		"CREATE UNIQUE INDEX idx_daily_digests_active_window_key ON daily_digests (active_window_key) WHERE active_window_key != ''",
+		"CREATE UNIQUE INDEX idx_daily_digests_active_scheduled_day_key ON daily_digests (active_scheduled_day_key) WHERE active_scheduled_day_key != ''",
+		"CREATE UNIQUE INDEX idx_daily_digests_successful_scheduled_day_key ON daily_digests (successful_scheduled_day_key) WHERE successful_scheduled_day_key != ''",
+	)
+
+	if err := app.Save(collection); err != nil {
+		log.Printf("Failed to create daily_digests collection: %v", err)
 	}
 }
 
