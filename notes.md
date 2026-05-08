@@ -53,3 +53,8 @@ Review count (post-implementation): 0/5
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Check attempted: `cd ui && bun run check` currently fails on pre-existing TypeScript/Svelte issues in `vite.config.ts`, `LinkPanel.svelte`, and `QuickAddModal.svelte`; no new Daily News diagnostics were reported.
 - Started task 5.3 locally: no safe parallel slice identified because sanitizer policy, latest digest DTO shape, and route rendering all share the same files/contracts.
+- Completed task 5.3 locally:
+  - Added red/green tests for strict Daily News Markdown sanitization and subset indication.
+  - Added `renderDailyNewsMarkdown`, Daily News DTO/subset helpers, `DailyNewsDigest.svelte`, and latest digest rendering from the Daily News route DTO.
+  - Marked OpenSpec task 5.3 complete.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
