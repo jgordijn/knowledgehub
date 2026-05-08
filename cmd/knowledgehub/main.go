@@ -2,10 +2,10 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
-	"fmt"
 	"os"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
@@ -19,7 +19,6 @@ import (
 var uiFS embed.FS
 
 var version = "dev"
-
 
 func main() {
 	if len(os.Args) == 2 && os.Args[1] == "--version" {
@@ -45,6 +44,7 @@ func main() {
 		routes.RegisterTriggerRoutes(se)
 		routes.RegisterLinkSummaryRoute(se)
 		routes.RegisterQuickAddRoutes(se)
+		routes.RegisterDailyNewsRoutes(se)
 		registerSetupRoutes(se)
 
 		// Health check endpoint
