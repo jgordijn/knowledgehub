@@ -438,8 +438,8 @@ func normalizedNow(now time.Time) time.Time {
 }
 
 func sanitizeDailyNewsError(message string) string {
-	if message == "" {
-		return "Digest generation failed. Please try again."
+	if message == "OpenRouter API key is not configured." {
+		return "OpenRouter API key is not configured. Configure it in Settings before generating Daily News."
 	}
 	return "Digest generation failed. Please try again."
 }
