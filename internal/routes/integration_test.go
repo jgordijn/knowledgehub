@@ -36,6 +36,7 @@ func buildMux(t *testing.T, app core.App) http.Handler {
 	RegisterChatRoute(se)
 	RegisterLinkSummaryRoute(se)
 	RegisterTriggerRoutes(se)
+	RegisterDailyNewsRoutes(se)
 
 	mux, err := pbRouter.BuildMux()
 	if err != nil {
@@ -68,6 +69,57 @@ func createAuthToken(t *testing.T, app core.App) string {
 	}
 
 	return token
+}
+
+func TestDailyNewsRegisteredRoutesRequireAuthAndServeAuthenticatedSettings(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+
+	unauth := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	unauthRec := httptest.NewRecorder()
+	mux.ServeHTTP(unauthRec, unauth)
+	if unauthRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthenticated daily news settings denial, got %d body=%s", unauthRec.Code, unauthRec.Body.String())
+	}
+
+	token := createAuthToken(t, app)
+	auth := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	auth.Header.Set("Authorization", token)
+	authRec := httptest.NewRecorder()
+	mux.ServeHTTP(authRec, auth)
+	if authRec.Code != http.StatusOK {
+		t.Fatalf("expected authenticated settings success, got %d body=%s", authRec.Code, authRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(authRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if settings.User == "" || settings.GenerationTime != "08:00" || settings.Timezone == "" {
+		t.Fatalf("expected materialized default settings, got %+v", settings)
+	}
+}
+
+func TestDailyNewsRegisteredDigestRouteReturnsNullableEmptyState(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	req := httptest.NewRequest("GET", "/api/daily-news/digests", nil)
+	req.Header.Set("Authorization", token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected empty digest list success, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode digest list: %v", err)
+	}
+	if body["latest"] != nil || body["selected"] != nil {
+		t.Fatalf("expected null latest/selected, got %s", rec.Body.String())
+	}
 }
 
 // ============================================================
