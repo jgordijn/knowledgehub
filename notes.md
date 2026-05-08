@@ -30,4 +30,8 @@ Review count (post-implementation): 0/5
   - Added red/green tests for structured JSON generation, invalid-reference filtering, duplicate reference deduplication, malformed AI response errors, sanitized failed-state recording, and successful empty-window "No articles today" output.
   - Implemented Daily News AI completion wrapper use, response parsing/validation against included candidate IDs, empty-window digest result, and failure recording via existing sanitized terminal job helper.
 - Tests run: `go test ./internal/ai ./internal/engine -run 'TestGenerateDailyNewsDigest|TestRecordDailyNewsFailure|TestBuildDailyNewsPrompt|TestSetCompleteFunc' -count=1`.
-- Started task group 4.1-4.2 locally; no safe parallel split because route tests and endpoint implementation touch the same API surface.
+- Completed task group 4.1-4.2 locally:
+  - Added red/green route-handler tests for authenticated Generate now queuing (`202 Accepted`), persisted pending jobs, active job reuse, same-day scheduled success idempotency (`200 OK`), failed retry, owner scoping, and unauthenticated denial.
+  - Implemented `POST /api/daily-news/generate` registration plus `HandleDailyNewsGenerateNow`, deriving ownership from auth/user ID, materializing per-user default settings, canonical scheduled/manual window derivation, and reusing the existing Daily News claim path.
+- Tests run: `go test ./internal/routes -run TestHandleDailyNewsGenerateNow -count=1`.
+- Tests run: `go test ./internal/engine ./internal/routes -run 'TestDailyNews|TestHandleDailyNewsGenerateNow|TestRunDailyNews|TestScheduler' -count=1`.
