@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/jgordijn/knowledgehub/internal/ai"
 	"github.com/pocketbase/dbx"
 	"github.com/pocketbase/pocketbase/core"
 )
@@ -70,6 +71,9 @@ func IsDailyNewsDue(settings DailyNewsScheduleSettings, now time.Time) (bool, st
 }
 
 func RunDailyNewsSchedule(app core.App, now time.Time) (int, error) {
+	if err := EnsureDailyNewsSettingsForSuperusers(app); err != nil {
+		return 0, err
+	}
 	if _, err := RecoverStaleDailyNewsJobs(app, DailyNewsRecoveryConfig{PendingTimeout: 24 * time.Hour, RunningTimeout: time.Hour, Now: now}); err != nil {
 		return 0, err
 	}
@@ -167,6 +171,42 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	return record, true, nil
 }
 
+func EnsureDailyNewsSettingsForSuperusers(app core.App) error {
+	superusers, err := app.FindAllRecords(core.CollectionNameSuperusers)
+	if err != nil {
+		return err
+	}
+	for _, user := range superusers {
+		if _, err := getOrCreateDailyNewsSettings(app, user.Id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func getOrCreateDailyNewsSettings(app core.App, userID string) (*core.Record, error) {
+	if existing, err := app.FindFirstRecordByFilter("daily_news_settings", "user = {:user}", dbx.Params{"user": userID}); err == nil {
+		return existing, nil
+	}
+	col, err := app.FindCollectionByNameOrId("daily_news_settings")
+	if err != nil {
+		return nil, err
+	}
+	record := core.NewRecord(col)
+	record.Set("user", userID)
+	record.Set("enabled", true)
+	record.Set("generation_time", "08:00")
+	record.Set("timezone", "Europe/Amsterdam")
+	record.Set("extra_instructions", "")
+	if err := app.Save(record); err != nil {
+		if winner, findErr := app.FindFirstRecordByFilter("daily_news_settings", "user = {:user}", dbx.Params{"user": userID}); findErr == nil {
+			return winner, nil
+		}
+		return nil, err
+	}
+	return record, nil
+}
+
 func ClaimPendingDailyNewsJob(app core.App, id string, now time.Time) (*core.Record, bool, error) {
 	record, err := app.FindRecordById("daily_digests", id)
 	if err != nil {
@@ -182,6 +222,49 @@ func ClaimPendingDailyNewsJob(app core.App, id string, now time.Time) (*core.Rec
 		return nil, false, err
 	}
 	return record, true, nil
+}
+
+func ProcessPendingDailyNewsJobs(app core.App, now time.Time) (int, error) {
+	jobs, err := app.FindRecordsByFilter("daily_digests", "status = 'pending'", "queued_at", 50, 0)
+	if err != nil {
+		return 0, err
+	}
+	processed := 0
+	for _, job := range jobs {
+		claimed, ok, err := ClaimPendingDailyNewsJob(app, job.Id, now)
+		if err != nil {
+			return processed, err
+		}
+		if !ok {
+			continue
+		}
+		processed++
+		if err := generateClaimedDailyNewsJob(app, claimed, now); err != nil {
+			return processed, err
+		}
+	}
+	return processed, nil
+}
+
+func generateClaimedDailyNewsJob(app core.App, job *core.Record, now time.Time) error {
+	settings, err := getOrCreateDailyNewsSettings(app, job.GetString("user"))
+	if err != nil {
+		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
+	}
+	apiKey, err := ai.GetAPIKey(app)
+	if err != nil || apiKey == "" {
+		return FailDailyNewsRegeneration(app, job.Id, "OpenRouter API key is not configured.", now)
+	}
+	periodEnd := job.GetDateTime("period_end").Time().UTC()
+	window, candidates, err := FindDailyNewsCandidates(app, job.GetString("user"), periodEnd)
+	if err != nil {
+		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
+	}
+	result, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: apiKey, Model: ai.GetModel(app), Window: window, Candidates: candidates, ExtraInstructions: settings.GetString("extra_instructions")})
+	if err != nil {
+		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
+	}
+	return CompleteDailyNewsRegeneration(app, job.Id, result, now)
 }
 
 func CompleteDailyNewsRegeneration(app core.App, id string, result DailyNewsGenerateResult, now time.Time) error {

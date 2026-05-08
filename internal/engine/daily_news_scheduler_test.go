@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/jgordijn/knowledgehub/internal/ai"
 	"github.com/jgordijn/knowledgehub/internal/testutil"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -34,6 +35,21 @@ func TestDailyNewsDueChecksAndValidation(t *testing.T) {
 	}
 }
 
+func TestRunDailyNewsScheduleMaterializesNewSuperuserSettingsAndClaimsDueJobs(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-new-user@example.com")
+
+	created, err := RunDailyNewsSchedule(app, time.Date(2026, 5, 8, 10, 0, 0, 0, time.UTC))
+	if err != nil || created != 1 {
+		t.Fatalf("created due jobs=%d err=%v", created, err)
+	}
+	settings, err := app.FindRecordsByFilter("daily_news_settings", "user = {:user}", "", 10, 0, map[string]any{"user": user.Id})
+	if err != nil || len(settings) != 1 || settings[0].GetString("generation_time") != "08:00" {
+		t.Fatalf("default settings not materialized: len=%d err=%v", len(settings), err)
+	}
+}
+
 func TestRunDailyNewsScheduleClaimsDueEnabledSettings(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
@@ -58,6 +74,43 @@ func TestRunDailyNewsScheduleClaimsDueEnabledSettings(t *testing.T) {
 	created, err = RunDailyNewsSchedule(app, time.Date(2026, 5, 8, 11, 0, 0, 0, time.UTC))
 	if err != nil || created != 0 {
 		t.Fatalf("duplicate schedule created=%d err=%v", created, err)
+	}
+}
+
+func TestProcessPendingDailyNewsJobsGeneratesTerminalDigest(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-worker@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "Focus on impact")
+	testutil.CreateSetting(t, app, ai.SettingAPIKey, "test-key")
+	testutil.CreateSetting(t, app, ai.SettingModel, "test-model")
+	resource := testutil.CreateResource(t, app, "Source", "https://example.com/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntryWithStars(t, app, resource.Id, "Important", "https://example.com/important", 5, 0)
+	entry.Set("summary", "A useful summary")
+	entry.Set("discovered_at", "2026-05-08T05:30:00Z")
+	if err := app.Save(entry); err != nil {
+		t.Fatalf("save entry: %v", err)
+	}
+	periodEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+	job, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodEnd.Add(-24 * time.Hour), PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+	restore := ai.SetCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
+		if apiKey != "test-key" || model != "test-model" {
+			t.Fatalf("unexpected ai config %q/%q", apiKey, model)
+		}
+		return `{"title":"Daily","body_markdown":"# Daily\n[[kh-entry:` + entry.Id + `]]","referenced_entry_ids":["` + entry.Id + `"]}`, nil
+	})
+	defer restore()
+
+	processed, err := ProcessPendingDailyNewsJobs(app, periodEnd.Add(time.Minute))
+	if err != nil || processed != 1 {
+		t.Fatalf("processed=%d err=%v", processed, err)
+	}
+	updated, _ := app.FindRecordById("daily_digests", job.Id)
+	if updated.GetString("status") != "success" || updated.GetString("title") != "Daily" || !updated.GetBool("has_successful_snapshot") || updated.GetString("active_window_key") != "" {
+		t.Fatalf("job not completed successfully: status=%q title=%q snapshot=%v active=%q", updated.GetString("status"), updated.GetString("title"), updated.GetBool("has_successful_snapshot"), updated.GetString("active_window_key"))
 	}
 }
 

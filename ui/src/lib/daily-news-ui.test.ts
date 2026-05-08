@@ -30,16 +30,20 @@ describe('daily news UI helpers', () => {
 
 Top **story** with [safe link](https://example.com).
 
+[[kh-entry:entry1]] [[kh-entry:missing]]
+
 <img src="https://example.com/tracker.png" onerror="alert(1)">
 <script>alert('xss')</script>
 [bad](javascript:alert(1)) [protocol](//evil.example) [data](data:text/html,boom)
 <iframe src="https://example.com"></iframe><style>body{display:none}</style>
-`);
+`, ['entry1']);
 
 		expect(html).toContain('<h1');
 		expect(html).toContain('<strong>story</strong>');
 		expect(html).toContain('href="https://example.com"');
 		expect(html).toContain('rel="noopener noreferrer"');
+		expect(html).toContain('data-entry-id="entry1"');
+		expect(html).not.toContain('data-entry-id="missing"');
 		expect(html).not.toContain('<img');
 		expect(html).not.toContain('<script');
 		expect(html).not.toContain('<iframe');
@@ -89,6 +93,7 @@ Top **story** with [safe link](https://example.com).
 		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'Europe/Amsterdam', extra_instructions: 'Use bullets\nFocus AI' })).toEqual([]);
 		expect(validateDailyNewsSettings({ enabled: true, generation_time: '8:00', timezone: 'Europe/Amsterdam', extra_instructions: '' })).toContain('Use a 24-hour HH:MM generation time.');
 		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: '', extra_instructions: '' })).toContain('Choose a timezone.');
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'Not/AZone', extra_instructions: '' })).toContain('Choose a valid IANA timezone.');
 		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'UTC', extra_instructions: 'x'.repeat(2001) })).toContain('Extra instructions must be 2000 characters or fewer.');
 		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'UTC', extra_instructions: 'bad\u0001' })).toContain('Extra instructions contain unsupported control characters.');
 	});

@@ -94,8 +94,15 @@ export function validateDailyNewsSettings(settings: Pick<DailyNewsSettingsDTO, '
 	if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.generation_time)) {
 		errors.push('Use a 24-hour HH:MM generation time.');
 	}
-	if (!settings.timezone.trim()) {
+	const timezone = settings.timezone.trim();
+	if (!timezone) {
 		errors.push('Choose a timezone.');
+	} else {
+		try {
+			new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+		} catch {
+			errors.push('Choose a valid IANA timezone.');
+		}
 	}
 	if ([...settings.extra_instructions].length > 2000) {
 		errors.push('Extra instructions must be 2000 characters or fewer.');
@@ -188,10 +195,11 @@ export function renderDailyNewsMarkdown(markdown: string | null | undefined, ref
 			'code',
 			'pre',
 			'br',
-			'a'
+			'a',
+			'button'
 		],
-		ALLOWED_ATTR: ['href', 'title', 'target', 'rel'],
-		ALLOW_DATA_ATTR: false,
+		ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'type', 'class', 'data-entry-id'],
+		ALLOW_DATA_ATTR: true,
 		FORBID_TAGS: ['img', 'svg', 'script', 'style', 'iframe'],
 		ADD_ATTR: ['target'],
 		ADD_URI_SAFE_ATTR: [],

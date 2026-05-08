@@ -71,20 +71,20 @@ func BuildDailyNewsPrompt(input DailyNewsPromptInput) (string, DailyNewsPromptMe
 	if !input.Window.Start.IsZero() || !input.Window.End.IsZero() {
 		fmt.Fprintf(&b, "Window UTC: %s to %s\n", formatPromptTime(input.Window.Start), formatPromptTime(input.Window.End))
 	}
-	b.WriteString("<USER_EXTRA_INSTRUCTIONS>\n")
-	b.WriteString(boundedExtra)
-	b.WriteString("\n</USER_EXTRA_INSTRUCTIONS>\n")
+	writePromptJSON(&b, "USER_EXTRA_INSTRUCTIONS_JSON", boundedExtra)
 	for _, entry := range included {
 		meta.IncludedEntryIDs = append(meta.IncludedEntryIDs, entry.Id)
-		fmt.Fprintf(&b, "<ARTICLE_DATA id=\"%s\">\n", entry.Id)
-		fmt.Fprintf(&b, "Title: %s\n", entry.GetString("title"))
-		fmt.Fprintf(&b, "Source: %s\n", dailyNewsEntrySource(entry, input.SourceNames))
-		fmt.Fprintf(&b, "Published: %s\n", formatPromptTime(entry.GetDateTime("published_at").Time()))
-		fmt.Fprintf(&b, "Discovered: %s\n", formatPromptTime(entry.GetDateTime("discovered_at").Time()))
-		fmt.Fprintf(&b, "Effective stars: %d\n", effectiveDailyNewsStars(entry))
-		fmt.Fprintf(&b, "Summary: %s\n", entry.GetString("summary"))
-		fmt.Fprintf(&b, "Takeaways: %s\n", formatTakeaways(entry.Get("takeaways")))
-		b.WriteString("</ARTICLE_DATA>\n")
+		article := map[string]any{
+			"id":              entry.Id,
+			"title":           entry.GetString("title"),
+			"source":          dailyNewsEntrySource(entry, input.SourceNames),
+			"published":       formatPromptTime(entry.GetDateTime("published_at").Time()),
+			"discovered":      formatPromptTime(entry.GetDateTime("discovered_at").Time()),
+			"effective_stars": effectiveDailyNewsStars(entry),
+			"summary":         entry.GetString("summary"),
+			"takeaways":       formatTakeaways(entry.Get("takeaways")),
+		}
+		writePromptJSON(&b, "ARTICLE_DATA_JSON", article)
 	}
 	return b.String(), meta
 }
@@ -141,6 +141,11 @@ func ParseDailyNewsAIResponse(response string, validEntryIDs []string) (DailyNew
 
 func RecordDailyNewsFailure(app core.App, digestID string, cause error) error {
 	return CompleteDailyNewsJob(app, digestID, "failed", sanitizeDailyNewsError(cause.Error()), time.Now())
+}
+
+func writePromptJSON(b *strings.Builder, label string, value any) {
+	encoded, _ := json.Marshal(value)
+	fmt.Fprintf(b, "%s: %s\n", label, encoded)
 }
 
 func selectDailyNewsPromptCandidates(candidates []*core.Record, limit int) []*core.Record {

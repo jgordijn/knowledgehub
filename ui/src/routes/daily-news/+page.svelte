@@ -175,7 +175,8 @@
 			<h2 class="text-lg font-semibold">{stateMessage.title}</h2>
 			<p class="mt-1 text-sm opacity-80">{stateMessage.message}</p>
 		</div>
-	{:else if displayDigest?.status === 'success'}
+	{/if}
+	{#if displayDigest?.body_markdown}
 		<DailyNewsDigest digest={displayDigest} onOpenEntry={openEntryReference} />
 	{/if}
 

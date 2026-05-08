@@ -116,6 +116,14 @@ func (s *Scheduler) runDailyNews(now time.Time) {
 	if created > 0 {
 		log.Printf("Scheduler: queued %d Daily News digest job(s)", created)
 	}
+	processed, err := ProcessPendingDailyNewsJobs(s.app, now)
+	if err != nil {
+		log.Printf("Scheduler: daily news worker failed: %v", err)
+		return
+	}
+	if processed > 0 {
+		log.Printf("Scheduler: processed %d Daily News digest job(s)", processed)
+	}
 }
 
 func (s *Scheduler) retryFailedEntries() {

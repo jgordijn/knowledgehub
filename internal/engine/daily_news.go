@@ -4,6 +4,8 @@ import (
 	"sort"
 	"time"
 
+	"github.com/pocketbase/dbx"
+
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -52,11 +54,11 @@ func FindDailyNewsCandidates(app core.App, userID string, periodEnd time.Time) (
 func previousSuccessfulDigestEnd(app core.App, userID string) (time.Time, error) {
 	digests, err := app.FindRecordsByFilter(
 		"daily_digests",
-		"user = {:user} && status = 'success' && period_end != ''",
+		"user = {:user} && (status = 'success' || has_successful_snapshot = true) && period_end != ''",
 		"-period_end",
 		1,
 		0,
-		map[string]any{"user": userID},
+		dbx.Params{"user": userID},
 	)
 	if err != nil {
 		return time.Time{}, err
