@@ -100,6 +100,107 @@ func TestHandleDailyNewsGenerateNowRetriesAfterFailedDigest(t *testing.T) {
 	}
 }
 
+func TestHandleDailyNewsRegeneratePreservesSuccessfulSnapshotWhileActive(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "regen-success@example.com")
+	digest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	digest.Set("period_start", "2026-05-07T06:00:00Z")
+	digest.Set("period_end", "2026-05-08T06:00:00Z")
+	digest.Set("title", "Original title")
+	digest.Set("body_markdown", "# Original")
+	digest.Set("referenced_entry_ids", []string{"entry1"})
+	digest.Set("candidate_count", 4)
+	digest.Set("included_count", 3)
+	digest.Set("used_subset", true)
+	digest.Set("has_successful_snapshot", true)
+	digest.Set("last_success_at", "2026-05-08T06:10:00Z")
+	digest.Set("period_start", "2026-05-07T06:00:00Z")
+	digest.Set("period_end", "2026-05-08T06:00:00Z")
+	digest.Set("window_key", user.Id+"|2026-05-08|2026-05-07T06:00:00Z|2026-05-08T06:00:00Z")
+	digest.Set("successful_scheduled_day_key", user.Id+"|2026-05-08")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, dto, err := HandleDailyNewsRegenerate(app, user.Id, digest.Id, mustTime("2026-05-08T08:00:00Z"))
+	if err != nil || status != http.StatusAccepted || dto.ID != digest.Id || dto.Status != "pending" {
+		t.Fatalf("expected accepted regeneration on same digest, status=%d dto=%+v err=%v", status, dto, err)
+	}
+	reloaded, _ := app.FindRecordById("daily_digests", digest.Id)
+	if reloaded.GetString("body_markdown") != "# Original" || !reloaded.GetBool("has_successful_snapshot") || reloaded.GetString("successful_scheduled_day_key") == "" {
+		t.Fatalf("successful snapshot was not preserved during active regeneration")
+	}
+	if reloaded.GetString("active_window_key") == "" || reloaded.GetString("active_scheduled_day_key") == "" {
+		t.Fatalf("expected active regeneration lock keys")
+	}
+}
+
+func TestHandleDailyNewsRegenerateBlocksActiveAndCrossUserAndAuth(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "regen-owner@example.com")
+	other := testutil.CreateSuperuser(t, app, "regen-other@example.com")
+	active := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "running", "manual")
+	active.Set("period_start", "2026-05-07T06:00:00Z")
+	active.Set("period_end", "2026-05-08T06:00:00Z")
+	active.Set("active_window_key", user.Id+"|2026-05-08|2026-05-07T06:00:00Z|2026-05-08T06:00:00Z")
+	if err := app.Save(active); err != nil {
+		t.Fatalf("save active: %v", err)
+	}
+
+	status, dto, err := HandleDailyNewsRegenerate(app, user.Id, active.Id, mustTime("2026-05-08T08:00:00Z"))
+	if err != nil || status != http.StatusAccepted || dto.ID != active.Id || dto.Status != "running" {
+		t.Fatalf("expected selected active state, status=%d dto=%+v err=%v", status, dto, err)
+	}
+	status, _, err = HandleDailyNewsRegenerate(app, other.Id, active.Id, mustTime("2026-05-08T08:00:00Z"))
+	if err == nil || status != http.StatusNotFound {
+		t.Fatalf("expected cross-user denial without leak, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsRegenerate(app, "", active.Id, mustTime("2026-05-08T08:00:00Z"))
+	if err == nil || status != http.StatusUnauthorized {
+		t.Fatalf("expected unauthenticated denial, status=%d err=%v", status, err)
+	}
+}
+
+func TestCompleteDailyNewsRegenerationSuccessAndFailureSnapshots(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "regen-complete@example.com")
+	digest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	digest.Set("period_start", "2026-05-07T06:00:00Z")
+	digest.Set("period_end", "2026-05-08T06:00:00Z")
+	digest.Set("title", "Original")
+	digest.Set("body_markdown", "# Original")
+	digest.Set("has_successful_snapshot", true)
+	digest.Set("successful_scheduled_day_key", user.Id+"|2026-05-08")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+	_, _, err := HandleDailyNewsRegenerate(app, user.Id, digest.Id, mustTime("2026-05-08T08:00:00Z"))
+	if err != nil {
+		t.Fatalf("regenerate: %v", err)
+	}
+	if err := engine.CompleteDailyNewsRegeneration(app, digest.Id, engine.DailyNewsGenerateResult{Title: "New", BodyMarkdown: "# New", ReferencedEntryIDs: []string{"e2"}, CandidateCount: 5, IncludedCount: 2, UsedSubset: true}, mustTime("2026-05-08T08:01:00Z")); err != nil {
+		t.Fatalf("complete success: %v", err)
+	}
+	reloaded, _ := app.FindRecordById("daily_digests", digest.Id)
+	if reloaded.GetString("status") != "success" || reloaded.GetString("title") != "New" || reloaded.GetString("body_markdown") != "# New" || reloaded.GetString("active_window_key") != "" {
+		t.Fatalf("regeneration success did not replace content and clear active state")
+	}
+	_, _, err = HandleDailyNewsRegenerate(app, user.Id, digest.Id, mustTime("2026-05-08T08:02:00Z"))
+	if err != nil {
+		t.Fatalf("second regenerate: %v", err)
+	}
+	if err := engine.FailDailyNewsRegeneration(app, digest.Id, "secret sk-test stack trace", mustTime("2026-05-08T08:03:00Z")); err != nil {
+		t.Fatalf("complete failure: %v", err)
+	}
+	reloaded, _ = app.FindRecordById("daily_digests", digest.Id)
+	if reloaded.GetString("status") != "failed" || reloaded.GetString("body_markdown") != "# New" || reloaded.GetString("error_message") == "secret sk-test stack trace" || reloaded.GetString("successful_scheduled_day_key") == "" {
+		t.Fatalf("failed regeneration did not preserve snapshot/sanitize error")
+	}
+}
+
 func TestHandleDailyNewsGenerateNowEnforcesOwnerAndAuth(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
