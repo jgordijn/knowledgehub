@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
+	import { dailyNewsNavItem } from '$lib/daily-news-ui';
 
 	let {
 		onLogout,
@@ -41,6 +42,8 @@
 			// ignore
 		}
 	});
+
+	const dailyNews = dailyNewsNavItem();
 
 	const avatarColors = [
 		'#f97316', '#8b5cf6', '#06b6d4', '#f472b6', '#34d399',
@@ -137,6 +140,17 @@
 		</a>
 
 		<div class="mx-2 my-2.5 h-px bg-slate-200 dark:bg-slate-700"></div>
+
+		<a
+			href={dailyNews.href}
+			onclick={handleNavClick}
+			class="mb-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13px] transition-colors
+				{page.url.pathname === dailyNews.href
+				? 'bg-slate-100 font-medium text-slate-900 dark:bg-slate-700 dark:text-slate-50'
+				: 'text-slate-500 hover:bg-slate-50 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-100'}"
+		>
+			<span>{dailyNews.icon}</span>{dailyNews.label}
+		</a>
 
 		<a
 			href="/resources"

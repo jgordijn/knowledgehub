@@ -10,8 +10,9 @@ Review count (post-implementation): 0/5
 - Current focus completed: Task group 4.1-4.2 (manual Generate now API). Tests and implementation shared the new route handler, auth-derived owner behavior, and engine claim path, so they were **not parallelized**.
 - Current focus completed: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touched `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they were **not parallelized**.
 - Current focus completed: Task 4.5 concurrency/lock tests. This extended existing database uniqueness/lock coverage in `internal/engine/daily_news_scheduler_test.go`; it was **not parallelized**.
-- Next focus: frontend task group 5.1-5.2 can be considered for local implementation; broader frontend rendering tasks depend on route DTO/read APIs not yet implemented.
-- Checked remaining tasks for safe delegation after 4.5: 5.1-5.2 are small but touch shared Svelte navigation/routing files; 6.x and 7.x need backend route contracts. No delegate session launched yet.
+- Current focus completed: frontend task group 5.1-5.2. These touched `ui/src/lib/components/Sidebar.svelte`, a new route, and small UI helpers/tests, so they were done locally and **not parallelized**.
+- Next focus: task 5.3 latest digest display/sanitizer will touch Daily News UI rendering and probably DTO contracts; do **not** parallelize with 5.4-5.6 until the rendering boundary is settled.
+- Checked remaining tasks for safe delegation after 5.2: 6.x and 7.x need backend route contracts; no delegate session launched yet.
 
 ## Progress log
 
@@ -46,3 +47,8 @@ Review count (post-implementation): 0/5
 - Completed task 4.5 locally:
   - Added tests proving canonical lock reuse for scheduled/manual same-window races with sub-second `now` differences, concrete SQLite uniqueness for non-empty `active_window_key`, and pre-due manual success not suppressing a later scheduled claim.
 - Tests run: `go test ./internal/engine -run 'TestDailyNewsConcreteLockIndexes|TestDailyNewsPreDueManual' -count=1`.
+- Completed task group 5.1-5.2 locally:
+  - Added red/green Vitest coverage for the Daily News nav item contract and page loading message.
+  - Added `daily-news-ui` helpers, a Daily News sidebar navigation item, and `/daily-news` route with initial loading-state page shell.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Check attempted: `cd ui && bun run check` currently fails on pre-existing TypeScript/Svelte issues in `vite.config.ts`, `LinkPanel.svelte`, and `QuickAddModal.svelte`; no new Daily News diagnostics were reported.

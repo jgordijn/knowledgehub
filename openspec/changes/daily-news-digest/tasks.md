@@ -30,8 +30,8 @@
 
 ## 5. Daily News Frontend
 
-- [ ] 5.1 Add failing UI/unit tests for Daily News navigation visibility and page loading states.
-- [ ] 5.2 Add Daily News navigation item and route.
+- [x] 5.1 Add failing UI/unit tests for Daily News navigation visibility and page loading states.
+- [x] 5.2 Add Daily News navigation item and route.
 - [ ] 5.3 Implement latest digest display using route DTO raw `body_markdown` rendered only through the Daily News sanitizer component, explicit element/link allowlist, strict handling of raw HTML/images/dangerous URL schemes/untrusted links, subset indication, and newspaper-like visual styling.
 - [ ] 5.4 Implement pending, failed, and "No articles today" UI states.
 - [ ] 5.5 Add route-backed paginated or load-more previous digest browsing and selection with owner enforcement.
