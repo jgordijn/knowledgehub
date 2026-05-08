@@ -215,7 +215,7 @@
 			<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><input type="checkbox" bind:checked={settings.enabled} /> Enabled</label>
 			<label class="text-sm text-slate-700 dark:text-slate-200">Generation time<input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.generation_time} placeholder="08:00" /></label>
 			<label class="text-sm text-slate-700 dark:text-slate-200">Timezone<input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.timezone} placeholder="Europe/Amsterdam" /></label>
-			<label class="sm:col-span-2 text-sm text-slate-700 dark:text-slate-200">Extra digest instructions<textarea class="mt-1 min-h-28 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.extra_instructions} maxlength="2000" /></label>
+			<label class="sm:col-span-2 text-sm text-slate-700 dark:text-slate-200">Extra digest instructions<textarea class="mt-1 min-h-28 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.extra_instructions} maxlength="2000"></textarea></label>
 		</div>
 		<button type="button" class="mt-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900" disabled={settingsLoading} onclick={saveSettings}>{settingsLoading ? 'Saving…' : 'Save settings'}</button>
 		{#if settingsError}<p class="mt-2 text-sm text-red-600 dark:text-red-300">{settingsError}</p>{/if}
