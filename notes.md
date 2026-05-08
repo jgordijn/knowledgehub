@@ -9,8 +9,9 @@ Review count (post-implementation): 0/5
 - Current focus completed: Task group 3.1-3.5 (AI digest generation). Prompt construction, generator interface, response parsing, failed-state recording, and empty-window handling all shared the same AI/engine integration surface and tests, so they were **not parallelized**.
 - Current focus completed: Task group 4.1-4.2 (manual Generate now API). Tests and implementation shared the new route handler, auth-derived owner behavior, and engine claim path, so they were **not parallelized**.
 - Current focus completed: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touched `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they were **not parallelized**.
-- Current focus next: Task 4.5 concurrency tests. This extends existing database uniqueness/lock coverage in `internal/engine/daily_news_scheduler_test.go`; do **not** parallelize with nearby lifecycle changes.
-- Checked remaining tasks for safe delegation: frontend tasks (5.x), entry-reference modal/routes (6.x), and settings UI/API (7.x) overlap with route DTO contracts and Daily News UI surfaces that depend on API behavior, so no delegate session launched yet. Re-evaluate after 4.5.
+- Current focus completed: Task 4.5 concurrency/lock tests. This extended existing database uniqueness/lock coverage in `internal/engine/daily_news_scheduler_test.go`; it was **not parallelized**.
+- Next focus: frontend task group 5.1-5.2 can be considered for local implementation; broader frontend rendering tasks depend on route DTO/read APIs not yet implemented.
+- Checked remaining tasks for safe delegation after 4.5: 5.1-5.2 are small but touch shared Svelte navigation/routing files; 6.x and 7.x need backend route contracts. No delegate session launched yet.
 
 ## Progress log
 
@@ -42,3 +43,6 @@ Review count (post-implementation): 0/5
   - Implemented `POST /api/daily-news/digests/{id}/regenerate`, `HandleDailyNewsRegenerate`, `CompleteDailyNewsRegeneration`, and `FailDailyNewsRegeneration`.
 - Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsRegenerate|TestCompleteDailyNewsRegeneration' -count=1`.
 - Tests run: `go test ./internal/engine ./internal/routes -run 'TestDailyNews|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate|TestCompleteDailyNewsRegeneration|TestRunDailyNews|TestScheduler' -count=1`.
+- Completed task 4.5 locally:
+  - Added tests proving canonical lock reuse for scheduled/manual same-window races with sub-second `now` differences, concrete SQLite uniqueness for non-empty `active_window_key`, and pre-due manual success not suppressing a later scheduled claim.
+- Tests run: `go test ./internal/engine -run 'TestDailyNewsConcreteLockIndexes|TestDailyNewsPreDueManual' -count=1`.

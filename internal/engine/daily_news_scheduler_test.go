@@ -101,6 +101,52 @@ func TestDailyNewsJobClaimLifecycleAndRecovery(t *testing.T) {
 	}
 }
 
+func TestDailyNewsConcreteLockIndexesPreventDuplicateActiveJobs(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-locks@example.com")
+	periodStart := time.Date(2026, 5, 7, 6, 0, 0, 0, time.UTC)
+	periodEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+
+	scheduled, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodStart, PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
+	if err != nil || !created {
+		t.Fatalf("scheduled claim created=%v err=%v", created, err)
+	}
+	manual, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodStart, PeriodEnd: periodEnd.Add(900 * time.Millisecond), Trigger: "manual", Scheduled: true, Now: periodEnd.Add(750 * time.Millisecond)})
+	if err != nil || created || manual.Id != scheduled.Id {
+		t.Fatalf("manual/scheduled race bypassed canonical locks: created=%v got=%s want=%s err=%v", created, manual.Id, scheduled.Id, err)
+	}
+
+	duplicate := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-09", "pending", "manual")
+	duplicate.Set("active_window_key", scheduled.GetString("active_window_key"))
+	if err := app.Save(duplicate); err == nil {
+		t.Fatalf("database accepted duplicate non-empty active_window_key")
+	}
+}
+
+func TestDailyNewsPreDueManualAndLaterScheduledUseSeparateLocks(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-predue-locks@example.com")
+	manualEnd := time.Date(2026, 5, 8, 5, 30, 0, 0, time.UTC)
+	scheduledEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+
+	manual, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: manualEnd.Add(-24 * time.Hour), PeriodEnd: manualEnd, Trigger: "manual", Scheduled: false, Now: manualEnd})
+	if err != nil || !created {
+		t.Fatalf("pre-due manual claim created=%v err=%v", created, err)
+	}
+	if err := CompleteDailyNewsJob(app, manual.Id, "success", "", manualEnd.Add(time.Minute)); err != nil {
+		t.Fatalf("complete manual: %v", err)
+	}
+	if manual.GetString("successful_scheduled_day_key") != "" {
+		t.Fatalf("pre-due manual should not reserve scheduled success key")
+	}
+	scheduled, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: manualEnd, PeriodEnd: scheduledEnd, Trigger: "automatic", Scheduled: true, Now: scheduledEnd})
+	if err != nil || !created || scheduled.Id == manual.Id {
+		t.Fatalf("later scheduled digest should be independently claimable, created=%v err=%v", created, err)
+	}
+}
+
 func TestDailyNewsStaleRecovery(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

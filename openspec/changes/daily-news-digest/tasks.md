@@ -26,7 +26,7 @@
 - [x] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
 - [x] 4.3 Add failing route/API tests for Regenerate replacing an owned existing terminal digest only after success, preserving its period/local date, using explicit successful-snapshot/attempt-state fields, preserving prior successful content during active regeneration and after failed regeneration with sanitized error state, preserving the successful scheduled-day reservation after failed regeneration of a previously successful scheduled digest, returning existing active state without overwrite for pending/running selected digests or same-day/window active jobs, denying cross-user regeneration, and unauthenticated denial without mutation or existence leaks.
 - [x] 4.4 Implement regeneration replacement behavior in a server-side route with status, content, references, counts, generated timestamp updates, and prior-success preservation on active/failed regeneration.
-- [ ] 4.5 Add concurrency tests proving the concrete database uniqueness/lock fields and indexes prevent duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values and pre-due manual versus later scheduled attempts.
+- [x] 4.5 Add concurrency tests proving the concrete database uniqueness/lock fields and indexes prevent duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values and pre-due manual versus later scheduled attempts.
 
 ## 5. Daily News Frontend
 
