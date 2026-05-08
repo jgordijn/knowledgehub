@@ -3,6 +3,7 @@ package routes
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
@@ -24,6 +25,16 @@ func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
 		}
 		status, dto, err := HandleDailyNewsGenerateNow(re.App, re.Auth.Id, time.Now())
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
+	se.Router.POST("/api/daily-news/digests/{id}/regenerate", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		status, dto, err := HandleDailyNewsRegenerate(re.App, re.Auth.Id, re.Request.PathValue("id"), time.Now())
 		if err != nil {
 			return re.JSON(status, map[string]string{"error": err.Error()})
 		}
@@ -84,6 +95,48 @@ func HandleDailyNewsGenerateNow(app core.App, userID string, now time.Time) (int
 		return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
 	}
 	return http.StatusOK, dailyNewsDigestDTO(digest), nil
+}
+
+func HandleDailyNewsRegenerate(app core.App, userID, digestID string, now time.Time) (int, DailyNewsDigestDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsDigestDTO{}, errors.New("Authentication required.")
+	}
+	digest, err := app.FindRecordById("daily_digests", digestID)
+	if err != nil || digest.GetString("user") != userID {
+		return http.StatusNotFound, DailyNewsDigestDTO{}, errors.New("Digest not found.")
+	}
+	if digest.GetString("status") == "pending" || digest.GetString("status") == "running" {
+		return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
+	}
+	periodStart := digest.GetDateTime("period_start").Time().UTC().Truncate(time.Second)
+	periodEnd := digest.GetDateTime("period_end").Time().UTC().Truncate(time.Second)
+	windowKey := userID + "|" + digest.GetString("local_date") + "|" + periodStart.Format(time.RFC3339) + "|" + periodEnd.Format(time.RFC3339)
+	if active, err := app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && (status = 'pending' || status = 'running')", dbx.Params{"user": userID, "date": digest.GetString("local_date")}); err == nil && active.Id != digest.Id {
+		return http.StatusAccepted, dailyNewsDigestDTO(active), nil
+	}
+	digest.Set("status", "pending")
+	digest.Set("queued_at", now.UTC().Truncate(time.Second).Format(time.RFC3339))
+	digest.Set("started_at", "")
+	digest.Set("heartbeat_at", "")
+	digest.Set("attempt_finished_at", "")
+	digest.Set("error_message", "")
+	digest.Set("window_key", windowKey)
+	digest.Set("active_window_key", windowKey)
+	if key := digest.GetString("successful_scheduled_day_key"); key != "" {
+		digest.Set("scheduled_day_key", key)
+		digest.Set("active_scheduled_day_key", key)
+	} else if strings.EqualFold(digest.GetString("trigger"), "automatic") {
+		key := userID + "|" + digest.GetString("local_date")
+		digest.Set("scheduled_day_key", key)
+		digest.Set("active_scheduled_day_key", key)
+	}
+	if err := app.Save(digest); err != nil {
+		if active, findErr := app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && (status = 'pending' || status = 'running')", dbx.Params{"user": userID, "date": digest.GetString("local_date")}); findErr == nil {
+			return http.StatusAccepted, dailyNewsDigestDTO(active), nil
+		}
+		return http.StatusInternalServerError, DailyNewsDigestDTO{}, err
+	}
+	return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
 }
 
 func getOrCreateDailyNewsSettingsForUser(app core.App, userID string) (*core.Record, error) {

@@ -184,6 +184,43 @@ func ClaimPendingDailyNewsJob(app core.App, id string, now time.Time) (*core.Rec
 	return record, true, nil
 }
 
+func CompleteDailyNewsRegeneration(app core.App, id string, result DailyNewsGenerateResult, now time.Time) error {
+	record, err := app.FindRecordById("daily_digests", id)
+	if err != nil {
+		return err
+	}
+	record.Set("status", "success")
+	record.Set("title", result.Title)
+	record.Set("body_markdown", result.BodyMarkdown)
+	record.Set("referenced_entry_ids", result.ReferencedEntryIDs)
+	record.Set("candidate_count", result.CandidateCount)
+	record.Set("included_count", result.IncludedCount)
+	record.Set("used_subset", result.UsedSubset)
+	record.Set("has_successful_snapshot", true)
+	record.Set("last_success_at", normalizedNow(now).Format(time.RFC3339))
+	record.Set("attempt_finished_at", normalizedNow(now).Format(time.RFC3339))
+	record.Set("active_window_key", "")
+	record.Set("active_scheduled_day_key", "")
+	record.Set("error_message", "")
+	if key := record.GetString("scheduled_day_key"); key != "" && record.GetString("successful_scheduled_day_key") == "" {
+		record.Set("successful_scheduled_day_key", key)
+	}
+	return app.Save(record)
+}
+
+func FailDailyNewsRegeneration(app core.App, id, message string, now time.Time) error {
+	record, err := app.FindRecordById("daily_digests", id)
+	if err != nil {
+		return err
+	}
+	record.Set("status", "failed")
+	record.Set("active_window_key", "")
+	record.Set("active_scheduled_day_key", "")
+	record.Set("attempt_finished_at", normalizedNow(now).Format(time.RFC3339))
+	record.Set("error_message", sanitizeDailyNewsError(message))
+	return app.Save(record)
+}
+
 func CompleteDailyNewsJob(app core.App, id, status, message string, now time.Time) error {
 	if status != "success" && status != "failed" {
 		return errors.New("daily news job terminal status must be success or failed")

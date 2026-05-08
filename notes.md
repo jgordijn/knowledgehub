@@ -8,8 +8,9 @@ Review count (post-implementation): 0/5
 - Current focus completed: Task group 2.3-2.4 (scheduling/job lifecycle). These tasks both touched `internal/engine/daily_news_scheduler.go`, `internal/engine/scheduler.go`, and lifecycle tests, so they were **not parallelized**.
 - Current focus completed: Task group 3.1-3.5 (AI digest generation). Prompt construction, generator interface, response parsing, failed-state recording, and empty-window handling all shared the same AI/engine integration surface and tests, so they were **not parallelized**.
 - Current focus completed: Task group 4.1-4.2 (manual Generate now API). Tests and implementation shared the new route handler, auth-derived owner behavior, and engine claim path, so they were **not parallelized**.
-- Current focus: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touch `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they are **not parallelized**.
-- Checked remaining tasks for safe delegation: frontend tasks (5.x), entry-reference modal/routes (6.x), and settings UI/API (7.x) overlap with route DTO contracts and Daily News UI surfaces that depend on regeneration behavior, so no delegate session launched yet. Re-evaluate after 4.3-4.5.
+- Current focus completed: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touched `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they were **not parallelized**.
+- Current focus next: Task 4.5 concurrency tests. This extends existing database uniqueness/lock coverage in `internal/engine/daily_news_scheduler_test.go`; do **not** parallelize with nearby lifecycle changes.
+- Checked remaining tasks for safe delegation: frontend tasks (5.x), entry-reference modal/routes (6.x), and settings UI/API (7.x) overlap with route DTO contracts and Daily News UI surfaces that depend on API behavior, so no delegate session launched yet. Re-evaluate after 4.5.
 
 ## Progress log
 
@@ -36,3 +37,8 @@ Review count (post-implementation): 0/5
   - Implemented `POST /api/daily-news/generate` registration plus `HandleDailyNewsGenerateNow`, deriving ownership from auth/user ID, materializing per-user default settings, canonical scheduled/manual window derivation, and reusing the existing Daily News claim path.
 - Tests run: `go test ./internal/routes -run TestHandleDailyNewsGenerateNow -count=1`.
 - Tests run: `go test ./internal/engine ./internal/routes -run 'TestDailyNews|TestHandleDailyNewsGenerateNow|TestRunDailyNews|TestScheduler' -count=1`.
+- Completed task group 4.3-4.4 locally:
+  - Added red/green route and lifecycle tests for owner-scoped Regenerate, unauthenticated/cross-user denial, selected active digest reuse, successful-snapshot preservation while active, successful content replacement, sanitized failed regeneration state, and scheduled success reservation preservation.
+  - Implemented `POST /api/daily-news/digests/{id}/regenerate`, `HandleDailyNewsRegenerate`, `CompleteDailyNewsRegeneration`, and `FailDailyNewsRegeneration`.
+- Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsRegenerate|TestCompleteDailyNewsRegeneration' -count=1`.
+- Tests run: `go test ./internal/engine ./internal/routes -run 'TestDailyNews|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate|TestCompleteDailyNewsRegeneration|TestRunDailyNews|TestScheduler' -count=1`.
