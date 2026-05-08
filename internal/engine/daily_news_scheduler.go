@@ -208,20 +208,30 @@ func getOrCreateDailyNewsSettings(app core.App, userID string) (*core.Record, er
 }
 
 func ClaimPendingDailyNewsJob(app core.App, id string, now time.Time) (*core.Record, bool, error) {
-	record, err := app.FindRecordById("daily_digests", id)
+	var claimed *core.Record
+	var ok bool
+	err := app.RunInTransaction(func(txApp core.App) error {
+		record, err := txApp.FindRecordById("daily_digests", id)
+		if err != nil {
+			return err
+		}
+		claimed = record
+		if record.GetString("status") != "pending" {
+			return nil
+		}
+		record.Set("status", "running")
+		record.Set("started_at", normalizedNow(now).Format(time.RFC3339))
+		record.Set("heartbeat_at", normalizedNow(now).Format(time.RFC3339))
+		if err := txApp.Save(record); err != nil {
+			return err
+		}
+		ok = true
+		return nil
+	})
 	if err != nil {
 		return nil, false, err
 	}
-	if record.GetString("status") != "pending" {
-		return record, false, nil
-	}
-	record.Set("status", "running")
-	record.Set("started_at", normalizedNow(now).Format(time.RFC3339))
-	record.Set("heartbeat_at", normalizedNow(now).Format(time.RFC3339))
-	if err := app.Save(record); err != nil {
-		return nil, false, err
-	}
-	return record, true, nil
+	return claimed, ok, nil
 }
 
 func ProcessPendingDailyNewsJobs(app core.App, now time.Time) (int, error) {
