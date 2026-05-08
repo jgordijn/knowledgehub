@@ -7,8 +7,9 @@ Review count (post-implementation): 0/5
 - Current focus completed: Task group 2.1-2.2 (digest input window/candidate query). These tasks shared the new engine Daily News query code and tests, so they were **not parallelized**.
 - Current focus completed: Task group 2.3-2.4 (scheduling/job lifecycle). These tasks both touched `internal/engine/daily_news_scheduler.go`, `internal/engine/scheduler.go`, and lifecycle tests, so they were **not parallelized**.
 - Current focus completed: Task group 3.1-3.5 (AI digest generation). Prompt construction, generator interface, response parsing, failed-state recording, and empty-window handling all shared the same AI/engine integration surface and tests, so they were **not parallelized**.
-- Current focus: Task group 4.1-4.2 (manual Generate now API). Tests and implementation share the new route handler, auth-derived owner behavior, and engine claim path, so they are **not parallelized**.
-- No delegate sessions launched yet.
+- Current focus completed: Task group 4.1-4.2 (manual Generate now API). Tests and implementation shared the new route handler, auth-derived owner behavior, and engine claim path, so they were **not parallelized**.
+- Current focus: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touch `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they are **not parallelized**.
+- Checked remaining tasks for safe delegation: frontend tasks (5.x), entry-reference modal/routes (6.x), and settings UI/API (7.x) overlap with route DTO contracts and Daily News UI surfaces that depend on regeneration behavior, so no delegate session launched yet. Re-evaluate after 4.3-4.5.
 
 ## Progress log
 
