@@ -129,6 +129,16 @@ func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 		}
 		return re.JSON(status, dto)
 	})
+	se.Router.GET("/api/daily-news/digests/{id}", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		status, dto, err := HandleDailyNewsGetDigest(re.App, re.Auth.Id, re.Request.PathValue("id"))
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
 	se.Router.POST("/api/daily-news/digests/{id}/regenerate", func(re *core.RequestEvent) error {
 		if re.Auth == nil {
 			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
@@ -181,6 +191,17 @@ func HandleDailyNewsSaveSettings(app core.App, userID string, input DailyNewsSet
 		return http.StatusInternalServerError, DailyNewsSettingsDTO{}, err
 	}
 	return http.StatusOK, dailyNewsSettingsDTO(settings), nil
+}
+
+func HandleDailyNewsGetDigest(app core.App, userID, digestID string) (int, DailyNewsDigestDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsDigestDTO{}, errors.New("Authentication required.")
+	}
+	digest, err := app.FindRecordById("daily_digests", digestID)
+	if err != nil || digest.GetString("user") != userID {
+		return http.StatusNotFound, DailyNewsDigestDTO{}, errors.New("Digest not found.")
+	}
+	return http.StatusOK, dailyNewsDigestDTO(digest), nil
 }
 
 func HandleDailyNewsEntryReference(app core.App, userID, digestID, entryID string) (int, DailyNewsEntryReferenceDTO, error) {
