@@ -42,8 +42,9 @@ func (s *Scheduler) Start() {
 	// Run immediately on start
 	s.fetchAll()
 
-	// Also retry previously failed entries
+	// Also retry previously failed entries and queue due Daily News jobs.
 	s.retryFailedEntries()
+	s.runDailyNews(time.Now())
 
 	ticker := time.NewTicker(s.interval)
 	defer ticker.Stop()
@@ -53,6 +54,7 @@ func (s *Scheduler) Start() {
 		case <-ticker.C:
 			s.fetchAll()
 			s.retryFailedEntries()
+			s.runDailyNews(time.Now())
 		case <-s.stopCh:
 			log.Println("Scheduler stopped")
 			return
@@ -102,6 +104,17 @@ func FetchSingleResource(app core.App, resource *core.Record) {
 		if sErr := RecordSuccess(app, resource); sErr != nil {
 			log.Printf("Scheduler: failed to record success: %v", sErr)
 		}
+	}
+}
+
+func (s *Scheduler) runDailyNews(now time.Time) {
+	created, err := RunDailyNewsSchedule(s.app, now)
+	if err != nil {
+		log.Printf("Scheduler: daily news scheduling failed: %v", err)
+		return
+	}
+	if created > 0 {
+		log.Printf("Scheduler: queued %d Daily News digest job(s)", created)
 	}
 }
 
