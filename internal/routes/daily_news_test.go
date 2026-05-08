@@ -2,11 +2,13 @@ package routes
 
 import (
 	"net/http"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
 	"github.com/jgordijn/knowledgehub/internal/testutil"
+	"github.com/pocketbase/pocketbase/core"
 )
 
 func TestHandleDailyNewsSettingsMaterializesAndSavesValidSettings(t *testing.T) {
@@ -237,6 +239,39 @@ func TestHandleDailyNewsGenerateNowRetriesAfterFailedDigest(t *testing.T) {
 	}
 	if status != http.StatusAccepted || retry.ID == failed.ID || retry.Status != "pending" {
 		t.Fatalf("expected new pending retry, status=%d failed=%s retry=%+v", status, failed.ID, retry)
+	}
+}
+
+func TestHandleDailyNewsGenerateAndRegenerateWakeWorkerForQueuedJobs(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "wake@example.com")
+	var wakeCount int32
+	oldWake := wakeDailyNewsWorker
+	wakeDailyNewsWorker = func(core.App, time.Time) { atomic.AddInt32(&wakeCount, 1) }
+	t.Cleanup(func() { wakeDailyNewsWorker = oldWake })
+
+	status, dto, err := HandleDailyNewsGenerateNow(app, user.Id, mustTime("2026-05-08T05:00:00Z"))
+	if err != nil || status != http.StatusAccepted || dto.Status != "pending" {
+		t.Fatalf("expected accepted pending generate, status=%d dto=%+v err=%v", status, dto, err)
+	}
+	if atomic.LoadInt32(&wakeCount) != 1 {
+		t.Fatalf("expected worker wake after generate queued, got %d", wakeCount)
+	}
+
+	reloaded, err := app.FindRecordById("daily_digests", dto.ID)
+	if err != nil {
+		t.Fatalf("find generated digest: %v", err)
+	}
+	if err := engine.CompleteDailyNewsJob(app, reloaded.Id, "failed", "retry me", mustTime("2026-05-08T05:01:00Z")); err != nil {
+		t.Fatalf("mark failed: %v", err)
+	}
+	status, dto, err = HandleDailyNewsRegenerate(app, user.Id, reloaded.Id, mustTime("2026-05-08T05:02:00Z"))
+	if err != nil || status != http.StatusAccepted || dto.Status != "pending" {
+		t.Fatalf("expected accepted pending regeneration, status=%d dto=%+v err=%v", status, dto, err)
+	}
+	if atomic.LoadInt32(&wakeCount) != 2 {
+		t.Fatalf("expected worker wake after regenerate queued, got %d", wakeCount)
 	}
 }
 

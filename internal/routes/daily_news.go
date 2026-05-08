@@ -63,6 +63,13 @@ type DailyNewsEntryReferenceDTO struct {
 	Entry     *DailyNewsEntryCardDTO `json:"entry,omitempty"`
 }
 
+var wakeDailyNewsWorker = func(app core.App, now time.Time) {
+	time.AfterFunc(10*time.Millisecond, func() {
+		defer func() { _ = recover() }()
+		_, _ = engine.ProcessPendingDailyNewsJobs(app, now)
+	})
+}
+
 type DailyNewsEntryCardDTO struct {
 	ID             string   `json:"id"`
 	Title          string   `json:"title"`
@@ -281,7 +288,11 @@ func HandleDailyNewsGenerateNow(app core.App, userID string, now time.Time) (int
 		}
 		return http.StatusInternalServerError, DailyNewsDigestDTO{}, err
 	}
-	if created || digest.GetString("status") == "pending" || digest.GetString("status") == "running" {
+	if created {
+		wakeDailyNewsWorker(app, now)
+		return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
+	}
+	if digest.GetString("status") == "pending" || digest.GetString("status") == "running" {
 		return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
 	}
 	return http.StatusOK, dailyNewsDigestDTO(digest), nil
@@ -326,6 +337,7 @@ func HandleDailyNewsRegenerate(app core.App, userID, digestID string, now time.T
 		}
 		return http.StatusInternalServerError, DailyNewsDigestDTO{}, err
 	}
+	wakeDailyNewsWorker(app, now)
 	return http.StatusAccepted, dailyNewsDigestDTO(digest), nil
 }
 
