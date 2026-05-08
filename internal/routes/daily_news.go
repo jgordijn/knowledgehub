@@ -4,7 +4,6 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -358,7 +357,7 @@ func HandleDailyNewsRegenerate(app core.App, userID, digestID string, now time.T
 	if key := digest.GetString("successful_scheduled_day_key"); key != "" {
 		digest.Set("scheduled_day_key", key)
 		digest.Set("active_scheduled_day_key", key)
-	} else if strings.EqualFold(digest.GetString("trigger"), "automatic") {
+	} else {
 		key := userID + "|" + digest.GetString("local_date")
 		digest.Set("scheduled_day_key", key)
 		digest.Set("active_scheduled_day_key", key)

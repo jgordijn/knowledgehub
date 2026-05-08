@@ -427,6 +427,31 @@ func TestHandleDailyNewsRegenerateBlocksActiveAndCrossUserAndAuth(t *testing.T) 
 	}
 }
 
+func TestHandleDailyNewsRegenerateManualDigestSetsSameDayActiveLock(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "regen-manual-lock@example.com")
+	digest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "manual")
+	digest.Set("period_start", "2026-05-07T08:00:00Z")
+	digest.Set("period_end", "2026-05-08T08:00:00Z")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, _, err := HandleDailyNewsRegenerate(app, user.Id, digest.Id, mustTime("2026-05-08T08:05:00Z"))
+	if err != nil || status != http.StatusAccepted {
+		t.Fatalf("expected accepted regeneration, status=%d err=%v", status, err)
+	}
+	reloaded, err := app.FindRecordById("daily_digests", digest.Id)
+	if err != nil {
+		t.Fatalf("reload digest: %v", err)
+	}
+	wantKey := user.Id + "|2026-05-08"
+	if reloaded.GetString("active_scheduled_day_key") != wantKey {
+		t.Fatalf("manual regeneration did not claim same-day active lock: got %q want %q", reloaded.GetString("active_scheduled_day_key"), wantKey)
+	}
+}
+
 func TestCompleteDailyNewsRegenerationSuccessAndFailureSnapshots(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

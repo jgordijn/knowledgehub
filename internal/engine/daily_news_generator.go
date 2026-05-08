@@ -227,15 +227,19 @@ func limitCodePoints(value string, max int) string {
 
 func formatTakeaways(value any) string {
 	switch v := value.(type) {
+	case nil:
+		return ""
 	case []string:
 		return strings.Join(v, "; ")
 	case []any:
 		parts := make([]string, 0, len(v))
 		for _, item := range v {
-			parts = append(parts, fmt.Sprint(item))
+			if item != nil {
+				parts = append(parts, fmt.Sprint(item))
+			}
 		}
 		return strings.Join(parts, "; ")
 	default:
-		return fmt.Sprint(value)
+		return ""
 	}
 }
