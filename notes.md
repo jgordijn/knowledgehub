@@ -95,3 +95,4 @@ Review count (post-implementation): 0/5
 - Tests run: `go test ./internal/routes -run TestHandleDailyNewsEntryReference -count=1`.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsEntryReference|TestHandleDailyNewsListDigests|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate' -count=1`.
+- Started task group 7.1-7.4 locally: settings API validation, settings UI, frontend validation, and prompt propagation share Daily News settings contracts across route/UI/helper files, so they are **not parallelized**.
