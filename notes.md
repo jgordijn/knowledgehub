@@ -6,7 +6,7 @@ Review count (post-implementation): 0/5
 
 - Current focus completed: Task group 2.1-2.2 (digest input window/candidate query). These tasks shared the new engine Daily News query code and tests, so they were **not parallelized**.
 - Current focus completed: Task group 2.3-2.4 (scheduling/job lifecycle). These tasks both touched `internal/engine/daily_news_scheduler.go`, `internal/engine/scheduler.go`, and lifecycle tests, so they were **not parallelized**.
-- Next focus: Task group 3.1-3.5 (AI digest generation). Prompt construction and response parsing may be separable only after the generator interface is stable; when in doubt, do not parallelize.
+- Current focus: Task group 3.1-3.5 (AI digest generation). Prompt construction, generator interface, response parsing, failed-state recording, and empty-window handling all share the same new AI/engine integration surface and tests, so they are **not parallelized** until the interface stabilizes.
 - No delegate sessions launched yet.
 
 ## Progress log
