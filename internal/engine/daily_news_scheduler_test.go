@@ -2,6 +2,7 @@ package engine
 
 import (
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -122,6 +123,58 @@ func TestProcessPendingDailyNewsJobsUsesStoredRegenerationWindow(t *testing.T) {
 	}
 	if !strings.Contains(prompt, "Window UTC: 2026-05-06T06:00:00Z to 2026-05-07T06:00:00Z") || !strings.Contains(prompt, oldEntry.Id) || strings.Contains(prompt, newEntry.Id) {
 		t.Fatalf("prompt did not use stored old window/candidates:\n%s", prompt)
+	}
+}
+
+func TestProcessPendingDailyNewsJobsRefreshesHeartbeatDuringGeneration(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "heartbeat@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	testutil.CreateSetting(t, app, "openrouter_api_key", "test-key")
+	resource := testutil.CreateResource(t, app, "Source", "https://example.com/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "A", "https://example.com/a", "a")
+	entry.Set("published_at", "2026-05-08T05:00:00Z")
+	if err := app.Save(entry); err != nil {
+		t.Fatalf("save entry: %v", err)
+	}
+	periodEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+	job, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodEnd.Add(-24 * time.Hour), PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+
+	oldInterval := dailyNewsHeartbeatInterval
+	dailyNewsHeartbeatInterval = 10 * time.Millisecond
+	t.Cleanup(func() { dailyNewsHeartbeatInterval = oldInterval })
+	var observed int32
+	release := make(chan struct{})
+	restore := ai.SetCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
+		deadline := time.After(250 * time.Millisecond)
+		for atomic.LoadInt32(&observed) == 0 {
+			updated, _ := app.FindRecordById("daily_digests", job.Id)
+			if updated.GetDateTime("heartbeat_at").Time().After(periodEnd) {
+				atomic.StoreInt32(&observed, 1)
+				close(release)
+				break
+			}
+			select {
+			case <-deadline:
+				return "", nil
+			case <-time.After(5 * time.Millisecond):
+			}
+		}
+		<-release
+		return `{"title":"Brief","body_markdown":"# Brief","referenced_entry_ids":[]}`, nil
+	})
+	defer restore()
+
+	processed, err := ProcessPendingDailyNewsJobs(app, periodEnd)
+	if err != nil || processed != 1 {
+		t.Fatalf("process jobs: processed=%d err=%v", processed, err)
+	}
+	if atomic.LoadInt32(&observed) == 0 {
+		t.Fatalf("expected heartbeat to advance while generation was running")
 	}
 }
 

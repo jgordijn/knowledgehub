@@ -15,6 +15,8 @@ var dailyNewsTimePattern = regexp.MustCompile(`^([01][0-9]|2[0-3]):([0-5][0-9])$
 
 var errDailyNewsScheduledSuccessExists = errors.New("successful scheduled digest already exists")
 
+var dailyNewsHeartbeatInterval = 30 * time.Second
+
 // DailyNewsScheduleSettings contains the user-specific values needed for due checks.
 type DailyNewsScheduleSettings struct {
 	Enabled        bool
@@ -275,11 +277,47 @@ func generateClaimedDailyNewsJob(app core.App, job *core.Record, now time.Time) 
 	if err != nil {
 		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
 	}
+	stopHeartbeat := startDailyNewsHeartbeat(app, job.Id)
 	result, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: apiKey, Model: ai.GetModel(app), Window: window, Candidates: candidates, ExtraInstructions: settings.GetString("extra_instructions"), SourceNames: sourceNames})
+	stopHeartbeat()
 	if err != nil {
 		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
 	}
 	return CompleteDailyNewsRegeneration(app, job.Id, result, now)
+}
+
+func startDailyNewsHeartbeat(app core.App, id string) func() {
+	stop := make(chan struct{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		ticker := time.NewTicker(dailyNewsHeartbeatInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				_ = RefreshDailyNewsJobHeartbeat(app, id, time.Now())
+			case <-stop:
+				return
+			}
+		}
+	}()
+	return func() {
+		close(stop)
+		<-done
+	}
+}
+
+func RefreshDailyNewsJobHeartbeat(app core.App, id string, now time.Time) error {
+	record, err := app.FindRecordById("daily_digests", id)
+	if err != nil {
+		return err
+	}
+	if record.GetString("status") != "running" {
+		return nil
+	}
+	record.Set("heartbeat_at", normalizedNow(now).Format(time.RFC3339))
+	return app.Save(record)
 }
 
 func CompleteDailyNewsRegeneration(app core.App, id string, result DailyNewsGenerateResult, now time.Time) error {
