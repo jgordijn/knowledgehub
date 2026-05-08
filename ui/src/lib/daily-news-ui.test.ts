@@ -7,6 +7,9 @@ import {
 	dailyNewsStateMessage,
 	dailyNewsArchiveLabel,
 	selectDailyNewsDigest,
+	dailyNewsGenerateButtonLabel,
+	dailyNewsRegenerateButtonLabel,
+	dailyNewsCanRegenerate,
 	type DailyNewsDigestDTO
 } from './daily-news-ui';
 
@@ -67,6 +70,17 @@ Top **story** with [safe link](https://example.com).
 		expect(dailyNewsArchiveLabel(older)).toBe('2026-05-07');
 		expect(selectDailyNewsDigest([latest, older], 'older')).toEqual(older);
 		expect(selectDailyNewsDigest([latest, older], 'missing')).toEqual(latest);
+	});
+
+	it('describes Generate now and Regenerate control states', () => {
+		expect(dailyNewsGenerateButtonLabel(false)).toBe('Generate now');
+		expect(dailyNewsGenerateButtonLabel(true)).toBe('Generating…');
+		expect(dailyNewsRegenerateButtonLabel(false)).toBe('Regenerate');
+		expect(dailyNewsRegenerateButtonLabel(true)).toBe('Regenerating…');
+		expect(dailyNewsCanRegenerate({ id: 's', status: 'success' })).toBe(true);
+		expect(dailyNewsCanRegenerate({ id: 'f', status: 'failed' })).toBe(true);
+		expect(dailyNewsCanRegenerate({ id: 'p', status: 'pending' })).toBe(false);
+		expect(dailyNewsCanRegenerate(null)).toBe(false);
 	});
 
 	it('describes pending, running, failed, and empty digest states', () => {

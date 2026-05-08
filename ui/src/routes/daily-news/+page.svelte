@@ -5,6 +5,9 @@
 		dailyNewsLoadingMessage,
 		dailyNewsStateMessage,
 		dailyNewsArchiveLabel,
+		dailyNewsGenerateButtonLabel,
+		dailyNewsRegenerateButtonLabel,
+		dailyNewsCanRegenerate,
 		type DailyNewsDigestDTO,
 		type DailyNewsDigestListDTO
 	} from '$lib/daily-news-ui';
@@ -17,6 +20,9 @@
 	let archiveOffset = 0;
 	let archiveLoading = $state(false);
 	let archiveError = $state('');
+	let generateLoading = $state(false);
+	let regenerateLoading = $state(false);
+	let actionError = $state('');
 	const archiveLimit = 10;
 	let displayDigest = $derived(selectedDigest ?? latestDigest);
 	let stateMessage = $derived(dailyNewsStateMessage(displayDigest));
@@ -45,6 +51,42 @@
 		}
 	}
 
+	function applyReturnedDigest(digest: DailyNewsDigestDTO) {
+		if (!latestDigest || latestDigest.id === digest.id) {
+			latestDigest = digest;
+		}
+		selectedDigest = digest;
+	}
+
+	async function generateNow() {
+		generateLoading = true;
+		actionError = '';
+		try {
+			const digest = (await pb.send('/api/daily-news/generate', { method: 'POST' })) as DailyNewsDigestDTO;
+			applyReturnedDigest(digest);
+			void loadDigests(digest.id, 0);
+		} catch {
+			actionError = 'Could not queue Daily News generation.';
+		} finally {
+			generateLoading = false;
+		}
+	}
+
+	async function regenerateDigest() {
+		if (!displayDigest) return;
+		regenerateLoading = true;
+		actionError = '';
+		try {
+			const digest = (await pb.send(`/api/daily-news/digests/${displayDigest.id}/regenerate`, { method: 'POST' })) as DailyNewsDigestDTO;
+			applyReturnedDigest(digest);
+			void loadDigests(digest.id, 0);
+		} catch {
+			actionError = 'Could not queue Daily News regeneration.';
+		} finally {
+			regenerateLoading = false;
+		}
+	}
+
 	onMount(() => {
 		void loadDigests();
 	});
@@ -62,6 +104,17 @@
 			<p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Latest edition</p>
 		{:else}
 			<p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{dailyNewsLoadingMessage()}</p>
+		{/if}
+		<div class="mt-5 flex flex-wrap gap-3">
+			<button type="button" class="rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60" disabled={generateLoading || regenerateLoading} onclick={generateNow}>
+				{dailyNewsGenerateButtonLabel(generateLoading)}
+			</button>
+			<button type="button" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700" disabled={!dailyNewsCanRegenerate(displayDigest) || generateLoading || regenerateLoading} onclick={regenerateDigest}>
+				{dailyNewsRegenerateButtonLabel(regenerateLoading)}
+			</button>
+		</div>
+		{#if actionError}
+			<p class="mt-3 text-sm text-red-600 dark:text-red-300">{actionError}</p>
 		{/if}
 	</div>
 

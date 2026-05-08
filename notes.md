@@ -15,6 +15,7 @@ Review count (post-implementation): 0/5
 - Current focus completed: task 5.4 pending/failed/empty UI states. This extended the same Daily News route/component state rendering from 5.3, so it was **not parallelized**.
 - Current focus completed: task 5.5 archive browsing/selection. This owned Daily News digest read/list route contracts and the `/daily-news` page archive state, so it was **not parallelized** with 5.6 controls or 6.x reference rendering.
 - Checked remaining tasks for safe delegation before 5.5: 5.6 touches the same page/route DTOs, 6.x depends on digest DTO/reference rendering, and 7.x settings can be separated later after current route contracts settle; no delegate session launched yet.
+- Checked remaining tasks before 5.6: Generate/Regenerate controls touch the active `/daily-news` page state and helper contracts, while 6.x reference rendering and 7.x settings should wait on this page contract; no delegate session launched.
 
 ## Progress log
 
@@ -76,3 +77,11 @@ Review count (post-implementation): 0/5
 - Tests run: `go test ./internal/routes -run TestHandleDailyNewsListDigests -count=1`.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsListDigests|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate' -count=1`.
+- Started task 5.6 locally: no safe parallel slice identified because the controls share `/daily-news` page state and endpoint DTO handling.
+- Red test run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts` failed on missing Generate/Regenerate helper functions.
+- Completed task 5.6 locally:
+  - Added red/green UI helper coverage for Generate now and Regenerate labels/allowed states.
+  - Added `/daily-news` Generate now and Regenerate controls that call the existing asynchronous route endpoints, show loading labels, disable unsafe duplicate actions, apply returned pending/running/success/failed digest DTOs, refresh the archive, and show user-facing action errors.
+  - Marked OpenSpec task 5.6 complete.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Check attempted: `cd ui && bun run check` still fails on pre-existing diagnostics in `vite.config.ts`, `LinkPanel.svelte`, `QuickAddModal.svelte`, and existing a11y warnings; no new Daily News diagnostics were reported.

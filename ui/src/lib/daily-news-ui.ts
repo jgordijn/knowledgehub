@@ -53,6 +53,18 @@ export function selectDailyNewsDigest(digests: DailyNewsDigestDTO[], selectedID:
 	return digests.find((digest) => digest.id === selectedID) ?? digests[0] ?? null;
 }
 
+export function dailyNewsGenerateButtonLabel(loading: boolean): string {
+	return loading ? 'Generating…' : 'Generate now';
+}
+
+export function dailyNewsRegenerateButtonLabel(loading: boolean): string {
+	return loading ? 'Regenerating…' : 'Regenerate';
+}
+
+export function dailyNewsCanRegenerate(digest: DailyNewsDigestDTO | null | undefined): boolean {
+	return digest?.status === 'success' || digest?.status === 'failed';
+}
+
 export function dailyNewsSubsetMessage(digest: Pick<DailyNewsDigestDTO, 'used_subset' | 'included_count' | 'candidate_count'>): string {
 	if (!digest.used_subset || !digest.included_count || !digest.candidate_count) {
 		return '';
