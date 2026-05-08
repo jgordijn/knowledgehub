@@ -13,7 +13,8 @@ Review count (post-implementation): 0/5
 - Current focus completed: frontend task group 5.1-5.2. These touched `ui/src/lib/components/Sidebar.svelte`, a new route, and small UI helpers/tests, so they were done locally and **not parallelized**.
 - Current focus completed: task 5.3 latest digest display/sanitizer. This owned the Daily News UI rendering/sanitizer boundary (`ui/src/lib/daily-news-ui.*`, new Daily News component, and `/daily-news` route), so it was **not parallelized** with 5.4-5.6 or 6.x reference rendering.
 - Current focus completed: task 5.4 pending/failed/empty UI states. This extended the same Daily News route/component state rendering from 5.3, so it was **not parallelized**.
-- Checked remaining tasks for safe delegation after 5.2: 6.x and 7.x need backend route contracts; no delegate session launched yet.
+- Current focus: task 5.5 archive browsing/selection. This owns Daily News digest read/list route contracts and the `/daily-news` page archive state, so it is **not parallelized** with 5.6 controls or 6.x reference rendering.
+- Checked remaining tasks for safe delegation before 5.5: 5.6 touches the same page/route DTOs, 6.x depends on digest DTO/reference rendering, and 7.x settings can be separated later after current route contracts settle; no delegate session launched yet.
 
 ## Progress log
 
@@ -66,3 +67,4 @@ Review count (post-implementation): 0/5
   - Added `dailyNewsStateMessage` and rendered state cards on the Daily News page.
   - Marked OpenSpec task 5.4 complete.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Started task 5.5 locally after confirming no safe parallel slice for the next task group.
