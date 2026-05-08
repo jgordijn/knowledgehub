@@ -9,6 +9,86 @@ import (
 	"github.com/jgordijn/knowledgehub/internal/testutil"
 )
 
+func TestHandleDailyNewsEntryReferenceReturnsSanitizedReferencedEntry(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "ref@example.com")
+	resource := testutil.CreateResource(t, app, "Source", "https://source.example/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "Referenced story", "https://source.example/story", "guid-ref")
+	entry.Set("summary", "Useful summary")
+	entry.Set("takeaways", []string{"First takeaway", "Second takeaway"})
+	entry.Set("ai_stars", 4)
+	entry.Set("user_stars", 5)
+	if err := app.Save(entry); err != nil {
+		t.Fatalf("save entry: %v", err)
+	}
+	digest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	digest.Set("referenced_entry_ids", []string{entry.Id})
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, dto, err := HandleDailyNewsEntryReference(app, user.Id, digest.Id, entry.Id)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if status != http.StatusOK || !dto.Available || dto.Entry == nil {
+		t.Fatalf("expected available entry, status=%d dto=%+v", status, dto)
+	}
+	if dto.Entry.ID != entry.Id || dto.Entry.Title != "Referenced story" || dto.Entry.URL != "https://source.example/story" || dto.Entry.Summary != "Useful summary" || dto.Entry.EffectiveStars != 5 {
+		t.Fatalf("unexpected entry dto: %+v", dto.Entry)
+	}
+	if len(dto.Entry.Takeaways) != 2 || dto.Entry.Takeaways[0] != "First takeaway" {
+		t.Fatalf("unexpected takeaways: %+v", dto.Entry.Takeaways)
+	}
+}
+
+func TestHandleDailyNewsEntryReferenceDeniesCrossUserAndNonReferencedWithoutLeak(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	owner := testutil.CreateSuperuser(t, app, "owner-ref@example.com")
+	other := testutil.CreateSuperuser(t, app, "other-ref@example.com")
+	resource := testutil.CreateResource(t, app, "Source", "https://source.example/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "Referenced story", "https://source.example/story", "guid-ref")
+	digest := testutil.CreateDailyDigest(t, app, owner.Id, "2026-05-08", "success", "automatic")
+	digest.Set("referenced_entry_ids", []string{entry.Id})
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, _, err := HandleDailyNewsEntryReference(app, other.Id, digest.Id, entry.Id)
+	if status != http.StatusNotFound || err == nil {
+		t.Fatalf("expected cross-user safe not found, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsEntryReference(app, owner.Id, digest.Id, "missingentryid")
+	if status != http.StatusNotFound || err == nil {
+		t.Fatalf("expected non-referenced safe not found, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsEntryReference(app, "", digest.Id, entry.Id)
+	if status != http.StatusUnauthorized || err == nil {
+		t.Fatalf("expected auth denial, status=%d err=%v", status, err)
+	}
+}
+
+func TestHandleDailyNewsEntryReferenceReportsUnavailableForDeletedReferencedEntry(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "deleted-ref@example.com")
+	digest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	digest.Set("referenced_entry_ids", []string{"deletedentry"})
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, dto, err := HandleDailyNewsEntryReference(app, user.Id, digest.Id, "deletedentry")
+	if err != nil {
+		t.Fatalf("unexpected unavailable response error: %v", err)
+	}
+	if status != http.StatusOK || dto.Available || dto.Message != "Referenced entry is no longer available." || dto.Entry != nil {
+		t.Fatalf("expected unavailable dto, status=%d dto=%+v", status, dto)
+	}
+}
+
 func TestHandleDailyNewsGenerateNowQueuesPendingJob(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

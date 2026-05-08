@@ -39,6 +39,24 @@ type DailyNewsDigestListDTO struct {
 	HasMore  bool                 `json:"has_more"`
 }
 
+type DailyNewsEntryReferenceDTO struct {
+	Available bool                   `json:"available"`
+	Message   string                 `json:"message,omitempty"`
+	Entry     *DailyNewsEntryCardDTO `json:"entry,omitempty"`
+}
+
+type DailyNewsEntryCardDTO struct {
+	ID             string   `json:"id"`
+	Title          string   `json:"title"`
+	URL            string   `json:"url"`
+	Summary        string   `json:"summary,omitempty"`
+	Takeaways      []string `json:"takeaways,omitempty"`
+	EffectiveStars int      `json:"effective_stars"`
+	SourceName     string   `json:"source_name,omitempty"`
+	PublishedAt    string   `json:"published_at,omitempty"`
+	DiscoveredAt   string   `json:"discovered_at,omitempty"`
+}
+
 func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 	se.Router.GET("/api/daily-news/digests", func(re *core.RequestEvent) error {
 		if re.Auth == nil {
@@ -72,6 +90,34 @@ func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 		}
 		return re.JSON(status, dto)
 	})
+	se.Router.GET("/api/daily-news/digests/{digestId}/entries/{entryId}", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		status, dto, err := HandleDailyNewsEntryReference(re.App, re.Auth.Id, re.Request.PathValue("digestId"), re.Request.PathValue("entryId"))
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
+}
+
+func HandleDailyNewsEntryReference(app core.App, userID, digestID, entryID string) (int, DailyNewsEntryReferenceDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsEntryReferenceDTO{}, errors.New("Authentication required.")
+	}
+	digest, err := app.FindRecordById("daily_digests", digestID)
+	if err != nil || digest.GetString("user") != userID {
+		return http.StatusNotFound, DailyNewsEntryReferenceDTO{}, errors.New("Entry reference not found.")
+	}
+	if !containsString(digest.GetStringSlice("referenced_entry_ids"), entryID) {
+		return http.StatusNotFound, DailyNewsEntryReferenceDTO{}, errors.New("Entry reference not found.")
+	}
+	entry, err := app.FindRecordById("entries", entryID)
+	if err != nil {
+		return http.StatusOK, DailyNewsEntryReferenceDTO{Available: false, Message: "Referenced entry is no longer available."}, nil
+	}
+	return http.StatusOK, DailyNewsEntryReferenceDTO{Available: true, Entry: dailyNewsEntryCardDTO(app, entry)}, nil
 }
 
 func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, offset int) (int, DailyNewsDigestListDTO, error) {
@@ -247,6 +293,7 @@ func dailyNewsDigestDTO(record *core.Record) DailyNewsDigestDTO {
 		LocalDate:      record.GetString("local_date"),
 		Title:          record.GetString("title"),
 		BodyMarkdown:   record.GetString("body_markdown"),
+		ReferencedIDs:  record.GetStringSlice("referenced_entry_ids"),
 		CandidateCount: int(record.GetFloat("candidate_count")),
 		IncludedCount:  int(record.GetFloat("included_count")),
 		UsedSubset:     record.GetBool("used_subset"),
@@ -255,4 +302,36 @@ func dailyNewsDigestDTO(record *core.Record) DailyNewsDigestDTO {
 		PeriodStart:    record.GetDateTime("period_start").String(),
 		PeriodEnd:      record.GetDateTime("period_end").String(),
 	}
+}
+
+func dailyNewsEntryCardDTO(app core.App, entry *core.Record) *DailyNewsEntryCardDTO {
+	effectiveStars := int(entry.GetFloat("ai_stars"))
+	if userStars := int(entry.GetFloat("user_stars")); userStars > 0 {
+		effectiveStars = userStars
+	}
+	dto := &DailyNewsEntryCardDTO{
+		ID:             entry.Id,
+		Title:          entry.GetString("title"),
+		URL:            entry.GetString("url"),
+		Summary:        entry.GetString("summary"),
+		Takeaways:      entry.GetStringSlice("takeaways"),
+		EffectiveStars: effectiveStars,
+		PublishedAt:    entry.GetDateTime("published_at").String(),
+		DiscoveredAt:   entry.GetDateTime("discovered_at").String(),
+	}
+	if resourceID := entry.GetString("resource"); resourceID != "" {
+		if resource, err := app.FindRecordById("resources", resourceID); err == nil {
+			dto.SourceName = resource.GetString("name")
+		}
+	}
+	return dto
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
 }
