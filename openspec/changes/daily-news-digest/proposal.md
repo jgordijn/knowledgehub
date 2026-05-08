@@ -13,12 +13,12 @@ KnowledgeHub currently summarizes individual articles, but it does not provide a
 - Include a dedicated breaking/developing section when relevant.
 - Include a concise "You May Also Find This Interesting" section for lower-rated but potentially useful articles when relevant.
 - Link referenced articles to KnowledgeHub entry cards so the user can inspect the article inside the app before opening the original source.
-- Allow manual generation and regeneration through authenticated server-side routes with atomic duplicate-active-job handling based on canonical per-user/local-date/window keys; near-simultaneous scheduled and manual attempts for the same local day collapse to one active job. Regeneration is the explicit exception to archive immutability: it targets the selected digest period, never overwrites while a same-day/window digest job is pending or running, preserves existing successful content while regeneration is active, replaces content only after success, and preserves prior successful content plus a sanitized failure state if regeneration fails.
+- Allow manual generation and regeneration through authenticated server-side routes with atomic duplicate-active-job handling based on canonical per-user/local-date/window keys; near-simultaneous scheduled and manual attempts for the same due window collapse to one active job, while pre-due ad-hoc manual digests do not suppress the later scheduled digest. Regeneration is the explicit exception to archive immutability: it targets the selected digest period, never overwrites while a same-day/window digest job is pending or running, preserves existing successful content while regeneration is active, replaces content only after success, and preserves prior successful content plus a sanitized failure state if regeneration fails.
 - Retain previous digests indefinitely as immutable owner-visible snapshots and provide a paginated way to browse them.
 - Create an explicit "No articles today" digest when there are no candidate entries.
 - Surface pending or failed digest states when generation cannot complete, such as missing AI configuration or LLM failure, using sanitized user-safe error messages.
 - Bound digest prompt size deterministically and record when only a subset of candidates was sent to the LLM.
-- Use asynchronous manual generation routes with explicit `pending -> running -> success|failed` status transitions, stale active-job recovery after crashes/redeploys, and atomic active-job uniqueness.
+- Use asynchronous manual generation routes that persist pending jobs before returning, a durable worker/claimer for `pending -> running -> success|failed` processing with heartbeat fields, stale active-job recovery after crashes/redeploys, and atomic active-job uniqueness.
 - Render digest Markdown through a strict sanitizer with an explicit Markdown/link allowlist, render KnowledgeHub entry references only from validated structured IDs and `[[kh-entry:<entry_id>]]` inline markers, and construct prompts so article/user text is treated as untrusted data rather than instructions.
 
 ## Capabilities
@@ -31,9 +31,9 @@ KnowledgeHub currently summarizes individual articles, but it does not provide a
 
 ## Impact
 
-- Backend collections: new user-owned Daily News digest and settings storage.
+- Backend collections: new user-owned Daily News digest and settings storage, including digest trigger, active-key, successful-snapshot, attempt-state, and heartbeat fields.
 - Backend scheduler: new per-user daily scheduling logic based on local time and timezone, including same-day missed-run catch-up without previous-day backfill.
 - AI processing: new digest-generation prompt and parser using existing article summaries rather than raw article content.
-- Routes/API: authenticated endpoints for settings, manual generation/regeneration, and digest retrieval with unauthenticated requests denied before lookup or mutation.
+- Routes/API: authenticated endpoints for settings, manual generation/regeneration, and digest retrieval with explicit GET/PUT settings semantics, paginated digest retrieval, and unauthenticated requests denied before lookup or mutation.
 - Frontend navigation and pages: Daily News page, archive browsing, settings controls, Markdown rendering, and entry-card modal behavior.
 - Tests: scheduler timing, digest window selection, AI prompt behavior, settings persistence, failure states, archive pagination, and UI logic.

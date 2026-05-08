@@ -1,7 +1,7 @@
 ## 1. Data Model and Test Fixtures
 
 - [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, defense-in-depth owner-scoped auth rules, read-only user-facing digest collection access, denied generic settings create/delete, persisted defaults, one-settings-record-per-user uniqueness, explicit server-route owner enforcement for `_superusers`, and user ownership.
-- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index and denying generic user-facing digest create/update/delete rules.
+- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index, digest trigger/active-key/snapshot/attempt/heartbeat fields, and denying generic user-facing digest create/update/delete rules.
 - [ ] 1.3 Add testutil helpers for creating Daily News settings and digest records.
 - [ ] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
 
@@ -9,8 +9,8 @@
 
 - [ ] 2.1 Add failing tests for digest input window selection: previous successful digest, failed digest non-advancement, first 24-hour fallback, published_at match, and discovered_at match.
 - [ ] 2.2 Implement digest candidate query logic using entries visible to the target user.
-- [ ] 2.3 Add failing tests for timezone due checks, same-day missed-run catch-up after downtime, no automatic previous-day backfill, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active `pending -> running -> success|failed` status transitions, stale pending/running job recovery after crash/redeploy, failed retry behavior, deterministic canonical job/window keys, atomic active job duplicate prevention under concurrent manual/scheduled attempts with slightly different `now` values, and DST edge cases.
-- [ ] 2.4 Implement scheduler integration that checks enabled users discovered from materialized `_superusers` settings, performs stale active-job recovery, and starts due digest jobs with deterministic transactional/unique active-job claiming.
+- [ ] 2.3 Add failing tests for timezone due checks, same-day missed-run catch-up after downtime, no automatic previous-day backfill, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active `pending -> running -> success|failed` status transitions, stale pending/running job recovery after crash/redeploy, failed retry behavior, deterministic canonical job/window keys, pre-due manual generation not suppressing the later scheduled digest, atomic active job duplicate prevention under concurrent manual/scheduled attempts with slightly different `now` values, and DST edge cases.
+- [ ] 2.4 Implement scheduler integration that checks enabled users discovered from materialized `_superusers` settings, performs stale active-job recovery, runs/wakes a durable pending-job worker with transactional single-consumer claims and heartbeat updates, and starts due digest jobs with deterministic transactional/unique active-job claiming.
 
 ## 3. AI Digest Generation
 
@@ -22,11 +22,11 @@
 
 ## 4. Manual Generation APIs
 
-- [ ] 4.1 Add failing route/API tests for authenticated asynchronous manual Generate now behavior, `202 Accepted` newly queued jobs, `200 OK` same-day successful digest idempotency, active job reuse, failed digest retry, owner scoping, and unauthenticated denial without job creation or existence leaks.
+- [ ] 4.1 Add failing route/API tests for authenticated asynchronous manual Generate now behavior, `202 Accepted` newly queued persisted pending jobs, worker pickup after route/process interruption, `200 OK` same-day successful digest idempotency, active job reuse, failed digest retry, owner scoping, and unauthenticated denial without job creation or existence leaks.
 - [ ] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
-- [ ] 4.3 Add failing route/API tests for Regenerate replacing an owned existing terminal digest only after success, preserving its period/local date, preserving prior successful content during active regeneration and after failed regeneration with sanitized error state, returning existing active state without overwrite for pending/running selected digests or same-day/window active jobs, denying cross-user regeneration, and unauthenticated denial without mutation or existence leaks.
+- [ ] 4.3 Add failing route/API tests for Regenerate replacing an owned existing terminal digest only after success, preserving its period/local date, using explicit successful-snapshot/attempt-state fields, preserving prior successful content during active regeneration and after failed regeneration with sanitized error state, returning existing active state without overwrite for pending/running selected digests or same-day/window active jobs, denying cross-user regeneration, and unauthenticated denial without mutation or existence leaks.
 - [ ] 4.4 Implement regeneration replacement behavior in a server-side route with status, content, references, counts, generated timestamp updates, and prior-success preservation on active/failed regeneration.
-- [ ] 4.5 Add concurrency tests proving the database uniqueness/lock prevents duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values.
+- [ ] 4.5 Add concurrency tests proving the database uniqueness/lock prevents duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values and pre-due manual versus later scheduled attempts.
 
 ## 5. Daily News Frontend
 
@@ -34,7 +34,7 @@
 - [ ] 5.2 Add Daily News navigation item and route.
 - [ ] 5.3 Implement latest digest display with sanitized Markdown rendering, explicit element/link allowlist, strict handling of raw HTML/images/dangerous URL schemes/untrusted links, subset indication, and newspaper-like visual styling.
 - [ ] 5.4 Implement pending, failed, and "No articles today" UI states.
-- [ ] 5.5 Add paginated or load-more previous digest browsing and selection.
+- [ ] 5.5 Add route-backed paginated or load-more previous digest browsing and selection with owner enforcement.
 - [ ] 5.6 Add Generate now and Regenerate controls with loading and error states.
 
 ## 6. Entry Reference Modal
@@ -46,7 +46,7 @@
 
 ## 7. Daily News Settings UI
 
-- [ ] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings, unauthenticated settings denial, and extra-instruction length/character validation allowing printable Unicode plus `\t`, `\n`, and `\r` while rejecting other control/format characters.
+- [ ] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings through explicit GET/PUT route contracts, default materialization, `400` validation errors preserving previous values, unauthenticated settings denial, and extra-instruction length/character validation allowing printable Unicode plus `\t`, `\n`, and `\r` while rejecting other control/format characters.
 - [ ] 7.2 Add settings controls for enablement, generation time, timezone, and extra digest instructions.
 - [ ] 7.3 Validate IANA timezone values, local time format, and 2000-code-point extra-instruction limits in backend and frontend paths, preserving previous valid values on rejected saves.
 - [ ] 7.4 Ensure saved extra instructions affect subsequent manual and scheduled generation.
