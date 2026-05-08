@@ -355,6 +355,10 @@ The system SHALL allow authenticated users to manually generate a Daily News dig
 - **WHEN** regeneration of a previously successful digest fails after entering an active state
 - **THEN** the system keeps `has_successful_snapshot=true`, keeps the prior successful body and validated references visible, stores a sanitized failure state/message for the failed regeneration attempt, and does not replace the digest content with partial or failed output
 
+#### Scenario: Failed regeneration preserves scheduled success reservation
+- **WHEN** regeneration of a previously successful scheduled digest fails after entering an active state
+- **THEN** the system preserves the digest's successful scheduled-day reservation while clearing active lock keys so no second scheduled digest can be created for the same user and local date
+
 #### Scenario: Regeneration fails without previous success
 - **WHEN** regeneration or retry of a digest that has never succeeded fails
 - **THEN** the digest has no successful snapshot to display, stores only a sanitized failure state/message, and leaves body/reference/count snapshot fields empty or non-authoritative
