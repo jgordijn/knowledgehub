@@ -23,6 +23,15 @@ export type DailyNewsDigestDTO = {
 	referenced_entry_ids?: string[];
 };
 
+export type DailyNewsSettingsDTO = {
+	id?: string;
+	user?: string;
+	enabled: boolean;
+	generation_time: string;
+	timezone: string;
+	extra_instructions: string;
+};
+
 export type DailyNewsEntryReferenceDTO = {
 	available: boolean;
 	message?: string;
@@ -78,6 +87,27 @@ export function dailyNewsRegenerateButtonLabel(loading: boolean): string {
 
 export function dailyNewsCanRegenerate(digest: DailyNewsDigestDTO | null | undefined): boolean {
 	return digest?.status === 'success' || digest?.status === 'failed';
+}
+
+export function validateDailyNewsSettings(settings: Pick<DailyNewsSettingsDTO, 'generation_time' | 'timezone' | 'extra_instructions'>): string[] {
+	const errors: string[] = [];
+	if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.generation_time)) {
+		errors.push('Use a 24-hour HH:MM generation time.');
+	}
+	if (!settings.timezone.trim()) {
+		errors.push('Choose a timezone.');
+	}
+	if ([...settings.extra_instructions].length > 2000) {
+		errors.push('Extra instructions must be 2000 characters or fewer.');
+	}
+	for (const char of settings.extra_instructions) {
+		if (char === '\t' || char === '\n' || char === '\r') continue;
+		if (/\p{Cc}|\p{Cf}/u.test(char)) {
+			errors.push('Extra instructions contain unsupported control characters.');
+			break;
+		}
+	}
+	return errors;
 }
 
 export function dailyNewsSubsetMessage(digest: Pick<DailyNewsDigestDTO, 'used_subset' | 'included_count' | 'candidate_count'>): string {

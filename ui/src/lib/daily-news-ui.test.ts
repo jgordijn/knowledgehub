@@ -11,6 +11,7 @@ import {
 	dailyNewsRegenerateButtonLabel,
 	dailyNewsCanRegenerate,
 	renderDailyNewsReferences,
+	validateDailyNewsSettings,
 	type DailyNewsDigestDTO
 } from './daily-news-ui';
 
@@ -82,6 +83,14 @@ Top **story** with [safe link](https://example.com).
 		expect(dailyNewsCanRegenerate({ id: 'f', status: 'failed' })).toBe(true);
 		expect(dailyNewsCanRegenerate({ id: 'p', status: 'pending' })).toBe(false);
 		expect(dailyNewsCanRegenerate(null)).toBe(false);
+	});
+
+	it('validates Daily News settings before saving', () => {
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'Europe/Amsterdam', extra_instructions: 'Use bullets\nFocus AI' })).toEqual([]);
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '8:00', timezone: 'Europe/Amsterdam', extra_instructions: '' })).toContain('Use a 24-hour HH:MM generation time.');
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: '', extra_instructions: '' })).toContain('Choose a timezone.');
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'UTC', extra_instructions: 'x'.repeat(2001) })).toContain('Extra instructions must be 2000 characters or fewer.');
+		expect(validateDailyNewsSettings({ enabled: true, generation_time: '08:00', timezone: 'UTC', extra_instructions: 'bad\u0001' })).toContain('Extra instructions contain unsupported control characters.');
 	});
 
 	it('renders validated inline KnowledgeHub entry markers as in-app controls only for stored references', () => {

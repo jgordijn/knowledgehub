@@ -46,10 +46,10 @@
 
 ## 7. Daily News Settings UI
 
-- [ ] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings through explicit GET/PUT route contracts, default materialization, `400` validation errors preserving previous values, unauthenticated settings denial, and extra-instruction length/character validation allowing printable Unicode plus `\t`, `\n`, and `\r` while rejecting other control/format characters.
-- [ ] 7.2 Add settings controls for enablement, generation time, timezone, and extra digest instructions.
-- [ ] 7.3 Validate IANA timezone values, local time format, and 2000-code-point extra-instruction limits in backend and frontend paths, preserving previous valid values on rejected saves.
-- [ ] 7.4 Ensure saved extra instructions affect subsequent manual and scheduled generation.
+- [x] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings through explicit GET/PUT route contracts, default materialization, `400` validation errors preserving previous values, unauthenticated settings denial, and extra-instruction length/character validation allowing printable Unicode plus `\t`, `\n`, and `\r` while rejecting other control/format characters.
+- [x] 7.2 Add settings controls for enablement, generation time, timezone, and extra digest instructions.
+- [x] 7.3 Validate IANA timezone values, local time format, and 2000-code-point extra-instruction limits in backend and frontend paths, preserving previous valid values on rejected saves.
+- [x] 7.4 Ensure saved extra instructions affect subsequent manual and scheduled generation.
 
 ## 8. Verification and Coverage
 

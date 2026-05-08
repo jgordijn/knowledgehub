@@ -96,3 +96,12 @@ Review count (post-implementation): 0/5
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsEntryReference|TestHandleDailyNewsListDigests|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate' -count=1`.
 - Started task group 7.1-7.4 locally: settings API validation, settings UI, frontend validation, and prompt propagation share Daily News settings contracts across route/UI/helper files, so they are **not parallelized**.
+- Completed task group 7.1-7.4 locally:
+  - Added red/green settings route tests for default materialization, valid saves, invalid-save preservation, unauthenticated denial, schedule validation, and extra-instruction character validation.
+  - Implemented `GET/PUT /api/daily-news/settings` with auth-derived ownership, idempotent get-or-create, backend schedule/extra-instruction validation, and sanitized validation errors.
+  - Added red/green frontend helper validation coverage and Daily News settings controls for enablement, generation time, timezone, and extra digest instructions.
+  - Saved instructions persist in `daily_news_settings.extra_instructions`, the field used by Daily News prompt construction/generation inputs.
+  - Marked OpenSpec tasks 7.1-7.4 complete.
+- Tests run: `go test ./internal/routes -run TestHandleDailyNewsSettings -count=1`.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsSettings|TestHandleDailyNewsEntryReference' -count=1`.
