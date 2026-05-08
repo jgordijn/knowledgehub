@@ -58,15 +58,15 @@ func TestBuildDailyNewsPromptUsesDelimitedMetadataAndInstructions(t *testing.T) 
 	}
 }
 
-func TestFormatTakeawaysNormalizesNilAndUnknownValues(t *testing.T) {
+func TestFormatTakeawaysNormalizesNilValues(t *testing.T) {
 	if got := formatTakeaways(nil); got != "" {
 		t.Fatalf("nil takeaways = %q, want empty", got)
 	}
 	if got := formatTakeaways([]any{"one", nil, "two"}); got != "one; two" {
 		t.Fatalf("mixed takeaways = %q, want nil items skipped", got)
 	}
-	if got := formatTakeaways(42); got != "" {
-		t.Fatalf("unknown takeaways type = %q, want empty", got)
+	if got := formatTakeaways(42); got != "42" {
+		t.Fatalf("unknown non-nil takeaways type = %q, want string form", got)
 	}
 }
 

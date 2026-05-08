@@ -240,6 +240,10 @@ func formatTakeaways(value any) string {
 		}
 		return strings.Join(parts, "; ")
 	default:
-		return ""
+		text := fmt.Sprint(value)
+		if text == "<nil>" {
+			return ""
+		}
+		return text
 	}
 }
