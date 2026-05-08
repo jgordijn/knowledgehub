@@ -71,6 +71,40 @@ func TestHandleDailyNewsSettingsRequiresAuthentication(t *testing.T) {
 	}
 }
 
+func TestHandleDailyNewsGetDigestReturnsOwnedDigestAndDeniesCrossUser(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	owner := testutil.CreateSuperuser(t, app, "digest-owner@example.com")
+	other := testutil.CreateSuperuser(t, app, "digest-other@example.com")
+	digest := testutil.CreateDailyDigest(t, app, owner.Id, "2026-05-08", "success", "automatic")
+	digest.Set("title", "Daily Briefing")
+	digest.Set("body_markdown", "# Lead")
+	digest.Set("referenced_entry_ids", []string{"entry-one"})
+	digest.Set("candidate_count", 3)
+	digest.Set("included_count", 1)
+	digest.Set("used_subset", true)
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	status, dto, err := HandleDailyNewsGetDigest(app, owner.Id, digest.Id)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("expected owned digest, status=%d err=%v", status, err)
+	}
+	if dto.ID != digest.Id || dto.User != owner.Id || dto.Title != "Daily Briefing" || dto.BodyMarkdown != "# Lead" || dto.CandidateCount != 3 || dto.IncludedCount != 1 || !dto.UsedSubset || len(dto.ReferencedIDs) != 1 {
+		t.Fatalf("unexpected digest dto: %+v", dto)
+	}
+
+	status, _, err = HandleDailyNewsGetDigest(app, other.Id, digest.Id)
+	if status != http.StatusNotFound || err == nil {
+		t.Fatalf("expected cross-user safe not found, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsGetDigest(app, "", digest.Id)
+	if status != http.StatusUnauthorized || err == nil {
+		t.Fatalf("expected auth denial, status=%d err=%v", status, err)
+	}
+}
+
 func TestHandleDailyNewsEntryReferenceReturnsSanitizedReferencedEntry(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
