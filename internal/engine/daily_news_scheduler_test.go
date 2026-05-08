@@ -178,6 +178,30 @@ func TestProcessPendingDailyNewsJobsRefreshesHeartbeatDuringGeneration(t *testin
 	}
 }
 
+func TestProcessPendingDailyNewsJobsStoresClearMissingAPIKeyFailure(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-missing-api@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	periodEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+	job, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodEnd.Add(-24 * time.Hour), PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
+	if err != nil {
+		t.Fatalf("claim job: %v", err)
+	}
+
+	processed, err := ProcessPendingDailyNewsJobs(app, periodEnd.Add(time.Minute))
+	if err != nil || processed != 1 {
+		t.Fatalf("processed=%d err=%v", processed, err)
+	}
+	updated, err := app.FindRecordById("daily_digests", job.Id)
+	if err != nil {
+		t.Fatalf("find digest: %v", err)
+	}
+	if updated.GetString("status") != "failed" || updated.GetString("error_message") != "OpenRouter API key is not configured. Configure it in Settings before generating Daily News." {
+		t.Fatalf("expected clear missing API key failure, status=%q error=%q", updated.GetString("status"), updated.GetString("error_message"))
+	}
+}
+
 func TestProcessPendingDailyNewsJobsGeneratesTerminalDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
