@@ -15,21 +15,27 @@ import (
 )
 
 type DailyNewsDigestDTO struct {
-	ID             string   `json:"id"`
-	User           string   `json:"user"`
-	Status         string   `json:"status"`
-	Trigger        string   `json:"trigger"`
-	LocalDate      string   `json:"local_date"`
-	Title          string   `json:"title,omitempty"`
-	BodyMarkdown   string   `json:"body_markdown,omitempty"`
-	ReferencedIDs  []string `json:"referenced_entry_ids,omitempty"`
-	CandidateCount int      `json:"candidate_count"`
-	IncludedCount  int      `json:"included_count"`
-	UsedSubset     bool     `json:"used_subset"`
-	ErrorMessage   string   `json:"error_message,omitempty"`
-	GeneratedAt    string   `json:"generated_at,omitempty"`
-	PeriodStart    string   `json:"period_start,omitempty"`
-	PeriodEnd      string   `json:"period_end,omitempty"`
+	ID                    string   `json:"id"`
+	User                  string   `json:"user"`
+	Status                string   `json:"status"`
+	Trigger               string   `json:"trigger"`
+	LocalDate             string   `json:"local_date"`
+	Title                 string   `json:"title,omitempty"`
+	BodyMarkdown          string   `json:"body_markdown,omitempty"`
+	ReferencedIDs         []string `json:"referenced_entry_ids,omitempty"`
+	CandidateCount        int      `json:"candidate_count"`
+	IncludedCount         int      `json:"included_count"`
+	UsedSubset            bool     `json:"used_subset"`
+	ErrorMessage          string   `json:"error_message,omitempty"`
+	GeneratedAt           string   `json:"generated_at,omitempty"`
+	LastSuccessAt         string   `json:"last_success_at,omitempty"`
+	HasSuccessfulSnapshot bool     `json:"has_successful_snapshot"`
+	AttemptFinishedAt     string   `json:"attempt_finished_at,omitempty"`
+	QueuedAt              string   `json:"queued_at,omitempty"`
+	StartedAt             string   `json:"started_at,omitempty"`
+	HeartbeatAt           string   `json:"heartbeat_at,omitempty"`
+	PeriodStart           string   `json:"period_start,omitempty"`
+	PeriodEnd             string   `json:"period_end,omitempty"`
 }
 
 type DailyNewsDigestListDTO struct {
@@ -424,21 +430,27 @@ func validateDailyNewsSettingsInput(input DailyNewsSettingsInput) error {
 
 func dailyNewsDigestDTO(record *core.Record) DailyNewsDigestDTO {
 	return DailyNewsDigestDTO{
-		ID:             record.Id,
-		User:           record.GetString("user"),
-		Status:         record.GetString("status"),
-		Trigger:        record.GetString("trigger"),
-		LocalDate:      record.GetString("local_date"),
-		Title:          record.GetString("title"),
-		BodyMarkdown:   record.GetString("body_markdown"),
-		ReferencedIDs:  record.GetStringSlice("referenced_entry_ids"),
-		CandidateCount: int(record.GetFloat("candidate_count")),
-		IncludedCount:  int(record.GetFloat("included_count")),
-		UsedSubset:     record.GetBool("used_subset"),
-		ErrorMessage:   record.GetString("error_message"),
-		GeneratedAt:    record.GetDateTime("last_success_at").String(),
-		PeriodStart:    record.GetDateTime("period_start").String(),
-		PeriodEnd:      record.GetDateTime("period_end").String(),
+		ID:                    record.Id,
+		User:                  record.GetString("user"),
+		Status:                record.GetString("status"),
+		Trigger:               record.GetString("trigger"),
+		LocalDate:             record.GetString("local_date"),
+		Title:                 record.GetString("title"),
+		BodyMarkdown:          record.GetString("body_markdown"),
+		ReferencedIDs:         record.GetStringSlice("referenced_entry_ids"),
+		CandidateCount:        int(record.GetFloat("candidate_count")),
+		IncludedCount:         int(record.GetFloat("included_count")),
+		UsedSubset:            record.GetBool("used_subset"),
+		ErrorMessage:          record.GetString("error_message"),
+		GeneratedAt:           record.GetDateTime("last_success_at").String(),
+		LastSuccessAt:         record.GetDateTime("last_success_at").String(),
+		HasSuccessfulSnapshot: record.GetBool("has_successful_snapshot"),
+		AttemptFinishedAt:     record.GetDateTime("attempt_finished_at").String(),
+		QueuedAt:              record.GetDateTime("queued_at").String(),
+		StartedAt:             record.GetDateTime("started_at").String(),
+		HeartbeatAt:           record.GetDateTime("heartbeat_at").String(),
+		PeriodStart:           record.GetDateTime("period_start").String(),
+		PeriodEnd:             record.GetDateTime("period_end").String(),
 	}
 }
 

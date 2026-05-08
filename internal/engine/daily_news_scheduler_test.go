@@ -178,20 +178,44 @@ func TestProcessPendingDailyNewsJobsRefreshesHeartbeatDuringGeneration(t *testin
 	}
 }
 
-func TestProcessPendingDailyNewsJobsStoresClearMissingAPIKeyFailure(t *testing.T) {
+func TestProcessPendingDailyNewsJobsStoresClearMissingAPIKeyFailureOnlyWhenCandidatesNeedAI(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
 	user := testutil.CreateSuperuser(t, app, "daily-news-missing-api@example.com")
 	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
 	periodEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
-	job, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodEnd.Add(-24 * time.Hour), PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
-	if err != nil {
-		t.Fatalf("claim job: %v", err)
-	}
 
+	emptyJob, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: periodEnd.Add(-24 * time.Hour), PeriodEnd: periodEnd, Trigger: "automatic", Scheduled: true, Now: periodEnd})
+	if err != nil {
+		t.Fatalf("claim empty job: %v", err)
+	}
 	processed, err := ProcessPendingDailyNewsJobs(app, periodEnd.Add(time.Minute))
 	if err != nil || processed != 1 {
-		t.Fatalf("processed=%d err=%v", processed, err)
+		t.Fatalf("empty processed=%d err=%v", processed, err)
+	}
+	updatedEmpty, err := app.FindRecordById("daily_digests", emptyJob.Id)
+	if err != nil {
+		t.Fatalf("find empty digest: %v", err)
+	}
+	if updatedEmpty.GetString("status") != "success" || updatedEmpty.GetString("title") != "No articles today" || !updatedEmpty.GetBool("has_successful_snapshot") {
+		t.Fatalf("expected no-candidate success without api key, status=%q title=%q snapshot=%v", updatedEmpty.GetString("status"), updatedEmpty.GetString("title"), updatedEmpty.GetBool("has_successful_snapshot"))
+	}
+
+	resource := testutil.CreateResource(t, app, "Source", "https://example.com/feed", "rss", "healthy", 0, true)
+	entry := testutil.CreateEntry(t, app, resource.Id, "Needs AI", "https://example.com/needs-ai", "needs-ai")
+	entry.Set("discovered_at", "2026-05-09T05:30:00Z")
+	if err := app.Save(entry); err != nil {
+		t.Fatalf("save entry: %v", err)
+	}
+	nextEnd := periodEnd.Add(24 * time.Hour)
+	job, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-09", PeriodStart: periodEnd, PeriodEnd: nextEnd, Trigger: "automatic", Scheduled: true, Now: nextEnd})
+	if err != nil {
+		t.Fatalf("claim candidate job: %v", err)
+	}
+
+	processed, err = ProcessPendingDailyNewsJobs(app, nextEnd.Add(time.Minute))
+	if err != nil || processed != 1 {
+		t.Fatalf("candidate processed=%d err=%v", processed, err)
 	}
 	updated, err := app.FindRecordById("daily_digests", job.Id)
 	if err != nil {

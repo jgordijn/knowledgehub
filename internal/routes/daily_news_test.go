@@ -83,6 +83,12 @@ func TestHandleDailyNewsGetDigestReturnsOwnedDigestAndDeniesCrossUser(t *testing
 	digest.Set("candidate_count", 3)
 	digest.Set("included_count", 1)
 	digest.Set("used_subset", true)
+	digest.Set("has_successful_snapshot", true)
+	digest.Set("last_success_at", "2026-05-08T08:01:00Z")
+	digest.Set("queued_at", "2026-05-08T08:00:00Z")
+	digest.Set("started_at", "2026-05-08T08:00:10Z")
+	digest.Set("heartbeat_at", "2026-05-08T08:00:20Z")
+	digest.Set("attempt_finished_at", "2026-05-08T08:01:00Z")
 	if err := app.Save(digest); err != nil {
 		t.Fatalf("save digest: %v", err)
 	}
@@ -93,6 +99,9 @@ func TestHandleDailyNewsGetDigestReturnsOwnedDigestAndDeniesCrossUser(t *testing
 	}
 	if dto.ID != digest.Id || dto.User != owner.Id || dto.Title != "Daily Briefing" || dto.BodyMarkdown != "# Lead" || dto.CandidateCount != 3 || dto.IncludedCount != 1 || !dto.UsedSubset || len(dto.ReferencedIDs) != 1 {
 		t.Fatalf("unexpected digest dto: %+v", dto)
+	}
+	if !dto.HasSuccessfulSnapshot || dto.LastSuccessAt == "" || dto.QueuedAt == "" || dto.StartedAt == "" || dto.HeartbeatAt == "" || dto.AttemptFinishedAt == "" {
+		t.Fatalf("digest dto missing snapshot/attempt metadata: %+v", dto)
 	}
 
 	status, _, err = HandleDailyNewsGetDigest(app, other.Id, digest.Id)
