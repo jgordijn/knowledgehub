@@ -376,6 +376,20 @@ func TestCompleteDailyNewsRegenerationSuccessAndFailureSnapshots(t *testing.T) {
 	}
 }
 
+func TestHandleDailyNewsListDigestsReturnsExplicitEmptyState(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "empty-digests@example.com")
+
+	status, result, err := HandleDailyNewsListDigests(app, user.Id, "", 10, 0)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("expected empty list success, status=%d result=%+v err=%v", status, result, err)
+	}
+	if result.Latest != nil || result.Selected != nil || len(result.Archive) != 0 || result.HasMore {
+		t.Fatalf("expected nil latest/selected empty archive, got %+v", result)
+	}
+}
+
 func TestHandleDailyNewsListDigestsReturnsLatestArchiveAndSelectedOwnedDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

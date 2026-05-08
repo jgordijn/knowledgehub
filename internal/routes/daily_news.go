@@ -33,8 +33,8 @@ type DailyNewsDigestDTO struct {
 }
 
 type DailyNewsDigestListDTO struct {
-	Latest   DailyNewsDigestDTO   `json:"latest"`
-	Selected DailyNewsDigestDTO   `json:"selected"`
+	Latest   *DailyNewsDigestDTO  `json:"latest"`
+	Selected *DailyNewsDigestDTO  `json:"selected"`
 	Archive  []DailyNewsDigestDTO `json:"archive"`
 	Limit    int                  `json:"limit"`
 	Offset   int                  `json:"offset"`
@@ -236,7 +236,9 @@ func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, 
 	for _, record := range records {
 		archive = append(archive, dailyNewsDigestDTO(record))
 	}
-	return http.StatusOK, DailyNewsDigestListDTO{Latest: dailyNewsDigestDTO(latest), Selected: dailyNewsDigestDTO(selected), Archive: archive, Limit: limit, Offset: offset, HasMore: hasMore}, nil
+	latestDTO := dailyNewsDigestDTO(latest)
+	selectedDTO := dailyNewsDigestDTO(selected)
+	return http.StatusOK, DailyNewsDigestListDTO{Latest: &latestDTO, Selected: &selectedDTO, Archive: archive, Limit: limit, Offset: offset, HasMore: hasMore}, nil
 }
 
 func HandleDailyNewsGenerateNow(app core.App, userID string, now time.Time) (int, DailyNewsDigestDTO, error) {
