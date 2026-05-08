@@ -1,7 +1,7 @@
 ## 1. Data Model and Test Fixtures
 
 - [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, defense-in-depth owner-scoped auth rules, read-only user-facing digest collection access, denied generic settings create/delete, persisted defaults, one-settings-record-per-user uniqueness, explicit server-route owner enforcement for `_superusers`, and user ownership.
-- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index, digest trigger/active-key/snapshot/attempt/heartbeat fields, and denying generic user-facing digest create/update/delete rules.
+- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index, digest trigger/concrete SQLite-backed lock-key/snapshot/attempt/heartbeat fields, non-empty active/success lock unique indexes, and denying generic user-facing digest create/update/delete rules.
 - [ ] 1.3 Add testutil helpers for creating Daily News settings and digest records.
 - [ ] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
 
@@ -26,22 +26,22 @@
 - [ ] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
 - [ ] 4.3 Add failing route/API tests for Regenerate replacing an owned existing terminal digest only after success, preserving its period/local date, using explicit successful-snapshot/attempt-state fields, preserving prior successful content during active regeneration and after failed regeneration with sanitized error state, returning existing active state without overwrite for pending/running selected digests or same-day/window active jobs, denying cross-user regeneration, and unauthenticated denial without mutation or existence leaks.
 - [ ] 4.4 Implement regeneration replacement behavior in a server-side route with status, content, references, counts, generated timestamp updates, and prior-success preservation on active/failed regeneration.
-- [ ] 4.5 Add concurrency tests proving the database uniqueness/lock prevents duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values and pre-due manual versus later scheduled attempts.
+- [ ] 4.5 Add concurrency tests proving the concrete database uniqueness/lock fields and indexes prevent duplicate active jobs for the same user/local date and canonical digest period, including scheduled/manual races with slightly different observed `now` values and pre-due manual versus later scheduled attempts.
 
 ## 5. Daily News Frontend
 
 - [ ] 5.1 Add failing UI/unit tests for Daily News navigation visibility and page loading states.
 - [ ] 5.2 Add Daily News navigation item and route.
-- [ ] 5.3 Implement latest digest display with sanitized Markdown rendering, explicit element/link allowlist, strict handling of raw HTML/images/dangerous URL schemes/untrusted links, subset indication, and newspaper-like visual styling.
+- [ ] 5.3 Implement latest digest display using route DTO raw `body_markdown` rendered only through the Daily News sanitizer component, explicit element/link allowlist, strict handling of raw HTML/images/dangerous URL schemes/untrusted links, subset indication, and newspaper-like visual styling.
 - [ ] 5.4 Implement pending, failed, and "No articles today" UI states.
 - [ ] 5.5 Add route-backed paginated or load-more previous digest browsing and selection with owner enforcement.
 - [ ] 5.6 Add Generate now and Regenerate controls with loading and error states.
 
 ## 6. Entry Reference Modal
 
-- [ ] 6.1 Add failing UI tests for opening an entry card from a Daily News reference.
+- [ ] 6.1 Add failing UI and route tests for opening an entry card from a Daily News reference through a digest-scoped endpoint, including digest ownership, referenced-entry membership, current entry visibility, sanitized DTO shape, unavailable state, and no cross-user existence leak.
 - [ ] 6.2 Implement internal entry reference rendering from validated structured digest references and inline `[[kh-entry:<entry_id>]]` marker locations, not model-generated Markdown URLs.
-- [ ] 6.3 Implement entry-card modal behavior that reuses existing entry card display/actions where practical.
+- [ ] 6.3 Implement the digest-scoped entry-reference read route and entry-card modal behavior that reuses existing entry card display/actions where practical.
 - [ ] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible, while keeping archived digest body snapshots visible to the digest owner.
 
 ## 7. Daily News Settings UI
