@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -45,6 +46,83 @@ func TestRegisterCollections_ExtendsSuperuserAuthTokenDuration(t *testing.T) {
 	if got := superusers.AuthToken.Duration; got != rememberMeAuthTokenDurationSeconds {
 		t.Fatalf("superuser auth token duration = %d, want %d", got, rememberMeAuthTokenDurationSeconds)
 	}
+}
+
+func TestRegisterCollections_CreatesDailyNewsCollections(t *testing.T) {
+	app, cleanup := newTestApp(t)
+	defer cleanup()
+
+	registerCollections(app)
+
+	settings, err := app.FindCollectionByNameOrId("daily_news_settings")
+	if err != nil {
+		t.Fatalf("daily_news_settings collection not found: %v", err)
+	}
+	assertFieldExists(t, settings, "user")
+	assertFieldExists(t, settings, "enabled")
+	assertFieldExists(t, settings, "generation_time")
+	assertFieldExists(t, settings, "timezone")
+	assertFieldExists(t, settings, "extra_instructions")
+	assertRule(t, "settings list", settings.ListRule, "user = @request.auth.id")
+	assertRule(t, "settings view", settings.ViewRule, "user = @request.auth.id")
+	assertDeniedRule(t, "settings create", settings.CreateRule)
+	assertDeniedRule(t, "settings delete", settings.DeleteRule)
+	assertIndexContains(t, settings, "unique", "user")
+
+	digests, err := app.FindCollectionByNameOrId("daily_digests")
+	if err != nil {
+		t.Fatalf("daily_digests collection not found: %v", err)
+	}
+	for _, field := range []string{"user", "local_date", "period_start", "period_end", "status", "trigger", "title", "body_markdown", "referenced_entry_ids", "candidate_count", "included_count", "used_subset", "has_successful_snapshot", "last_success_at", "error_message", "queued_at", "started_at", "heartbeat_at", "attempt_finished_at", "window_key", "active_window_key", "scheduled_day_key", "active_scheduled_day_key", "successful_scheduled_day_key"} {
+		assertFieldExists(t, digests, field)
+	}
+	assertRule(t, "digests list", digests.ListRule, "user = @request.auth.id")
+	assertRule(t, "digests view", digests.ViewRule, "user = @request.auth.id")
+	assertDeniedRule(t, "digests create", digests.CreateRule)
+	assertDeniedRule(t, "digests update", digests.UpdateRule)
+	assertDeniedRule(t, "digests delete", digests.DeleteRule)
+	assertIndexContains(t, digests, "active_window_key", "where active_window_key != ''")
+	assertIndexContains(t, digests, "active_scheduled_day_key", "where active_scheduled_day_key != ''")
+	assertIndexContains(t, digests, "successful_scheduled_day_key", "where successful_scheduled_day_key != ''")
+}
+
+func assertFieldExists(t *testing.T, collection *core.Collection, name string) {
+	t.Helper()
+	if collection.Fields.GetByName(name) == nil {
+		t.Fatalf("%s missing field %s", collection.Name, name)
+	}
+}
+
+func assertRule(t *testing.T, label string, rule *string, want string) {
+	t.Helper()
+	if rule == nil || !strings.Contains(*rule, want) {
+		t.Fatalf("%s rule = %v, want to contain %q", label, rule, want)
+	}
+}
+
+func assertDeniedRule(t *testing.T, label string, rule *string) {
+	t.Helper()
+	if rule == nil || strings.TrimSpace(*rule) != "" {
+		t.Fatalf("%s rule = %v, want denied empty rule", label, rule)
+	}
+}
+
+func assertIndexContains(t *testing.T, collection *core.Collection, parts ...string) {
+	t.Helper()
+	for _, idx := range collection.Indexes {
+		lower := strings.ToLower(idx)
+		matched := true
+		for _, part := range parts {
+			if !strings.Contains(lower, strings.ToLower(part)) {
+				matched = false
+				break
+			}
+		}
+		if matched {
+			return
+		}
+	}
+	t.Fatalf("%s indexes %v do not contain all parts %v", collection.Name, collection.Indexes, parts)
 }
 
 func TestEnsureSuperuserAuthTokenDuration_PreservesLongerDuration(t *testing.T) {
