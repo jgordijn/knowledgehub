@@ -5,6 +5,8 @@ import {
 	renderDailyNewsMarkdown,
 	dailyNewsSubsetMessage,
 	dailyNewsStateMessage,
+	dailyNewsArchiveLabel,
+	selectDailyNewsDigest,
 	type DailyNewsDigestDTO
 } from './daily-news-ui';
 
@@ -57,13 +59,23 @@ Top **story** with [safe link](https://example.com).
 		expect(dailyNewsSubsetMessage({ ...digest, used_subset: false })).toBe('');
 	});
 
+	it('labels archive editions and selects an owned digest by id', () => {
+		const latest: DailyNewsDigestDTO = { id: 'latest', status: 'success', local_date: '2026-05-08', title: 'Morning' };
+		const older: DailyNewsDigestDTO = { id: 'older', status: 'success', local_date: '2026-05-07' };
+
+		expect(dailyNewsArchiveLabel(latest)).toBe('2026-05-08 · Morning');
+		expect(dailyNewsArchiveLabel(older)).toBe('2026-05-07');
+		expect(selectDailyNewsDigest([latest, older], 'older')).toEqual(older);
+		expect(selectDailyNewsDigest([latest, older], 'missing')).toEqual(latest);
+	});
+
 	it('describes pending, running, failed, and empty digest states', () => {
 		expect(dailyNewsStateMessage({ id: 'p', status: 'pending' })).toEqual({
 			tone: 'info',
 			title: 'Daily News is queued',
 			message: 'Your digest has been queued and will be generated shortly.'
 		});
-		expect(dailyNewsStateMessage({ id: 'r', status: 'running' }).title).toBe('Daily News is being generated');
+		expect(dailyNewsStateMessage({ id: 'r', status: 'running' })?.title).toBe('Daily News is being generated');
 		expect(dailyNewsStateMessage({ id: 'f', status: 'failed', error_message: 'OpenRouter unavailable' })).toEqual({
 			tone: 'error',
 			title: 'Daily News generation failed',

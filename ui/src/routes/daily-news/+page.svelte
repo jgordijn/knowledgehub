@@ -4,20 +4,49 @@
 	import {
 		dailyNewsLoadingMessage,
 		dailyNewsStateMessage,
-		type DailyNewsDigestDTO
+		dailyNewsArchiveLabel,
+		type DailyNewsDigestDTO,
+		type DailyNewsDigestListDTO
 	} from '$lib/daily-news-ui';
 	import pb from '$lib/pb';
 
-	let latestDigest: DailyNewsDigestDTO | null = null;
-	let stateMessage = $derived(dailyNewsStateMessage(latestDigest));
+	let latestDigest = $state<DailyNewsDigestDTO | null>(null);
+	let selectedDigest = $state<DailyNewsDigestDTO | null>(null);
+	let archive = $state<DailyNewsDigestDTO[]>([]);
+	let hasMoreArchive = $state(false);
+	let archiveOffset = 0;
+	let archiveLoading = $state(false);
+	let archiveError = $state('');
+	const archiveLimit = 10;
+	let displayDigest = $derived(selectedDigest ?? latestDigest);
+	let stateMessage = $derived(dailyNewsStateMessage(displayDigest));
 
-	onMount(async () => {
+	async function loadDigests(selected = '', offset = 0) {
+		archiveLoading = true;
+		archiveError = '';
 		try {
-			const response = await pb.send('/api/daily-news/digests', { method: 'GET' });
-			latestDigest = response.latest ?? response.digest ?? response;
+			const params = new URLSearchParams({ limit: String(archiveLimit), offset: String(offset) });
+			if (selected) params.set('selected', selected);
+			const response = (await pb.send(`/api/daily-news/digests?${params}`, { method: 'GET' })) as DailyNewsDigestListDTO;
+			latestDigest = response.latest ?? null;
+			selectedDigest = response.selected ?? latestDigest;
+			archive = offset === 0 ? (response.archive ?? []) : [...archive, ...(response.archive ?? [])];
+			hasMoreArchive = Boolean(response.has_more);
+			archiveOffset = offset + (response.archive?.length ?? 0);
 		} catch {
-			latestDigest = null;
+			archiveError = 'Could not load Daily News editions.';
+			if (offset === 0) {
+				latestDigest = null;
+				selectedDigest = null;
+				archive = [];
+			}
+		} finally {
+			archiveLoading = false;
 		}
+	}
+
+	onMount(() => {
+		void loadDigests();
 	});
 </script>
 
@@ -41,7 +70,32 @@
 			<h2 class="text-lg font-semibold">{stateMessage.title}</h2>
 			<p class="mt-1 text-sm opacity-80">{stateMessage.message}</p>
 		</div>
-	{:else if latestDigest?.status === 'success'}
-		<DailyNewsDigest digest={latestDigest} />
+	{:else if displayDigest?.status === 'success'}
+		<DailyNewsDigest digest={displayDigest} />
 	{/if}
+
+	<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+		<h2 class="text-lg font-semibold text-slate-950 dark:text-slate-50">Previous editions</h2>
+		{#if archiveError}
+			<p class="mt-2 text-sm text-red-600 dark:text-red-300">{archiveError}</p>
+		{:else if archive.length === 0 && !archiveLoading}
+			<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">No previous Daily News editions yet.</p>
+		{/if}
+		{#if archive.length > 0}
+			<ul class="mt-3 divide-y divide-slate-100 dark:divide-slate-700">
+				{#each archive as digest (digest.id)}
+					<li>
+						<button type="button" class="w-full py-3 text-left text-sm text-slate-700 hover:text-amber-600 dark:text-slate-200 dark:hover:text-amber-300" onclick={() => loadDigests(digest.id, 0)}>
+							{dailyNewsArchiveLabel(digest)}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if hasMoreArchive}
+			<button type="button" class="mt-4 rounded-full border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700" disabled={archiveLoading} onclick={() => loadDigests(selectedDigest?.id ?? '', archiveOffset)}>
+				{archiveLoading ? 'Loading…' : 'Load more editions'}
+			</button>
+		{/if}
+	</div>
 </section>

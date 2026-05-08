@@ -22,6 +22,15 @@ export type DailyNewsDigestDTO = {
 	error_message?: string;
 };
 
+export type DailyNewsDigestListDTO = {
+	latest?: DailyNewsDigestDTO;
+	selected?: DailyNewsDigestDTO;
+	archive?: DailyNewsDigestDTO[];
+	limit?: number;
+	offset?: number;
+	has_more?: boolean;
+};
+
 export type DailyNewsStateMessage = {
 	tone: 'info' | 'error' | 'empty';
 	title: string;
@@ -34,6 +43,14 @@ export function dailyNewsNavItem(): DailyNewsNavItem {
 
 export function dailyNewsLoadingMessage(): string {
 	return 'Loading Daily News…';
+}
+
+export function dailyNewsArchiveLabel(digest: Pick<DailyNewsDigestDTO, 'local_date' | 'title'>): string {
+	return [digest.local_date, digest.title].filter(Boolean).join(' · ');
+}
+
+export function selectDailyNewsDigest(digests: DailyNewsDigestDTO[], selectedID: string): DailyNewsDigestDTO | null {
+	return digests.find((digest) => digest.id === selectedID) ?? digests[0] ?? null;
 }
 
 export function dailyNewsSubsetMessage(digest: Pick<DailyNewsDigestDTO, 'used_subset' | 'included_count' | 'candidate_count'>): string {

@@ -13,7 +13,7 @@ Review count (post-implementation): 0/5
 - Current focus completed: frontend task group 5.1-5.2. These touched `ui/src/lib/components/Sidebar.svelte`, a new route, and small UI helpers/tests, so they were done locally and **not parallelized**.
 - Current focus completed: task 5.3 latest digest display/sanitizer. This owned the Daily News UI rendering/sanitizer boundary (`ui/src/lib/daily-news-ui.*`, new Daily News component, and `/daily-news` route), so it was **not parallelized** with 5.4-5.6 or 6.x reference rendering.
 - Current focus completed: task 5.4 pending/failed/empty UI states. This extended the same Daily News route/component state rendering from 5.3, so it was **not parallelized**.
-- Current focus: task 5.5 archive browsing/selection. This owns Daily News digest read/list route contracts and the `/daily-news` page archive state, so it is **not parallelized** with 5.6 controls or 6.x reference rendering.
+- Current focus completed: task 5.5 archive browsing/selection. This owned Daily News digest read/list route contracts and the `/daily-news` page archive state, so it was **not parallelized** with 5.6 controls or 6.x reference rendering.
 - Checked remaining tasks for safe delegation before 5.5: 5.6 touches the same page/route DTOs, 6.x depends on digest DTO/reference rendering, and 7.x settings can be separated later after current route contracts settle; no delegate session launched yet.
 
 ## Progress log
@@ -68,3 +68,11 @@ Review count (post-implementation): 0/5
   - Marked OpenSpec task 5.4 complete.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Started task 5.5 locally after confirming no safe parallel slice for the next task group.
+- Completed task 5.5 locally:
+  - Added red/green route tests for latest digest DTOs, owner-scoped archive pagination, explicit previous digest selection, cross-user denial, and unauthenticated denial.
+  - Implemented `GET /api/daily-news/digests` and `HandleDailyNewsListDigests` with route-level owner enforcement and paginated archive DTOs.
+  - Added red/green Daily News archive UI helper coverage and rendered previous-edition selection/load-more controls on `/daily-news`.
+  - Marked OpenSpec task 5.5 complete.
+- Tests run: `go test ./internal/routes -run TestHandleDailyNewsListDigests -count=1`.
+- Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsListDigests|TestHandleDailyNewsGenerateNow|TestHandleDailyNewsRegenerate' -count=1`.
