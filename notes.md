@@ -4,16 +4,16 @@ Review count (post-implementation): 0/5
 
 ## Parallelization plan
 
-- Current focus: Task group 1.1-1.4 (data model and defaults). These tasks share `cmd/knowledgehub/collections.go`, hooks/startup behavior, and `internal/testutil`, so they are **not safe to parallelize** without conflicts.
+- Current focus completed: Task group 2.1-2.2 (digest input window/candidate query). These tasks shared the new engine Daily News query code and tests, so they were **not parallelized**.
+- Next focus: Task group 2.3-2.4 (scheduling/job lifecycle). This is broad and touches the same scheduler/job state code, so parallelize only after splitting into clearly independent backend/frontend/API areas.
 - No delegate sessions launched yet.
 
 ## Progress log
 
 - Selected OpenSpec change: `daily-news-digest`.
-- Read proposal, design, daily-news spec, feed-view spec, and tasks.
-- Completed task group 1.1-1.4 locally:
-  - Added red tests for Daily News collection schema/rules/indexes and default settings materialization.
-  - Implemented `daily_news_settings` and `daily_digests` collections with owner-scoped read rules, denied generic mutations, and unique lock indexes.
-  - Added startup/default materialization for `_superusers` with idempotent get-or-create behavior.
-  - Added `internal/testutil` Daily News collection registration and helper creators.
-- Tests run: `go test ./cmd/knowledgehub -run 'TestRegisterCollections_CreatesDailyNewsCollections|TestEnsureDailyNewsDefaultSettingsForSuperusers' -count=1`; `go test ./internal/testutil -count=1`; `go test ./internal/ai -run TestSettings -count=1`.
+- Completed task group 1.1-1.4 locally and committed.
+- Completed task group 2.1-2.2 locally:
+  - Added red tests for previous successful digest lower bounds, failed digest non-advancement, first-run 24-hour fallback, `published_at` matching, and `discovered_at` matching.
+  - Implemented `FindDailyNewsCandidates` and `DailyNewsWindow` in `internal/engine`.
+  - Added `testutil.CreateSuperuser` and fixed Daily News test collection relations to target the actual `_superusers` collection ID.
+- Tests run: `go test ./internal/engine -run TestDailyNews -count=1`.
