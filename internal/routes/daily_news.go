@@ -6,6 +6,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/jgordijn/knowledgehub/internal/engine"
 	"github.com/pocketbase/dbx"
@@ -39,6 +41,22 @@ type DailyNewsDigestListDTO struct {
 	HasMore  bool                 `json:"has_more"`
 }
 
+type DailyNewsSettingsDTO struct {
+	ID                string `json:"id"`
+	User              string `json:"user"`
+	Enabled           bool   `json:"enabled"`
+	GenerationTime    string `json:"generation_time"`
+	Timezone          string `json:"timezone"`
+	ExtraInstructions string `json:"extra_instructions"`
+}
+
+type DailyNewsSettingsInput struct {
+	Enabled           bool   `json:"enabled"`
+	GenerationTime    string `json:"generation_time"`
+	Timezone          string `json:"timezone"`
+	ExtraInstructions string `json:"extra_instructions"`
+}
+
 type DailyNewsEntryReferenceDTO struct {
 	Available bool                   `json:"available"`
 	Message   string                 `json:"message,omitempty"`
@@ -58,6 +76,30 @@ type DailyNewsEntryCardDTO struct {
 }
 
 func RegisterDailyNewsRoutes(se *core.ServeEvent) {
+	se.Router.GET("/api/daily-news/settings", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		status, dto, err := HandleDailyNewsGetSettings(re.App, re.Auth.Id)
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
+	se.Router.PUT("/api/daily-news/settings", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		var input DailyNewsSettingsInput
+		if err := re.BindBody(&input); err != nil {
+			return re.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid settings payload."})
+		}
+		status, dto, err := HandleDailyNewsSaveSettings(re.App, re.Auth.Id, input)
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
 	se.Router.GET("/api/daily-news/digests", func(re *core.RequestEvent) error {
 		if re.Auth == nil {
 			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
@@ -100,6 +142,38 @@ func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 		}
 		return re.JSON(status, dto)
 	})
+}
+
+func HandleDailyNewsGetSettings(app core.App, userID string) (int, DailyNewsSettingsDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsSettingsDTO{}, errors.New("Authentication required.")
+	}
+	settings, err := getOrCreateDailyNewsSettingsForUser(app, userID)
+	if err != nil {
+		return http.StatusInternalServerError, DailyNewsSettingsDTO{}, err
+	}
+	return http.StatusOK, dailyNewsSettingsDTO(settings), nil
+}
+
+func HandleDailyNewsSaveSettings(app core.App, userID string, input DailyNewsSettingsInput) (int, DailyNewsSettingsDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsSettingsDTO{}, errors.New("Authentication required.")
+	}
+	if err := validateDailyNewsSettingsInput(input); err != nil {
+		return http.StatusBadRequest, DailyNewsSettingsDTO{}, err
+	}
+	settings, err := getOrCreateDailyNewsSettingsForUser(app, userID)
+	if err != nil {
+		return http.StatusInternalServerError, DailyNewsSettingsDTO{}, err
+	}
+	settings.Set("enabled", input.Enabled)
+	settings.Set("generation_time", input.GenerationTime)
+	settings.Set("timezone", input.Timezone)
+	settings.Set("extra_instructions", input.ExtraInstructions)
+	if err := app.Save(settings); err != nil {
+		return http.StatusInternalServerError, DailyNewsSettingsDTO{}, err
+	}
+	return http.StatusOK, dailyNewsSettingsDTO(settings), nil
 }
 
 func HandleDailyNewsEntryReference(app core.App, userID, digestID, entryID string) (int, DailyNewsEntryReferenceDTO, error) {
@@ -282,6 +356,35 @@ func getOrCreateDailyNewsSettingsForUser(app core.App, userID string) (*core.Rec
 func findSuccessfulScheduledDigest(app core.App, userID, localDate string) (*core.Record, error) {
 	key := userID + "|" + localDate
 	return app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && successful_scheduled_day_key = {:key}", dbx.Params{"user": userID, "date": localDate, "key": key})
+}
+
+func dailyNewsSettingsDTO(record *core.Record) DailyNewsSettingsDTO {
+	return DailyNewsSettingsDTO{
+		ID:                record.Id,
+		User:              record.GetString("user"),
+		Enabled:           record.GetBool("enabled"),
+		GenerationTime:    record.GetString("generation_time"),
+		Timezone:          record.GetString("timezone"),
+		ExtraInstructions: record.GetString("extra_instructions"),
+	}
+}
+
+func validateDailyNewsSettingsInput(input DailyNewsSettingsInput) error {
+	if err := engine.ValidateDailyNewsScheduleSettings(engine.DailyNewsScheduleSettings{Enabled: input.Enabled, GenerationTime: input.GenerationTime, Timezone: input.Timezone}); err != nil {
+		return err
+	}
+	if utf8.RuneCountInString(input.ExtraInstructions) > 2000 {
+		return errors.New("Extra instructions must be 2000 characters or fewer.")
+	}
+	for _, r := range input.ExtraInstructions {
+		if r == '\t' || r == '\n' || r == '\r' {
+			continue
+		}
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			return errors.New("Extra instructions contain unsupported control characters.")
+		}
+	}
+	return nil
 }
 
 func dailyNewsDigestDTO(record *core.Record) DailyNewsDigestDTO {

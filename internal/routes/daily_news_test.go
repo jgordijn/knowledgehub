@@ -9,6 +9,66 @@ import (
 	"github.com/jgordijn/knowledgehub/internal/testutil"
 )
 
+func TestHandleDailyNewsSettingsMaterializesAndSavesValidSettings(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "settings@example.com")
+
+	status, dto, err := HandleDailyNewsGetSettings(app, user.Id)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("get settings failed: status=%d err=%v", status, err)
+	}
+	if dto.User != user.Id || !dto.Enabled || dto.GenerationTime != "08:00" || dto.Timezone != "Europe/Amsterdam" {
+		t.Fatalf("unexpected defaults: %+v", dto)
+	}
+	status, saved, err := HandleDailyNewsSaveSettings(app, user.Id, DailyNewsSettingsInput{Enabled: false, GenerationTime: "07:15", Timezone: "UTC", ExtraInstructions: "Prioritize AI releases\nUse bullets"})
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("save settings failed: status=%d err=%v", status, err)
+	}
+	if saved.Enabled || saved.GenerationTime != "07:15" || saved.Timezone != "UTC" || saved.ExtraInstructions != "Prioritize AI releases\nUse bullets" {
+		t.Fatalf("unexpected saved settings: %+v", saved)
+	}
+}
+
+func TestHandleDailyNewsSettingsRejectsInvalidValuesWithoutMutation(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "settings-invalid@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "Keep me")
+
+	cases := []DailyNewsSettingsInput{
+		{Enabled: true, GenerationTime: "24:00", Timezone: "Europe/Amsterdam"},
+		{Enabled: true, GenerationTime: "08:00", Timezone: "No/SuchZone"},
+		{Enabled: true, GenerationTime: "08:00", Timezone: "Europe/Amsterdam", ExtraInstructions: string(rune(0x202e))},
+	}
+	for _, input := range cases {
+		status, _, err := HandleDailyNewsSaveSettings(app, user.Id, input)
+		if status != http.StatusBadRequest || err == nil {
+			t.Fatalf("expected validation failure for %+v, status=%d err=%v", input, status, err)
+		}
+	}
+	_, dto, err := HandleDailyNewsGetSettings(app, user.Id)
+	if err != nil {
+		t.Fatalf("get settings: %v", err)
+	}
+	if dto.GenerationTime != "08:00" || dto.Timezone != "Europe/Amsterdam" || dto.ExtraInstructions != "Keep me" {
+		t.Fatalf("invalid save mutated settings: %+v", dto)
+	}
+}
+
+func TestHandleDailyNewsSettingsRequiresAuthentication(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	status, _, err := HandleDailyNewsGetSettings(app, "")
+	if status != http.StatusUnauthorized || err == nil {
+		t.Fatalf("expected get auth failure, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsSaveSettings(app, "", DailyNewsSettingsInput{})
+	if status != http.StatusUnauthorized || err == nil {
+		t.Fatalf("expected save auth failure, status=%d err=%v", status, err)
+	}
+}
+
 func TestHandleDailyNewsEntryReferenceReturnsSanitizedReferencedEntry(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
