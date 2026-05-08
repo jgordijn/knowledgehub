@@ -60,3 +60,8 @@ Backend follow-up progress:
 - Fixed ClaimDailyNewsJob to prefer active scheduled locks before successful scheduled-day reservations.
 - Fixed pre-due manual Generate now to reuse active manual jobs for the same user/local date before building a new second-specific window.
 - Verification: go test ./internal/routes ./internal/engine -run 'TestHandleDailyNewsGenerateNow(ReusesPreDueManualJobAcrossSeconds|ReturnsActiveScheduledRegeneration)|TestClaimDailyNewsJob|TestRunDailyNewsSchedule' -count=1 passed.
+
+Frontend delegate follow-up:
+- Delegate branch daily-news-frontend-tests added ui/src/routes/daily-news/page.test.ts covering Daily News page loading/rendering, Generate now/Regenerate controls, settings validation/save, archive load-more/selection, and reference modal open/close.
+- Delegate verified: cd ui && bunx vitest run passed (48 tests).
+- Squash-merged locally as commit a2fa1f5 and cleaned up sub-worktree/branch.
