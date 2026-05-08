@@ -54,3 +54,9 @@ Parallelization plan:
 - No parallelization for backend review items 1 and 2 because they touch the same route/scheduler code paths.
 
 Review count (post-implementation): 6/5; no more post-implementation review loops will be requested.
+
+Backend follow-up progress:
+- Added failing route regressions for pre-due manual Generate now across different seconds and active scheduled regeneration response status.
+- Fixed ClaimDailyNewsJob to prefer active scheduled locks before successful scheduled-day reservations.
+- Fixed pre-due manual Generate now to reuse active manual jobs for the same user/local date before building a new second-specific window.
+- Verification: go test ./internal/routes ./internal/engine -run 'TestHandleDailyNewsGenerateNow(ReusesPreDueManualJobAcrossSeconds|ReturnsActiveScheduledRegeneration)|TestClaimDailyNewsJob|TestRunDailyNewsSchedule' -count=1 passed.
