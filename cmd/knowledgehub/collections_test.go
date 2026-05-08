@@ -125,6 +125,62 @@ func assertIndexContains(t *testing.T, collection *core.Collection, parts ...str
 	t.Fatalf("%s indexes %v do not contain all parts %v", collection.Name, collection.Indexes, parts)
 }
 
+func TestEnsureDailyNewsDefaultSettingsForSuperusers(t *testing.T) {
+	app, cleanup := newTestApp(t)
+	defer cleanup()
+	registerCollections(app)
+
+	user1 := createTestSuperuser(t, app, "daily1@example.com")
+	ensureDailyNewsDefaultSettings(app)
+	settings := findDailyNewsSettingsForUser(t, app, user1.Id)
+	if len(settings) != 1 {
+		t.Fatalf("settings for user1 = %d, want 1", len(settings))
+	}
+	if !settings[0].GetBool("enabled") || settings[0].GetString("generation_time") != "08:00" || settings[0].GetString("timezone") != "Europe/Amsterdam" {
+		t.Fatalf("unexpected defaults: enabled=%v time=%q timezone=%q", settings[0].GetBool("enabled"), settings[0].GetString("generation_time"), settings[0].GetString("timezone"))
+	}
+
+	settings[0].Set("generation_time", "09:30")
+	if err := app.Save(settings[0]); err != nil {
+		t.Fatalf("failed to update settings: %v", err)
+	}
+	ensureDailyNewsDefaultSettings(app)
+	settings = findDailyNewsSettingsForUser(t, app, user1.Id)
+	if len(settings) != 1 || settings[0].GetString("generation_time") != "09:30" {
+		t.Fatalf("default materialization was not idempotent; got %d records time %q", len(settings), settings[0].GetString("generation_time"))
+	}
+
+	user2 := createTestSuperuser(t, app, "daily2@example.com")
+	ensureDailyNewsDefaultSettings(app)
+	if got := len(findDailyNewsSettingsForUser(t, app, user2.Id)); got != 1 {
+		t.Fatalf("settings for user2 after later pass = %d, want 1", got)
+	}
+}
+
+func createTestSuperuser(t *testing.T, app core.App, email string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		t.Fatalf("superusers collection not found: %v", err)
+	}
+	record := core.NewRecord(col)
+	record.SetEmail(email)
+	record.SetPassword("testpassword123456")
+	if err := app.Save(record); err != nil {
+		t.Fatalf("failed to create superuser: %v", err)
+	}
+	return record
+}
+
+func findDailyNewsSettingsForUser(t *testing.T, app core.App, userID string) []*core.Record {
+	t.Helper()
+	records, err := app.FindRecordsByFilter("daily_news_settings", "user = {:user}", "", 10, 0, map[string]any{"user": userID})
+	if err != nil {
+		t.Fatalf("failed to query daily news settings: %v", err)
+	}
+	return records
+}
+
 func TestEnsureSuperuserAuthTokenDuration_PreservesLongerDuration(t *testing.T) {
 	app, cleanup := newTestApp(t)
 	defer cleanup()
