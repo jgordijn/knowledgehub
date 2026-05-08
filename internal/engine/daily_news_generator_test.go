@@ -27,9 +27,10 @@ func TestBuildDailyNewsPromptUsesDelimitedMetadataAndInstructions(t *testing.T) 
 
 	extra := strings.Repeat("é", 2005)
 	prompt, meta := BuildDailyNewsPrompt(DailyNewsPromptInput{
-		Window: DailyNewsWindow{Start: time.Date(2026, 5, 7, 6, 0, 0, 0, time.UTC), End: time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)},
-		Candidates: []*core.Record{entry},
+		Window:            DailyNewsWindow{Start: time.Date(2026, 5, 7, 6, 0, 0, 0, time.UTC), End: time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)},
+		Candidates:        []*core.Record{entry},
 		ExtraInstructions: extra,
+		SourceNames:       map[string]string{resource.Id: "AI Weekly"},
 	})
 
 	if meta.CandidateCount != 1 || meta.IncludedCount != 1 || meta.UsedSubset {

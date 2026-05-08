@@ -22,3 +22,6 @@ Review count (post-implementation): 0/5
   - Added red/green tests for schedule validation, local timezone due checks, disabled settings, same-day catch-up, DST edges, deterministic active job keys, duplicate active/success prevention, pending-to-running-to-terminal transitions, stale active-job recovery, failed retry, and scheduler settings scans.
   - Implemented Daily News schedule validation/due logic, deterministic job claim keys, pending claim/terminal completion helpers, stale recovery, schedule scanning, and scheduler hook-in.
 - Tests run: `go test ./internal/engine -run 'TestDailyNews|TestRunDailyNews|TestScheduler' -count=1`.
+- Completed task 3.1 locally:
+  - Added red/green prompt construction coverage for summaries, takeaways, stars, source labels, dates, IDs, bounded/delimited extra instructions, prompt-injection boundaries, deterministic capping, and candidate/included metadata.
+- Tests run: `go test ./internal/engine -run TestBuildDailyNewsPrompt -count=1`.
