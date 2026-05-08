@@ -8,11 +8,15 @@ The system SHALL provide a Daily News option in the application navigation for a
 - **THEN** the system displays the Daily News page with the latest digest state for that user
 
 ### Requirement: User-specific Daily News settings
-The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam.
+The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Daily News settings SHALL be stored with a `user` owner field and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`.
 
 #### Scenario: Default settings are created
 - **WHEN** an authenticated user has no Daily News settings
-- **THEN** the system uses enabled=true, generation time 08:00, and timezone Europe/Amsterdam for that user
+- **THEN** the system creates or materializes one settings record for that user with enabled=true, generation time 08:00, and timezone Europe/Amsterdam
+
+#### Scenario: Scheduler sees default settings
+- **WHEN** an authenticated user has not opened the Daily News settings page
+- **THEN** scheduled generation still considers that user by using the persisted default settings record
 
 #### Scenario: User updates digest instructions
 - **WHEN** a user saves extra Daily News instructions such as "Always include model releases"
@@ -22,8 +26,20 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 - **WHEN** a user changes the Daily News timezone to another valid IANA timezone
 - **THEN** subsequent scheduled generation uses that timezone for local-time due checks
 
+#### Scenario: User saves invalid timezone
+- **WHEN** a user saves a timezone that is not a valid IANA timezone name
+- **THEN** the system rejects the settings change and keeps the previous valid timezone
+
+#### Scenario: User saves invalid generation time
+- **WHEN** a user saves a generation time that is not a valid 24-hour `HH:MM` value
+- **THEN** the system rejects the settings change and keeps the previous valid generation time
+
+#### Scenario: User accesses another user's settings
+- **WHEN** an authenticated user lists, views, creates, updates, or deletes Daily News settings
+- **THEN** the operation is allowed only for settings whose `user` equals `@request.auth.id`
+
 ### Requirement: Scheduled user-specific digest generation
-The system SHALL generate Daily News digests for each enabled user at the user's configured local time.
+The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`.
 
 #### Scenario: Configured local time is due
 - **WHEN** a user's Daily News settings are enabled and the configured local generation time is due in the configured timezone
@@ -37,8 +53,24 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 - **WHEN** a successful digest already exists for the user's current local date
 - **THEN** the scheduler does not create a duplicate automatic digest for that local date
 
+#### Scenario: Active digest job already exists
+- **WHEN** a pending or running digest already exists for the same user and digest local date or period
+- **THEN** scheduled or manual generation does not create another active digest job and returns or displays the existing active digest state
+
+#### Scenario: DST spring-forward due check
+- **WHEN** the configured local generation time falls on a daylight-saving spring-forward day
+- **THEN** the scheduler evaluates due generation using the configured timezone's local date/time rules and creates at most one digest for that local date
+
+#### Scenario: DST fall-back due check
+- **WHEN** the configured local generation time occurs during a daylight-saving fall-back repeated hour
+- **THEN** the scheduler creates at most one digest for that user and local date
+
+#### Scenario: User accesses another user's digest
+- **WHEN** an authenticated user lists, views, creates, updates, or deletes Daily News digests
+- **THEN** the operation is allowed only for digests whose `user` equals `@request.auth.id`
+
 ### Requirement: Digest input window
-The system SHALL select candidate entries for digest generation using entries visible to the user that were published or discovered since the user's previous successful digest period end, or during the past 24 hours if no previous successful digest exists.
+The system SHALL select candidate entries for digest generation using entries visible to the user that were published or discovered since the user's previous successful digest period end, or during the past 24 hours if no previous successful digest exists. Failed digests SHALL NOT advance the next generation window.
 
 #### Scenario: Previous digest exists
 - **WHEN** a user has a previous successful digest with period_end at 2026-05-07T08:00:00+02:00
@@ -52,8 +84,12 @@ The system SHALL select candidate entries for digest generation using entries vi
 - **WHEN** an entry has a published_at before the digest period but a discovered_at inside the digest period
 - **THEN** the entry is eligible for the digest
 
+#### Scenario: Previous digest failed
+- **WHEN** a user's most recent digest is failed and an earlier successful digest exists
+- **THEN** the next digest input window starts after the earlier successful digest's period_end
+
 ### Requirement: Digest generation from existing entry summaries
-The system SHALL generate Daily News using existing entry metadata, summaries, takeaways, source names, published/discovered dates, and effective star ratings rather than raw article content by default.
+The system SHALL generate Daily News using existing entry metadata, summaries, takeaways, source names, published/discovered dates, and effective star ratings rather than raw article content by default. Prompt construction SHALL be bounded by a deterministic candidate preselection ordered by importance signals and SHALL store candidate_count and included_count metadata.
 
 #### Scenario: Candidate entries have summaries
 - **WHEN** digest generation runs with candidate entries that have summaries and takeaways
@@ -62,6 +98,14 @@ The system SHALL generate Daily News using existing entry metadata, summaries, t
 #### Scenario: Candidate entry has no summary
 - **WHEN** a candidate entry has no summary yet
 - **THEN** the system either omits that entry from the AI prompt or includes its title and metadata only without blocking digest generation
+
+#### Scenario: Candidate volume exceeds prompt limit
+- **WHEN** more visible candidate entries exist than can be safely included in one digest prompt
+- **THEN** the system deterministically selects entries by effective stars, recency, breaking/developing signals, source, and title tie-breakers, stores the total candidate_count and included_count, and marks that the digest used a subset
+
+#### Scenario: Digest is based on a subset
+- **WHEN** a stored digest used fewer included entries than the total candidate count
+- **THEN** the Daily News page indicates that the digest is based on a subset of available articles
 
 ### Requirement: Newspaper-like digest structure
 The system SHALL produce a structured Markdown digest that presents the most important items first and uses newspaper-like sections.
@@ -107,8 +151,19 @@ The system SHALL include a concise "You May Also Find This Interesting" section 
 - **WHEN** no lower-rated candidate entries are worth highlighting
 - **THEN** the digest may omit the lower-rated interesting section
 
+### Requirement: Safe digest rendering
+The system SHALL render Daily News Markdown through a sanitizer that strips raw HTML, scripts, dangerous attributes, model-generated images, and untrusted model-generated links according to an explicit allowlist.
+
+#### Scenario: Digest Markdown contains raw HTML or scripts
+- **WHEN** a digest body contains raw HTML, script tags, event-handler attributes, or similar executable content
+- **THEN** the rendered Daily News page strips or neutralizes that content before display
+
+#### Scenario: LLM returns arbitrary external links or images
+- **WHEN** model-generated Markdown includes arbitrary external links or image references
+- **THEN** the renderer removes images and renders links only when they satisfy the allowlist policy; KnowledgeHub article links are not trusted from Markdown URLs
+
 ### Requirement: KnowledgeHub entry references
-The system SHALL store structured references to KnowledgeHub entry IDs used in each digest and SHALL render those references as in-app links or controls.
+The system SHALL store structured references to KnowledgeHub entry IDs used in each digest and SHALL render those references as in-app links or controls. Internal KnowledgeHub references SHALL be rendered only from validated structured IDs, not from model-generated Markdown URLs.
 
 #### Scenario: Digest references an article
 - **WHEN** a digest mentions a source article
@@ -118,16 +173,36 @@ The system SHALL store structured references to KnowledgeHub entry IDs used in e
 - **WHEN** AI output references an entry ID that was not part of the candidate set or is not visible to the user
 - **THEN** the system excludes that reference from stored and rendered digest links
 
+#### Scenario: Referenced entry visibility changes
+- **WHEN** a stored digest references an entry that is no longer visible to the requesting user
+- **THEN** the system does not render an in-app link for that entry and shows an unavailable-entry state if needed
+
 ### Requirement: Manual generation and regeneration
-The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest. Regeneration SHALL overwrite the selected digest version for the first implementation.
+The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest for their own user only. Regeneration SHALL overwrite the selected digest version for the first implementation while preserving that digest's original period_start, period_end, and local digest date.
 
 #### Scenario: User generates now
 - **WHEN** a user clicks Generate now on the Daily News page
-- **THEN** the system starts digest generation for that user using the current digest input window
+- **THEN** the system starts digest generation for that authenticated user using the current digest input window
+
+#### Scenario: Generate now finds active digest
+- **WHEN** a user clicks Generate now and a pending or running digest already exists for that user and local day or window
+- **THEN** the system returns or displays the existing active digest instead of creating another digest job
+
+#### Scenario: Generate now finds successful digest for local day
+- **WHEN** a user clicks Generate now and a successful digest already exists for that user and local day
+- **THEN** the system returns or displays the existing digest and does not overwrite it unless the user chooses Regenerate
+
+#### Scenario: Generate now after failed digest
+- **WHEN** a user clicks Generate now after a failed digest for the same local day
+- **THEN** the system may start a new digest job because failed digests do not block retry and do not advance the automatic window
 
 #### Scenario: User regenerates existing digest
-- **WHEN** a user clicks Regenerate for an existing digest
-- **THEN** the system overwrites that digest's content, references, status, counts, and generated timestamp
+- **WHEN** a user clicks Regenerate for an existing digest they own
+- **THEN** the system overwrites that digest's content, references, status, counts, and generated timestamp while preserving its period_start, period_end, and local digest date
+
+#### Scenario: User regenerates another user's digest
+- **WHEN** a user attempts to regenerate a digest whose `user` does not equal `@request.auth.id`
+- **THEN** the system denies the request without revealing that digest's contents
 
 ### Requirement: Digest archive browsing
 The system SHALL retain Daily News digests indefinitely and provide paginated browsing of previous digests for each user.
@@ -148,7 +223,7 @@ The system SHALL create or display an explicit "No articles today" digest state 
 - **THEN** the system records a successful digest indicating that there were no articles today
 
 ### Requirement: Digest failure states
-The system SHALL record and display pending or failed Daily News states when generation cannot complete.
+The system SHALL record and display pending or failed Daily News states when generation cannot complete. Stored and displayed error messages SHALL be sanitized and safe for end users.
 
 #### Scenario: Missing AI configuration
 - **WHEN** digest generation runs without required OpenRouter configuration
@@ -157,3 +232,7 @@ The system SHALL record and display pending or failed Daily News states when gen
 #### Scenario: LLM generation fails
 - **WHEN** OpenRouter returns an error during digest generation
 - **THEN** the system records a failed digest state and displays the failure on the Daily News page
+
+#### Scenario: Failure contains sensitive details
+- **WHEN** an upstream AI or internal error includes API keys, provider payloads, stack traces, or other sensitive details
+- **THEN** the system stores and displays only a sanitized user-safe error message and excludes secrets from user-visible digest fields
