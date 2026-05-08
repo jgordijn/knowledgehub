@@ -105,3 +105,10 @@ Review count (post-implementation): 0/5
 - Tests run: `go test ./internal/routes -run TestHandleDailyNewsSettings -count=1`.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
 - Tests run: `go test ./internal/routes -run 'TestHandleDailyNewsSettings|TestHandleDailyNewsEntryReference' -count=1`.
+- Completed verification task group 8.1-8.5 locally:
+  - Backend coverage command passed: `go test ./cmd/knowledgehub ./internal/ai ./internal/engine ./internal/routes -coverprofile=coverage.out -covermode=atomic` (total 82.6%).
+  - Frontend Daily News helper tests passed: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+  - Full Go suite passed: `go test ./...`.
+  - Builds passed: `go build ./cmd/knowledgehub` and `cd ui && bun run build` (only pre-existing a11y warnings in layout/EntryCard/QuickAddModal remain).
+  - Manual proof ran app in tmux with `KH_DATA_DIR=./proof_data ./knowledgehub serve --http=127.0.0.1:18090` and verified `/api/health` returned healthy JSON, then stopped the tmux session.
+  - Marked OpenSpec tasks 8.1-8.5 complete.

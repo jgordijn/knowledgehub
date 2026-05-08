@@ -53,8 +53,8 @@
 
 ## 8. Verification and Coverage
 
-- [ ] 8.1 Run backend tests with coverage for Daily News scheduler, generator, routes, and collection logic.
-- [ ] 8.2 Run frontend tests for Daily News page, settings, archive browsing, and modal interactions.
-- [ ] 8.3 Run full project test suite and fix regressions.
-- [ ] 8.4 Build the frontend and backend successfully.
-- [ ] 8.5 Manually proof the feature in a tmux-run app session with generated sample data.
+- [x] 8.1 Run backend tests with coverage for Daily News scheduler, generator, routes, and collection logic.
+- [x] 8.2 Run frontend tests for Daily News page, settings, archive browsing, and modal interactions.
+- [x] 8.3 Run full project test suite and fix regressions.
+- [x] 8.4 Build the frontend and backend successfully.
+- [x] 8.5 Manually proof the feature in a tmux-run app session with generated sample data.
