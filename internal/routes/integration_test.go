@@ -140,6 +140,52 @@ func TestDailyNewsRegisteredDigestDetailRouteReturnsOwnedDigest(t *testing.T) {
 	}
 }
 
+func TestDailyNewsRegisteredSettingsPutGenerateAndRegenerateRoutes(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	putBody := strings.NewReader(`{"enabled":false,"generation_time":"09:15","timezone":"UTC","extra_instructions":"focus on infrastructure"}`)
+	putReq := httptest.NewRequest("PUT", "/api/daily-news/settings", putBody)
+	putReq.Header.Set("Authorization", token)
+	putReq.Header.Set("Content-Type", "application/json")
+	putRec := httptest.NewRecorder()
+	mux.ServeHTTP(putRec, putReq)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("expected settings PUT success, got %d body=%s", putRec.Code, putRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(putRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if settings.GenerationTime != "09:15" || settings.Timezone != "UTC" || settings.ExtraInstructions != "focus on infrastructure" || settings.Enabled {
+		t.Fatalf("unexpected saved settings: %+v", settings)
+	}
+
+	generateReq := httptest.NewRequest("POST", "/api/daily-news/generate", nil)
+	generateReq.Header.Set("Authorization", token)
+	generateRec := httptest.NewRecorder()
+	mux.ServeHTTP(generateRec, generateReq)
+	if generateRec.Code != http.StatusAccepted {
+		t.Fatalf("expected generate accepted, got %d body=%s", generateRec.Code, generateRec.Body.String())
+	}
+
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "manual")
+	digest.Set("period_start", "2026-05-07T08:00:00Z")
+	digest.Set("period_end", "2026-05-08T08:00:00Z")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+	regenReq := httptest.NewRequest("POST", "/api/daily-news/digests/"+digest.Id+"/regenerate", nil)
+	regenReq.Header.Set("Authorization", token)
+	regenRec := httptest.NewRecorder()
+	mux.ServeHTTP(regenRec, regenReq)
+	if regenRec.Code != http.StatusAccepted {
+		t.Fatalf("expected regenerate accepted, got %d body=%s", regenRec.Code, regenRec.Body.String())
+	}
+}
+
 func TestDailyNewsRegisteredDigestRouteReturnsNullableEmptyState(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
