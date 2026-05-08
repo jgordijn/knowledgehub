@@ -8,15 +8,23 @@ The system SHALL provide a Daily News option in the application navigation for a
 - **THEN** the system displays the Daily News page with the latest digest state for that user
 
 ### Requirement: User-specific Daily News settings
-The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Daily News settings SHALL be stored with a `user` owner field and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`.
+The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Daily News settings SHALL be stored with a `user` owner field, SHALL enforce exactly one settings record per user with a database-level uniqueness invariant, and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`.
 
 #### Scenario: Default settings are created
 - **WHEN** an authenticated user has no Daily News settings
 - **THEN** the system creates or materializes one settings record for that user with enabled=true, generation time 08:00, and timezone Europe/Amsterdam
 
+#### Scenario: Duplicate settings creation is prevented
+- **WHEN** settings materialization or user saves race for the same authenticated user
+- **THEN** the system preserves exactly one settings record for that user and returns or updates that record idempotently
+
 #### Scenario: Scheduler sees default settings
-- **WHEN** an authenticated user has not opened the Daily News settings page
+- **WHEN** a PocketBase `_superusers` user has not opened the Daily News settings page
 - **THEN** scheduled generation still considers that user by using the persisted default settings record
+
+#### Scenario: User is created after startup
+- **WHEN** a new PocketBase `_superusers` user is created after application startup
+- **THEN** a later scheduler/settings materialization pass discovers that user and creates the default settings record
 
 #### Scenario: User updates digest instructions
 - **WHEN** a user saves extra Daily News instructions such as "Always include model releases"
@@ -39,7 +47,7 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 - **THEN** the operation is allowed only for settings whose `user` equals `@request.auth.id`
 
 ### Requirement: Scheduled user-specific digest generation
-The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`.
+The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field. User-facing collection access SHALL allow owner-scoped list/view only; create, update, and delete mutations SHALL be denied through the generic collection API and performed only by server-side generation/regeneration routes that derive the user from authenticated context.
 
 #### Scenario: Configured local time is due
 - **WHEN** a user's Daily News settings are enabled and the configured local generation time is due in the configured timezone
@@ -57,6 +65,10 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 - **WHEN** a pending or running digest already exists for the same user and digest local date or period
 - **THEN** scheduled or manual generation does not create another active digest job and returns or displays the existing active digest state
 
+#### Scenario: Concurrent active job creation races
+- **WHEN** scheduled and manual generation attempt to create an active digest for the same user and local date/window at the same time
+- **THEN** an atomic uniqueness or locking mechanism allows at most one active digest job to be created
+
 #### Scenario: DST spring-forward due check
 - **WHEN** the configured local generation time falls on a daylight-saving spring-forward day
 - **THEN** the scheduler evaluates due generation using the configured timezone's local date/time rules and creates at most one digest for that local date
@@ -65,9 +77,13 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 - **WHEN** the configured local generation time occurs during a daylight-saving fall-back repeated hour
 - **THEN** the scheduler creates at most one digest for that user and local date
 
-#### Scenario: User accesses another user's digest
-- **WHEN** an authenticated user lists, views, creates, updates, or deletes Daily News digests
+#### Scenario: User reads another user's digest
+- **WHEN** an authenticated user lists or views Daily News digests
 - **THEN** the operation is allowed only for digests whose `user` equals `@request.auth.id`
+
+#### Scenario: User attempts generic digest mutation
+- **WHEN** an authenticated user attempts to create, update, or delete Daily News digests through the generic collection API
+- **THEN** the operation is denied even if the payload uses that user's ID
 
 ### Requirement: Digest input window
 The system SHALL select candidate entries for digest generation using entries visible to the user that were published or discovered since the user's previous successful digest period end, or during the past 24 hours if no previous successful digest exists. Failed digests SHALL NOT advance the next generation window.
@@ -106,6 +122,21 @@ The system SHALL generate Daily News using existing entry metadata, summaries, t
 #### Scenario: Digest is based on a subset
 - **WHEN** a stored digest used fewer included entries than the total candidate count
 - **THEN** the Daily News page indicates that the digest is based on a subset of available articles
+
+### Requirement: Prompt injection boundaries
+The system SHALL construct Daily News prompts so entry fields and user extra instructions are treated as untrusted data, not as model/system instructions. Entry titles, summaries, takeaways, source names, dates, IDs, and user extra instructions SHALL be delimited or encoded, and user extra instructions SHALL be bounded before inclusion.
+
+#### Scenario: Article summary contains adversarial instructions
+- **WHEN** a candidate entry summary says to ignore previous instructions or change output format
+- **THEN** the prompt identifies that text as article data and instructs the model not to follow instructions contained inside article fields
+
+#### Scenario: User instructions exceed safe bounds
+- **WHEN** a user's extra Daily News instructions exceed the configured length or contain unsupported control content
+- **THEN** prompt construction bounds or sanitizes those instructions while preserving valid editorial preferences
+
+#### Scenario: Delimited data is included in prompt
+- **WHEN** digest prompt construction includes entry fields and user instructions
+- **THEN** tests verify those fields are placed inside explicit data delimiters or encoded sections separate from system task instructions
 
 ### Requirement: Newspaper-like digest structure
 The system SHALL produce a structured Markdown digest that presents the most important items first and uses newspaper-like sections.

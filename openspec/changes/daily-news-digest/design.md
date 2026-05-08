@@ -33,7 +33,9 @@ Create dedicated collections rather than overloading `app_settings`:
 - `daily_news_settings`: one record per user with `user`, enabled flag, generation time, timezone, and extra prompt.
 - `daily_digests`: user-owned generated digest records with `user`, local digest date, period, status, body, referenced entries, candidate/included counts, subset indicator, and sanitized error state.
 
-Both collections must enforce owner-scoped PocketBase rules: a record's `user` must match `@request.auth.id` for user-facing list/view/create/update/delete operations. Custom manual generation routes must derive the user from the authenticated request rather than accepting arbitrary user IDs, and all referenced entries must be revalidated against entries visible to that same user before storage or rendering.
+`daily_news_settings` must enforce one record per user with a database-level unique index on `user`; settings creation/update must be idempotent get-or-create/upsert behavior so duplicate settings cannot create ambiguous scheduler state. User-facing settings access remains owner-scoped: a record's `user` must match `@request.auth.id` for permitted settings operations.
+
+`daily_digests` must be read-only through user-facing collection rules: owner-scoped list/view are allowed, while create/update/delete are denied through the generic collection API. All digest mutations, including manual generation, regeneration, status updates, failure recording, and any future delete action, must happen through server-side code/routes that derive the user from the authenticated request rather than accepting arbitrary user IDs. Server-side mutation code must validate structured entry references against entries visible to that same user before storage or rendering and must sanitize all user-visible failure fields.
 
 Rationale: the settings are user-specific and include scheduling behavior, while digests need history and status. A dedicated schema is clearer than key/value settings.
 
@@ -41,7 +43,7 @@ Alternative considered: add more keys to `app_settings`. Rejected because `app_s
 
 ### Materialize default settings for users
 
-Daily News defaults are persisted in `daily_news_settings`. On startup and when users are discovered by the Daily News scheduler/settings flow, the system ensures each authenticated user has one settings record using enabled=true, generation time 08:00, and timezone Europe/Amsterdam unless that user has already saved settings. This lets the scheduler cover users who have not opened the settings page.
+Daily News defaults are persisted in `daily_news_settings`. KnowledgeHub currently authenticates users through PocketBase `_superusers`, so `_superusers` is the source of truth for Daily News owners until a dedicated auth collection exists. On startup and during each Daily News scheduler/settings flow, the system enumerates `_superusers` and ensures each authenticated user has exactly one settings record using enabled=true, generation time 08:00, and timezone Europe/Amsterdam unless that user has already saved settings. This lets the scheduler cover users who have not opened the settings page and users created after startup.
 
 ### Use a per-user scheduler loop with local-time due checks
 
@@ -69,6 +71,8 @@ Alternative considered: include raw content for top entries. Deferred until ther
 
 ### Require structured AI output plus Markdown body
 
+Treat every article field and user extra instruction as untrusted data when constructing the prompt. Entry titles, summaries, takeaways, source names, and user instructions must be wrapped in explicit delimiters or encoded sections, and the system prompt must instruct the model not to follow instructions contained inside those data fields. User extra instructions may influence editorial priorities only within the Daily News task and must be bounded/sanitized before inclusion.
+
 Ask the LLM for JSON containing at least:
 
 - title
@@ -91,7 +95,7 @@ Alternative considered: add a full `/entries/:id` detail route. This can be adde
 
 ### Manual generation and regeneration are idempotent per user/day
 
-Manual "Generate now" derives the current window for the authenticated user. If a pending or running digest already exists for that same user and local digest date/window, the route returns that active digest instead of creating a second job. If a successful digest already exists for the same user and local digest date, Generate now returns the existing digest and asks the user to use Regenerate for an explicit overwrite. Failed digests do not block a new Generate now request and do not advance the next automatic window.
+Manual "Generate now" derives the current window for the authenticated user. If a pending or running digest already exists for that same user and local digest date/window, the route returns that active digest instead of creating a second job. Duplicate active-job prevention must be atomic: generation creates or claims a deterministic per-user/local-date/window job key inside a transaction, backed by a database uniqueness constraint or equivalent lock, so concurrent manual and scheduled attempts cannot both insert active jobs. If a successful digest already exists for the same user and local digest date, Generate now returns the existing digest and asks the user to use Regenerate for an explicit overwrite. Failed digests do not block a new Generate now request and do not advance the next automatic window.
 
 Manual regeneration for an existing digest is allowed only for the owner. It updates that digest's content, referenced entries, status, counts, and generated timestamp while preserving the selected digest's original `period_start`, `period_end`, and local digest date. It does not create a revision history.
 

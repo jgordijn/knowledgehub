@@ -1,20 +1,20 @@
 ## 1. Data Model and Test Fixtures
 
-- [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, owner-scoped auth rules, persisted defaults, and user ownership.
-- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests.
+- [ ] 1.1 Add failing tests for `daily_news_settings` and `daily_digests` collection creation, owner-scoped auth rules, read-only user-facing digest collection access, persisted defaults, one-settings-record-per-user uniqueness, and user ownership.
+- [ ] 1.2 Implement PocketBase collections for Daily News settings and digests, including a unique settings user index and denying generic user-facing digest create/update/delete rules.
 - [ ] 1.3 Add testutil helpers for creating Daily News settings and digest records.
-- [ ] 1.4 Add migration/backfill behavior or startup defaults for users without Daily News settings.
+- [ ] 1.4 Add migration/backfill behavior or startup defaults by enumerating PocketBase `_superusers`, including users created after startup, with idempotent get-or-create/upsert behavior.
 
 ## 2. Digest Window and Scheduling Logic
 
 - [ ] 2.1 Add failing tests for digest input window selection: previous successful digest, failed digest non-advancement, first 24-hour fallback, published_at match, and discovered_at match.
 - [ ] 2.2 Implement digest candidate query logic using entries visible to the target user.
-- [ ] 2.3 Add failing tests for timezone due checks, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active job duplicate prevention, and DST edge cases.
-- [ ] 2.4 Implement scheduler integration that checks enabled users and starts due digest jobs.
+- [ ] 2.3 Add failing tests for timezone due checks, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, atomic active job duplicate prevention under concurrent manual/scheduled attempts, and DST edge cases.
+- [ ] 2.4 Implement scheduler integration that checks enabled users discovered from materialized `_superusers` settings and starts due digest jobs with transactional/unique active-job claiming.
 
 ## 3. AI Digest Generation
 
-- [ ] 3.1 Add failing tests for Daily News prompt construction using entry summaries, takeaways, stars, sources, dates, IDs, user extra instructions, deterministic candidate capping, and candidate_count/included_count metadata.
+- [ ] 3.1 Add failing tests for Daily News prompt construction using entry summaries, takeaways, stars, sources, dates, IDs, bounded/delimited user extra instructions, prompt-injection text in article fields, deterministic candidate capping, and candidate_count/included_count metadata.
 - [ ] 3.2 Implement AI digest generator that requests structured JSON containing title, Markdown body, and referenced entry IDs.
 - [ ] 3.3 Add failing tests for invalid AI references and malformed AI responses.
 - [ ] 3.4 Implement AI response parsing, same-user entry-reference validation, and safe failed-state recording.
@@ -23,10 +23,10 @@
 ## 4. Manual Generation APIs
 
 - [ ] 4.1 Add failing route/API tests for authenticated manual Generate now behavior, same-day successful digest idempotency, active job reuse, failed digest retry, and owner scoping.
-- [ ] 4.2 Implement manual Generate now endpoint or collection action.
+- [ ] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
 - [ ] 4.3 Add failing route/API tests for Regenerate overwriting an owned existing digest, preserving its period/local date, and denying cross-user regeneration.
-- [ ] 4.4 Implement regeneration overwrite behavior with status, content, references, counts, and generated timestamp updates.
-- [ ] 4.5 Add concurrency tests for avoiding duplicate active jobs for the same user and digest period.
+- [ ] 4.4 Implement regeneration overwrite behavior in a server-side route with status, content, references, counts, and generated timestamp updates.
+- [ ] 4.5 Add concurrency tests proving the database uniqueness/lock prevents duplicate active jobs for the same user and digest period.
 
 ## 5. Daily News Frontend
 
