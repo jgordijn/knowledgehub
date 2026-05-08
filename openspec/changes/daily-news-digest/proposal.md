@@ -13,13 +13,13 @@ KnowledgeHub currently summarizes individual articles, but it does not provide a
 - Include a dedicated breaking/developing section when relevant.
 - Include a concise "You May Also Find This Interesting" section for lower-rated but potentially useful articles when relevant.
 - Link referenced articles to KnowledgeHub entry cards so the user can inspect the article inside the app before opening the original source.
-- Allow manual generation and regeneration through server-side routes with atomic duplicate-active-job handling; regeneration overwrites the current digest version for the selected period while preserving that period.
+- Allow manual generation and regeneration through authenticated server-side routes with atomic duplicate-active-job handling; regeneration overwrites the current digest version for the selected period while preserving that period, but never overwrites while a same-window digest job is pending or running.
 - Retain previous digests indefinitely as immutable owner-visible snapshots and provide a paginated way to browse them.
 - Create an explicit "No articles today" digest when there are no candidate entries.
 - Surface pending or failed digest states when generation cannot complete, such as missing AI configuration or LLM failure, using sanitized user-safe error messages.
 - Bound digest prompt size deterministically and record when only a subset of candidates was sent to the LLM.
 - Use asynchronous manual generation routes with explicit `pending -> running -> success|failed` status transitions and atomic active-job uniqueness.
-- Render digest Markdown through a strict sanitizer with an explicit Markdown/link allowlist, render KnowledgeHub entry references only from validated structured IDs, and construct prompts so article/user text is treated as untrusted data rather than instructions.
+- Render digest Markdown through a strict sanitizer with an explicit Markdown/link allowlist, render KnowledgeHub entry references only from validated structured IDs and `[[kh-entry:<entry_id>]]` inline markers, and construct prompts so article/user text is treated as untrusted data rather than instructions.
 
 ## Capabilities
 
@@ -32,8 +32,8 @@ KnowledgeHub currently summarizes individual articles, but it does not provide a
 ## Impact
 
 - Backend collections: new user-owned Daily News digest and settings storage.
-- Backend scheduler: new per-user daily scheduling logic based on local time and timezone.
+- Backend scheduler: new per-user daily scheduling logic based on local time and timezone, including same-day missed-run catch-up without previous-day backfill.
 - AI processing: new digest-generation prompt and parser using existing article summaries rather than raw article content.
-- Routes/API: endpoints or collection operations for manual generation/regeneration and digest retrieval.
+- Routes/API: authenticated endpoints for settings, manual generation/regeneration, and digest retrieval with unauthenticated requests denied before lookup or mutation.
 - Frontend navigation and pages: Daily News page, archive browsing, settings controls, Markdown rendering, and entry-card modal behavior.
 - Tests: scheduler timing, digest window selection, AI prompt behavior, settings persistence, failure states, archive pagination, and UI logic.

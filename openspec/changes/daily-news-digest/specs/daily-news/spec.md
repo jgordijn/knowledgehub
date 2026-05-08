@@ -8,7 +8,7 @@ The system SHALL provide a Daily News option in the application navigation for a
 - **THEN** the system displays the Daily News page with the latest digest state for that user
 
 ### Requirement: User-specific Daily News settings
-The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions through authenticated server-side settings behavior. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Daily News settings SHALL be stored with a `user` owner field, SHALL enforce exactly one settings record per user with a database-level uniqueness invariant, and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`. Generic collection list/view SHALL be owner-scoped, generic create/delete SHALL be denied, and settings creation/update SHALL use idempotent server-side get-or-create/update behavior that derives the user from `@request.auth.id`.
+The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions through authenticated server-side settings behavior. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Extra digest instructions SHALL have a maximum persisted length of 2000 Unicode code points and SHALL reject unsupported control characters. Daily News settings SHALL be stored with a `user` owner field, SHALL enforce exactly one settings record per user with a database-level uniqueness invariant, and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`. Generic collection list/view SHALL be owner-scoped, generic create/delete SHALL be denied, and settings creation/update SHALL use idempotent server-side get-or-create/update behavior that derives the user from `@request.auth.id`.
 
 #### Scenario: Default settings are created
 - **WHEN** an authenticated user has no Daily News settings
@@ -29,6 +29,14 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 #### Scenario: User updates digest instructions
 - **WHEN** a user saves extra Daily News instructions such as "Always include model releases"
 - **THEN** subsequent digest generation for that user includes those instructions in the digest prompt
+
+#### Scenario: User saves oversized digest instructions
+- **WHEN** a user saves extra Daily News instructions longer than 2000 Unicode code points
+- **THEN** the backend rejects the settings change, the previous valid instructions remain unchanged, and the frontend prevents or reports the same limit before submitting where possible
+
+#### Scenario: User saves unsupported control content in digest instructions
+- **WHEN** a user saves extra Daily News instructions containing unsupported control characters
+- **THEN** the backend rejects the settings change, keeps the previous valid instructions unchanged, and does not store unsafe control content
 
 #### Scenario: User changes timezone
 - **WHEN** a user changes the Daily News timezone to another valid IANA timezone
@@ -54,12 +62,24 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 - **WHEN** an authenticated user saves Daily News settings through the settings route
 - **THEN** the system updates or creates that user's single settings record without accepting an arbitrary `user` owner from the request body
 
+#### Scenario: Unauthenticated settings request is denied
+- **WHEN** a request without valid authentication reads or saves Daily News settings through server routes or generic collection APIs
+- **THEN** the system denies the request without materializing settings for an anonymous user or revealing any user's settings
+
 ### Requirement: Scheduled user-specific digest generation
 The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field and a status of `pending`, `running`, `success`, or `failed`. User-facing collection access SHALL allow owner-scoped list/view only; create, update, and delete mutations SHALL be denied through the generic collection API and performed only by server-side generation/regeneration routes that derive the user from authenticated context. The system SHALL enforce at most one active (`pending` or `running`) digest job per `(user, local_date, period_start, period_end)` using a deterministic job/window key or equivalent transaction-safe lock, and at most one successful automatic digest per `(user, local_date)`.
 
 #### Scenario: Configured local time is due
 - **WHEN** a user's Daily News settings are enabled and the configured local generation time is due in the configured timezone
 - **THEN** the system starts digest generation for that user
+
+#### Scenario: Missed local time after same-day downtime
+- **WHEN** the application starts or the scheduler checks after the configured local generation time but before the user's next local date, and no successful or active automatic digest exists for that local date
+- **THEN** the system treats that local day's digest as due and starts exactly one digest generation for that user
+
+#### Scenario: Missed previous local date is too late
+- **WHEN** the application starts or the scheduler checks on a later local date after a prior day's configured generation time was missed
+- **THEN** the system does not backfill the missed prior local date automatically and evaluates only the current local date for due generation
 
 #### Scenario: Daily News disabled
 - **WHEN** a user's Daily News settings are disabled and the configured generation time is due
@@ -140,7 +160,7 @@ The system SHALL generate Daily News using existing entry metadata, summaries, t
 - **THEN** the Daily News page indicates that the digest is based on a subset of available articles
 
 ### Requirement: Prompt injection boundaries
-The system SHALL construct Daily News prompts so entry fields and user extra instructions are treated as untrusted data, not as model/system instructions. Entry titles, summaries, takeaways, source names, dates, IDs, and user extra instructions SHALL be delimited or encoded, and user extra instructions SHALL be bounded before inclusion.
+The system SHALL construct Daily News prompts so entry fields and user extra instructions are treated as untrusted data, not as model/system instructions. Entry titles, summaries, takeaways, source names, dates, IDs, and user extra instructions SHALL be delimited or encoded, and user extra instructions SHALL be bounded to the persisted 2000-code-point limit before inclusion.
 
 #### Scenario: Article summary contains adversarial instructions
 - **WHEN** a candidate entry summary says to ignore previous instructions or change output format
@@ -218,15 +238,23 @@ The system SHALL render Daily News Markdown through a sanitizer with an explicit
 - **THEN** the renderer preserves the link with safe attributes such as `rel="noopener noreferrer"`
 
 ### Requirement: KnowledgeHub entry references
-The system SHALL store structured references to KnowledgeHub entry IDs used in each digest and SHALL render those references as in-app links or controls. Internal KnowledgeHub references SHALL be rendered only from validated structured IDs, not from model-generated Markdown URLs. Stored digest Markdown SHALL be treated as an immutable historical snapshot visible to the digest owner; if a referenced entry later becomes unavailable, the snapshot body remains visible to that owner while structured links are removed or shown as unavailable.
+The system SHALL store structured references to KnowledgeHub entry IDs used in each digest and SHALL render those references as in-app links or controls. Internal KnowledgeHub references SHALL be rendered only from validated structured IDs, not from model-generated Markdown URLs. Digest Markdown MAY contain inline entry markers in the exact form `[[kh-entry:<entry_id>]]`; the renderer SHALL replace a marker at that location with an in-app entry control only when `<entry_id>` is present in the validated, deduplicated `referenced_entry_ids` for that digest and remains visible to the digest owner. Invalid markers, duplicate IDs in AI structured output, and marker IDs missing from validated references SHALL NOT create trusted links or controls. Stored digest Markdown SHALL be treated as an immutable historical snapshot visible to the digest owner; if a referenced entry later becomes unavailable, the snapshot body remains visible to that owner while structured links are removed or shown as unavailable.
 
 #### Scenario: Digest references an article
-- **WHEN** a digest mentions a source article
-- **THEN** the digest stores the corresponding KnowledgeHub entry ID and renders a control that opens that entry inside KnowledgeHub
+- **WHEN** a digest mentions a source article with a `[[kh-entry:<entry_id>]]` marker and the same ID appears in validated structured references
+- **THEN** the digest stores the corresponding KnowledgeHub entry ID and renders a control at the marker location that opens that entry inside KnowledgeHub
 
 #### Scenario: AI returns invalid entry reference
 - **WHEN** AI output references an entry ID that was not part of the candidate set or is not visible to the user
 - **THEN** the system excludes that reference from stored and rendered digest links
+
+#### Scenario: AI returns duplicate entry references
+- **WHEN** AI structured output repeats the same valid entry ID multiple times
+- **THEN** the system stores that ID once in `referenced_entry_ids` while allowing valid inline marker occurrences to render at their marker locations
+
+#### Scenario: Markdown marker is not validated
+- **WHEN** digest Markdown contains a `[[kh-entry:<entry_id>]]` marker whose ID is absent from the validated structured references
+- **THEN** the renderer does not create an in-app entry control for that marker
 
 #### Scenario: Referenced entry visibility changes
 - **WHEN** a stored digest references an entry that is no longer visible to the requesting user
@@ -237,7 +265,7 @@ The system SHALL store structured references to KnowledgeHub entry IDs used in e
 - **THEN** the digest remains in the owner's archive as a historical snapshot and any structured control for that entry is unavailable rather than opening stale or unauthorized entry data
 
 ### Requirement: Manual generation and regeneration
-The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest for their own user only through asynchronous server-side routes. A newly queued generation SHALL return a digest/job record in `pending` state with `202 Accepted`, processing SHALL advance `pending -> running -> success|failed`, and the Daily News page SHALL observe completion by polling or realtime updates. Regeneration SHALL overwrite the selected digest version for the first implementation while preserving that digest's original period_start, period_end, and local digest date.
+The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest for their own user only through asynchronous server-side routes. A newly queued generation SHALL return a digest/job record in `pending` state with `202 Accepted`, processing SHALL advance `pending -> running -> success|failed`, and the Daily News page SHALL observe completion by polling or realtime updates. Regeneration SHALL overwrite the selected digest version for the first implementation while preserving that digest's original period_start, period_end, and local digest date, but SHALL NOT overwrite a digest while that digest or another digest for the same user/date/window is `pending` or `running`.
 
 #### Scenario: User generates now
 - **WHEN** a user clicks Generate now on the Daily News page and no same-window active job or same-day successful digest exists
@@ -260,12 +288,28 @@ The system SHALL allow authenticated users to manually generate a Daily News dig
 - **THEN** the Daily News page shows the active status and refreshes the digest by polling or realtime updates until the record reaches `success` or `failed`
 
 #### Scenario: User regenerates existing digest
-- **WHEN** a user clicks Regenerate for an existing digest they own
+- **WHEN** a user clicks Regenerate for an existing successful or failed digest they own and no digest for the same user, local date, and period is pending or running
 - **THEN** the system overwrites that digest's content, references, status, counts, and generated timestamp while preserving its period_start, period_end, and local digest date
+
+#### Scenario: User regenerates pending or running digest
+- **WHEN** a user clicks Regenerate for a digest that is pending or running
+- **THEN** the system returns the existing active digest state and does not start another job or overwrite content
+
+#### Scenario: User regenerates while same-window job is active
+- **WHEN** a user clicks Regenerate for a digest and another pending or running digest exists for the same user, local date, `period_start`, and `period_end`
+- **THEN** the system returns or displays the active digest state and does not overwrite either digest until the active job reaches a terminal state
 
 #### Scenario: User regenerates another user's digest
 - **WHEN** a user attempts to regenerate a digest whose `user` does not equal `@request.auth.id`
 - **THEN** the system denies the request without revealing that digest's contents
+
+#### Scenario: Unauthenticated manual generation is denied
+- **WHEN** a request without valid authentication calls Generate now
+- **THEN** the system denies the request without creating a job or revealing digest existence
+
+#### Scenario: Unauthenticated regeneration is denied
+- **WHEN** a request without valid authentication calls Regenerate for any digest ID
+- **THEN** the system denies the request without creating a job, overwriting content, or revealing whether the digest exists
 
 ### Requirement: Digest archive browsing
 The system SHALL retain Daily News digests indefinitely and provide paginated browsing of previous digests for each user.

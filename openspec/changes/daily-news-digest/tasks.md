@@ -9,22 +9,22 @@
 
 - [ ] 2.1 Add failing tests for digest input window selection: previous successful digest, failed digest non-advancement, first 24-hour fallback, published_at match, and discovered_at match.
 - [ ] 2.2 Implement digest candidate query logic using entries visible to the target user.
-- [ ] 2.3 Add failing tests for timezone due checks, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active `pending -> running -> success|failed` status transitions, failed retry behavior, atomic active job duplicate prevention under concurrent manual/scheduled attempts, and DST edge cases.
+- [ ] 2.3 Add failing tests for timezone due checks, same-day missed-run catch-up after downtime, no automatic previous-day backfill, invalid timezone/time rejection, disabled settings, duplicate same-local-day prevention, active `pending -> running -> success|failed` status transitions, failed retry behavior, atomic active job duplicate prevention under concurrent manual/scheduled attempts, and DST edge cases.
 - [ ] 2.4 Implement scheduler integration that checks enabled users discovered from materialized `_superusers` settings and starts due digest jobs with transactional/unique active-job claiming.
 
 ## 3. AI Digest Generation
 
-- [ ] 3.1 Add failing tests for Daily News prompt construction using entry summaries, takeaways, stars, sources, dates, IDs, bounded/delimited user extra instructions, prompt-injection text in article fields, deterministic candidate capping, and candidate_count/included_count metadata.
+- [ ] 3.1 Add failing tests for Daily News prompt construction using entry summaries, takeaways, stars, sources, dates, IDs, 2000-code-point bounded/delimited user extra instructions, prompt-injection text in article fields, deterministic candidate capping, and candidate_count/included_count metadata.
 - [ ] 3.2 Implement AI digest generator that requests structured JSON containing title, Markdown body, and referenced entry IDs.
-- [ ] 3.3 Add failing tests for invalid AI references and malformed AI responses.
+- [ ] 3.3 Add failing tests for invalid AI references, duplicate reference deduplication, unvalidated inline `[[kh-entry:<entry_id>]]` markers, and malformed AI responses.
 - [ ] 3.4 Implement AI response parsing, same-user entry-reference validation, and safe failed-state recording.
 - [ ] 3.5 Add tests and implementation for empty windows producing a successful "No articles today" digest.
 
 ## 4. Manual Generation APIs
 
-- [ ] 4.1 Add failing route/API tests for authenticated asynchronous manual Generate now behavior, `202 Accepted` newly queued jobs, `200 OK` same-day successful digest idempotency, active job reuse, failed digest retry, and owner scoping.
+- [ ] 4.1 Add failing route/API tests for authenticated asynchronous manual Generate now behavior, `202 Accepted` newly queued jobs, `200 OK` same-day successful digest idempotency, active job reuse, failed digest retry, owner scoping, and unauthenticated denial without job creation or existence leaks.
 - [ ] 4.2 Implement manual Generate now endpoint using authenticated-user-derived ownership, not generic digest collection mutation.
-- [ ] 4.3 Add failing route/API tests for Regenerate overwriting an owned existing digest, preserving its period/local date, and denying cross-user regeneration.
+- [ ] 4.3 Add failing route/API tests for Regenerate overwriting an owned existing terminal digest, preserving its period/local date, returning existing active state without overwrite for pending/running selected digests or same-window active jobs, denying cross-user regeneration, and unauthenticated denial without mutation or existence leaks.
 - [ ] 4.4 Implement regeneration overwrite behavior in a server-side route with status, content, references, counts, and generated timestamp updates.
 - [ ] 4.5 Add concurrency tests proving the database uniqueness/lock prevents duplicate active jobs for the same user and digest period.
 
@@ -40,15 +40,15 @@
 ## 6. Entry Reference Modal
 
 - [ ] 6.1 Add failing UI tests for opening an entry card from a Daily News reference.
-- [ ] 6.2 Implement internal entry reference rendering from validated structured digest references, not model-generated Markdown URLs.
+- [ ] 6.2 Implement internal entry reference rendering from validated structured digest references and inline `[[kh-entry:<entry_id>]]` marker locations, not model-generated Markdown URLs.
 - [ ] 6.3 Implement entry-card modal behavior that reuses existing entry card display/actions where practical.
 - [ ] 6.4 Add unavailable-entry handling when a referenced entry no longer exists or is not visible, while keeping archived digest body snapshots visible to the digest owner.
 
 ## 7. Daily News Settings UI
 
-- [ ] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings.
+- [ ] 7.1 Add failing UI/API tests for reading and saving per-user Daily News settings, unauthenticated settings denial, and extra-instruction length/control-character validation.
 - [ ] 7.2 Add settings controls for enablement, generation time, timezone, and extra digest instructions.
-- [ ] 7.3 Validate IANA timezone values and local time format in backend and frontend paths, preserving previous valid values on rejected saves.
+- [ ] 7.3 Validate IANA timezone values, local time format, and 2000-code-point extra-instruction limits in backend and frontend paths, preserving previous valid values on rejected saves.
 - [ ] 7.4 Ensure saved extra instructions affect subsequent manual and scheduled generation.
 
 ## 8. Verification and Coverage
