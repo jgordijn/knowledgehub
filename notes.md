@@ -42,3 +42,22 @@ Verification performed:
 - `openspec validate daily-news-digest --strict` passed.
 - `go vet ./...` passed.
 - `make build` passed; existing Svelte a11y warnings remain. Restored `cmd/knowledgehub/ui/build/.gitkeep` after the build.
+
+## Fix pass results
+
+Completed local TDD fixes without parallel delegation:
+- Added red/green handler test for owner-scoped `HandleDailyNewsGetDigest`.
+- Implemented `GET /api/daily-news/digests/{id}` registration and handler with route-level owner enforcement.
+- Added registered-route integration coverage for digest detail reads.
+- Added red/green worker test for missing OpenRouter API key failures.
+- Preserved a clear, user-safe missing API key digest error while continuing to sanitize other provider/internal errors.
+
+Verification:
+- `go test ./internal/routes -run TestHandleDailyNewsGetDigestReturnsOwnedDigestAndDeniesCrossUser -count=1` passed.
+- `go test ./internal/engine -run TestProcessPendingDailyNewsJobsStoresClearMissingAPIKeyFailure -count=1` passed.
+- `go test ./internal/routes -run TestDailyNewsRegisteredDigestDetailRouteReturnsOwnedDigest -count=1` passed.
+- `go test ./internal/ai/... ./internal/engine/... ./internal/routes/... -coverprofile=.tmp/cover.out -covermode=atomic` passed; total coverage now 87.9% (up from review's 87.3%).
+- `go test ./... -count=1` passed.
+- `openspec validate daily-news-digest --strict` passed.
+
+OpenSpec tasks remain 37/37 checked complete in `openspec/changes/daily-news-digest/tasks.md`.
