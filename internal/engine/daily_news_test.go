@@ -14,7 +14,8 @@ func TestDailyNewsDigestWindowAndCandidates(t *testing.T) {
 	defer cleanup()
 
 	resource := testutil.CreateResource(t, app, "Feed", "https://example.com/feed", "rss", "healthy", 0, true)
-	userID := "user_daily_news"
+	user := testutil.CreateSuperuser(t, app, "daily-news-window@example.com")
+	userID := user.Id
 	periodEnd := time.Date(2026, 5, 8, 8, 0, 0, 0, time.UTC)
 
 	createEntryAt := func(title string, publishedAt, discoveredAt time.Time) *core.Record {
@@ -53,7 +54,8 @@ func TestDailyNewsCandidatesFallbackFailedDigestAndDateMatching(t *testing.T) {
 	defer cleanup()
 
 	resource := testutil.CreateResource(t, app, "Feed", "https://example.com/feed", "rss", "healthy", 0, true)
-	userID := "user_daily_news"
+	user := testutil.CreateSuperuser(t, app, "daily-news-fallback@example.com")
+	userID := user.Id
 	periodEnd := time.Date(2026, 5, 8, 8, 0, 0, 0, time.UTC)
 	fallbackStart := periodEnd.Add(-24 * time.Hour)
 

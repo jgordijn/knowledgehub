@@ -41,6 +41,10 @@ func NewTestApp(t *testing.T) (core.App, func()) {
 
 func registerCollections(t *testing.T, app core.App) {
 	t.Helper()
+	superusers, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		t.Fatalf("superusers collection not found: %v", err)
+	}
 
 	// resources
 	resources := core.NewBaseCollection("resources")
@@ -115,7 +119,7 @@ func registerCollections(t *testing.T, app core.App) {
 	// daily_news_settings
 	dailySettings := core.NewBaseCollection("daily_news_settings")
 	addAutodateFields(dailySettings)
-	dailySettings.Fields.Add(&core.RelationField{Name: "user", CollectionId: core.CollectionNameSuperusers, Required: true, MaxSelect: 1})
+	dailySettings.Fields.Add(&core.RelationField{Name: "user", CollectionId: superusers.Id, Required: true, MaxSelect: 1})
 	dailySettings.Fields.Add(&core.BoolField{Name: "enabled"})
 	dailySettings.Fields.Add(&core.TextField{Name: "generation_time", Required: true, Max: 5})
 	dailySettings.Fields.Add(&core.TextField{Name: "timezone", Required: true, Max: 100})
@@ -133,7 +137,7 @@ func registerCollections(t *testing.T, app core.App) {
 	// daily_digests
 	dailyDigests := core.NewBaseCollection("daily_digests")
 	addAutodateFields(dailyDigests)
-	dailyDigests.Fields.Add(&core.RelationField{Name: "user", CollectionId: core.CollectionNameSuperusers, Required: true, MaxSelect: 1})
+	dailyDigests.Fields.Add(&core.RelationField{Name: "user", CollectionId: superusers.Id, Required: true, MaxSelect: 1})
 	dailyDigests.Fields.Add(&core.TextField{Name: "local_date", Required: true, Max: 10})
 	dailyDigests.Fields.Add(&core.DateField{Name: "period_start"})
 	dailyDigests.Fields.Add(&core.DateField{Name: "period_end"})
@@ -189,6 +193,22 @@ func registerCollections(t *testing.T, app core.App) {
 func addAutodateFields(col *core.Collection) {
 	col.Fields.Add(&core.AutodateField{Name: "created", OnCreate: true})
 	col.Fields.Add(&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+}
+
+// CreateSuperuser is a test helper to create a PocketBase superuser owner.
+func CreateSuperuser(t *testing.T, app core.App, email string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		t.Fatalf("superusers collection not found: %v", err)
+	}
+	r := core.NewRecord(col)
+	r.SetEmail(email)
+	r.SetPassword("testpassword123456")
+	if err := app.Save(r); err != nil {
+		t.Fatalf("failed to create superuser: %v", err)
+	}
+	return r
 }
 
 // CreateResource is a test helper to create a resource record.
