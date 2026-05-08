@@ -24,10 +24,5 @@ function createMemoryStorage(): Storage {
 	};
 }
 
-if (!globalThis.localStorage) {
-	Object.defineProperty(globalThis, 'localStorage', { value: createMemoryStorage(), configurable: true });
-}
-
-if (!globalThis.sessionStorage) {
-	Object.defineProperty(globalThis, 'sessionStorage', { value: createMemoryStorage(), configurable: true });
-}
+Object.defineProperty(globalThis, 'localStorage', { value: createMemoryStorage(), configurable: true });
+Object.defineProperty(globalThis, 'sessionStorage', { value: createMemoryStorage(), configurable: true });
