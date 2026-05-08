@@ -89,6 +89,10 @@ export function dailyNewsCanRegenerate(digest: DailyNewsDigestDTO | null | undef
 	return digest?.status === 'success' || digest?.status === 'failed';
 }
 
+export function dailyNewsShouldPoll(digest: DailyNewsDigestDTO | null | undefined): boolean {
+	return digest?.status === 'pending' || digest?.status === 'running';
+}
+
 export function validateDailyNewsSettings(settings: Pick<DailyNewsSettingsDTO, 'generation_time' | 'timezone' | 'extra_instructions'>): string[] {
 	const errors: string[] = [];
 	if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.generation_time)) {

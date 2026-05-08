@@ -8,6 +8,7 @@
 		dailyNewsGenerateButtonLabel,
 		dailyNewsRegenerateButtonLabel,
 		dailyNewsCanRegenerate,
+		dailyNewsShouldPoll,
 		type DailyNewsDigestDTO,
 		type DailyNewsDigestListDTO,
 		validateDailyNewsSettings,
@@ -141,6 +142,12 @@
 	onMount(() => {
 		void loadDigests();
 		void loadSettings();
+		const poll = window.setInterval(() => {
+			if (dailyNewsShouldPoll(displayDigest)) {
+				void loadDigests(displayDigest?.id ?? '', 0);
+			}
+		}, 3000);
+		return () => window.clearInterval(poll);
 	});
 </script>
 

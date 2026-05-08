@@ -10,6 +10,7 @@ import {
 	dailyNewsGenerateButtonLabel,
 	dailyNewsRegenerateButtonLabel,
 	dailyNewsCanRegenerate,
+	dailyNewsShouldPoll,
 	renderDailyNewsReferences,
 	validateDailyNewsSettings,
 	type DailyNewsDigestDTO
@@ -95,6 +96,14 @@ Top **story** with [safe link](https://example.com).
 		expect(dailyNewsCanRegenerate({ id: 'f', status: 'failed' })).toBe(true);
 		expect(dailyNewsCanRegenerate({ id: 'p', status: 'pending' })).toBe(false);
 		expect(dailyNewsCanRegenerate(null)).toBe(false);
+	});
+
+	it('polls while a digest is active', () => {
+		expect(dailyNewsShouldPoll({ id: '1', status: 'pending' })).toBe(true);
+		expect(dailyNewsShouldPoll({ id: '1', status: 'running' })).toBe(true);
+		expect(dailyNewsShouldPoll({ id: '1', status: 'success' })).toBe(false);
+		expect(dailyNewsShouldPoll({ id: '1', status: 'failed' })).toBe(false);
+		expect(dailyNewsShouldPoll(null)).toBe(false);
 	});
 
 	it('validates Daily News settings before saving', () => {
