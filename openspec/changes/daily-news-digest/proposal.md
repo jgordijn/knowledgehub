@@ -7,18 +7,18 @@ KnowledgeHub currently summarizes individual articles, but it does not provide a
 - Add a Daily News option to the application navigation.
 - Generate a user-specific daily digest from articles published or ingested since the user's last successful digest, or from the past 24 hours when no previous digest exists.
 - Run digest generation daily at each user's configured local time, defaulting to 08:00 in Europe/Amsterdam.
-- Add user-specific Daily News settings for enablement, generation time, timezone, extra editorial instructions, strict owner-scoped access rules, and an enforceable one-settings-record-per-user invariant.
+- Add user-specific Daily News settings for enablement, generation time, timezone, extra editorial instructions, route-enforced owner scoping with database invariants, and an enforceable one-settings-record-per-user invariant. PocketBase `_superusers` remain fully privileged administrative identities; Daily News end-user behavior must use authenticated server-side routes that enforce ownership and must not rely on generic collection API rules as the isolation boundary for superuser tokens.
 - Generate a newspaper-like structured Markdown digest using existing entry titles, sources, summaries, takeaways, dates, and effective star ratings.
 - Organize the digest with the most important items first, using stars, recency, source context, AI-detected significance, breaking/developing signals, and the user's extra instructions.
 - Include a dedicated breaking/developing section when relevant.
 - Include a concise "You May Also Find This Interesting" section for lower-rated but potentially useful articles when relevant.
 - Link referenced articles to KnowledgeHub entry cards so the user can inspect the article inside the app before opening the original source.
-- Allow manual generation and regeneration through authenticated server-side routes with atomic duplicate-active-job handling; regeneration overwrites the current digest version for the selected period while preserving that period, but never overwrites while a same-window digest job is pending or running.
+- Allow manual generation and regeneration through authenticated server-side routes with atomic duplicate-active-job handling based on canonical per-user/local-date/window keys; near-simultaneous scheduled and manual attempts for the same local day collapse to one active job. Regeneration is the explicit exception to archive immutability: it targets the selected digest period, never overwrites while a same-day/window digest job is pending or running, preserves existing successful content while regeneration is active, replaces content only after success, and preserves prior successful content plus a sanitized failure state if regeneration fails.
 - Retain previous digests indefinitely as immutable owner-visible snapshots and provide a paginated way to browse them.
 - Create an explicit "No articles today" digest when there are no candidate entries.
 - Surface pending or failed digest states when generation cannot complete, such as missing AI configuration or LLM failure, using sanitized user-safe error messages.
 - Bound digest prompt size deterministically and record when only a subset of candidates was sent to the LLM.
-- Use asynchronous manual generation routes with explicit `pending -> running -> success|failed` status transitions and atomic active-job uniqueness.
+- Use asynchronous manual generation routes with explicit `pending -> running -> success|failed` status transitions, stale active-job recovery after crashes/redeploys, and atomic active-job uniqueness.
 - Render digest Markdown through a strict sanitizer with an explicit Markdown/link allowlist, render KnowledgeHub entry references only from validated structured IDs and `[[kh-entry:<entry_id>]]` inline markers, and construct prompts so article/user text is treated as untrusted data rather than instructions.
 
 ## Capabilities

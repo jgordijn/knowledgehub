@@ -8,7 +8,7 @@ The system SHALL provide a Daily News option in the application navigation for a
 - **THEN** the system displays the Daily News page with the latest digest state for that user
 
 ### Requirement: User-specific Daily News settings
-The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions through authenticated server-side settings behavior. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Extra digest instructions SHALL have a maximum persisted length of 2000 Unicode code points and SHALL reject unsupported control characters. Daily News settings SHALL be stored with a `user` owner field, SHALL enforce exactly one settings record per user with a database-level uniqueness invariant, and user-facing access SHALL be limited to records whose `user` equals `@request.auth.id`. Generic collection list/view SHALL be owner-scoped, generic create/delete SHALL be denied, and settings creation/update SHALL use idempotent server-side get-or-create/update behavior that derives the user from `@request.auth.id`.
+The system SHALL allow each authenticated user to configure Daily News enablement, generation time, timezone, and extra digest instructions through authenticated server-side settings behavior. The default configuration SHALL be enabled with generation time 08:00 and timezone Europe/Amsterdam. Extra digest instructions SHALL have a maximum persisted length of 2000 Unicode code points and SHALL allow printable Unicode plus tab, line feed, and carriage return (`\t`, `\n`, `\r`) while rejecting other Unicode control/format characters before storage. Daily News settings SHALL be stored with a `user` owner field, SHALL enforce exactly one settings record per user with a database-level uniqueness invariant, and supported end-user access SHALL be through server-side settings routes that derive the owner from `@request.auth.id` and enforce ownership before lookup or mutation. Generic collection list/view SHALL be owner-scoped, generic create/delete SHALL be denied as defense in depth, and settings creation/update SHALL use idempotent server-side get-or-create/update behavior that never accepts an arbitrary owner ID. PocketBase `_superusers` SHALL be treated as fully privileged administrative identities that can bypass collection rules; therefore generic collection rules SHALL NOT be the security boundary for Daily News superuser-authenticated end-user behavior.
 
 #### Scenario: Default settings are created
 - **WHEN** an authenticated user has no Daily News settings
@@ -35,7 +35,7 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 - **THEN** the backend rejects the settings change, the previous valid instructions remain unchanged, and the frontend prevents or reports the same limit before submitting where possible
 
 #### Scenario: User saves unsupported control content in digest instructions
-- **WHEN** a user saves extra Daily News instructions containing unsupported control characters
+- **WHEN** a user saves extra Daily News instructions containing Unicode control or format characters other than `\t`, `\n`, or `\r`
 - **THEN** the backend rejects the settings change, keeps the previous valid instructions unchanged, and does not store unsafe control content
 
 #### Scenario: User changes timezone
@@ -67,7 +67,7 @@ The system SHALL allow each authenticated user to configure Daily News enablemen
 - **THEN** the system denies the request without materializing settings for an anonymous user or revealing any user's settings
 
 ### Requirement: Scheduled user-specific digest generation
-The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field and a status of `pending`, `running`, `success`, or `failed`. User-facing collection access SHALL allow owner-scoped list/view only; create, update, and delete mutations SHALL be denied through the generic collection API and performed only by server-side generation/regeneration routes that derive the user from authenticated context. The system SHALL enforce at most one active (`pending` or `running`) digest job per `(user, local_date, period_start, period_end)` using a deterministic job/window key or equivalent transaction-safe lock, and at most one successful automatic digest per `(user, local_date)`.
+The system SHALL generate Daily News digests for each enabled user at the user's configured local time. Daily digests SHALL be stored with a `user` owner field and a status of `pending`, `running`, `success`, or `failed`. Supported end-user reads and mutations SHALL be performed only by server-side routes that derive the user from authenticated context and enforce owner checks before lookup, response, or mutation. User-facing collection rules SHALL allow owner-scoped list/view only and deny create, update, and delete mutations through the generic collection API as defense in depth, but PocketBase `_superusers` SHALL be considered fully privileged administrators that can bypass collection rules. The system SHALL enforce at most one active (`pending` or `running`) digest job per `(user, local_date)` and per `(user, local_date, period_start, period_end)` using deterministic active-day and job/window keys or equivalent transaction-safe locks, and at most one successful automatic digest per `(user, local_date)`.
 
 #### Scenario: Configured local time is due
 - **WHEN** a user's Daily News settings are enabled and the configured local generation time is due in the configured timezone
@@ -90,12 +90,12 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 - **THEN** the scheduler does not create a duplicate automatic digest for that local date
 
 #### Scenario: Active digest job already exists
-- **WHEN** a pending or running digest already exists for the same user, local digest date, `period_start`, and `period_end`
+- **WHEN** a pending or running digest already exists for the same user and local digest date, including the same `period_start` and `period_end` window
 - **THEN** scheduled or manual generation does not create another active digest job and returns or displays the existing active digest state
 
 #### Scenario: Concurrent active job creation races
-- **WHEN** scheduled and manual generation attempt to create an active digest for the same user and local date/window at the same time
-- **THEN** an atomic uniqueness or locking mechanism allows at most one active digest job to be created for that `(user, local_date, period_start, period_end)` key
+- **WHEN** scheduled and manual generation attempt to create an active digest for the same user and local date/window at the same time, even with slightly different observed `now` instants
+- **THEN** shared canonical window derivation and an atomic uniqueness or locking mechanism allow at most one active digest job to be created for that `(user, local_date)` and canonical `(user, local_date, period_start, period_end)` key
 
 #### Scenario: Failed digest retry does not violate active uniqueness
 - **WHEN** a failed digest exists for a user's local date/window and the user or scheduler retries that window
@@ -104,6 +104,18 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 #### Scenario: Digest status transitions
 - **WHEN** a digest generation job is claimed and processed
 - **THEN** its status transitions from `pending` to `running` and then to either `success` or `failed` with no other user-visible terminal state
+
+#### Scenario: Stale pending job is recovered
+- **WHEN** the application starts or the scheduler checks and finds a `pending` digest job older than the configured pending timeout
+- **THEN** the system either resumes the pending job for processing or marks it `failed` with a sanitized timeout message before allowing a new claim for that user/date/window
+
+#### Scenario: Stale running job is recovered
+- **WHEN** the application starts or the scheduler checks and finds a `running` digest job whose `started_at` or heartbeat is older than the configured running timeout
+- **THEN** the system marks it `failed` with a sanitized timeout message so it no longer blocks generation or regeneration for that user/date/window
+
+#### Scenario: Non-stale running job remains active
+- **WHEN** a `running` digest job is within the configured running timeout
+- **THEN** stale-job recovery leaves it active and duplicate generation/regeneration remains blocked
 
 #### Scenario: DST spring-forward due check
 - **WHEN** the configured local generation time falls on a daylight-saving spring-forward day
@@ -122,7 +134,7 @@ The system SHALL generate Daily News digests for each enabled user at the user's
 - **THEN** the operation is denied even if the payload uses that user's ID
 
 ### Requirement: Digest input window
-The system SHALL select candidate entries for digest generation using entries visible to the user that were published or discovered since the user's previous successful digest period end, or during the past 24 hours if no previous successful digest exists. Failed digests SHALL NOT advance the next generation window.
+The system SHALL select candidate entries for digest generation using entries visible to the user that were published or discovered since the user's previous successful digest period end, or during the past 24 hours before the canonical period end if no previous successful digest exists. The system SHALL derive `local_date`, `period_start`, `period_end`, and `job_key` through a shared deterministic claim routine with UTC-normalized timestamp precision so scheduled and manual attempts for the same local day/window produce the same key. Failed digests SHALL NOT advance the next generation window.
 
 #### Scenario: Previous digest exists
 - **WHEN** a user has a previous successful digest with period_end at 2026-05-07T08:00:00+02:00
@@ -167,8 +179,8 @@ The system SHALL construct Daily News prompts so entry fields and user extra ins
 - **THEN** the prompt identifies that text as article data and instructs the model not to follow instructions contained inside article fields
 
 #### Scenario: User instructions exceed safe bounds
-- **WHEN** a user's extra Daily News instructions exceed the configured length or contain unsupported control content
-- **THEN** prompt construction bounds or sanitizes those instructions while preserving valid editorial preferences
+- **WHEN** a user's extra Daily News instructions exceed the configured length or contain unsupported control/format content outside printable Unicode plus `\t`, `\n`, and `\r`
+- **THEN** settings validation rejects the invalid value before storage, and prompt construction only includes the last valid bounded instructions while preserving valid editorial preferences
 
 #### Scenario: Delimited data is included in prompt
 - **WHEN** digest prompt construction includes entry fields and user instructions
@@ -265,11 +277,11 @@ The system SHALL store structured references to KnowledgeHub entry IDs used in e
 - **THEN** the digest remains in the owner's archive as a historical snapshot and any structured control for that entry is unavailable rather than opening stale or unauthorized entry data
 
 ### Requirement: Manual generation and regeneration
-The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest for their own user only through asynchronous server-side routes. A newly queued generation SHALL return a digest/job record in `pending` state with `202 Accepted`, processing SHALL advance `pending -> running -> success|failed`, and the Daily News page SHALL observe completion by polling or realtime updates. Regeneration SHALL overwrite the selected digest version for the first implementation while preserving that digest's original period_start, period_end, and local digest date, but SHALL NOT overwrite a digest while that digest or another digest for the same user/date/window is `pending` or `running`.
+The system SHALL allow authenticated users to manually generate a Daily News digest and regenerate an existing digest for their own user only through asynchronous server-side routes. A newly queued generation SHALL return a digest/job record in `pending` state with `202 Accepted`, processing SHALL advance `pending -> running -> success|failed`, and the Daily News page SHALL observe completion by polling or realtime updates. Regeneration SHALL be the explicit exception to immutable archive snapshots: it targets the selected digest period while preserving that digest's original period_start, period_end, and local digest date, SHALL NOT overwrite a digest while that digest or another digest for the same user/date/window is `pending` or `running`, SHALL preserve previously successful content while regeneration is pending/running, SHALL replace content only on successful regeneration, and SHALL preserve prior successful content plus a sanitized failure state if regeneration fails.
 
 #### Scenario: User generates now
-- **WHEN** a user clicks Generate now on the Daily News page and no same-window active job or same-day successful digest exists
-- **THEN** the system atomically claims a job for that authenticated user using the current digest input window and returns `202 Accepted` with the `pending` digest/job record
+- **WHEN** a user clicks Generate now on the Daily News page and no same-day/window active job or same-day successful digest exists
+- **THEN** the system atomically claims a job for that authenticated user using the canonical digest input window and returns `202 Accepted` with the `pending` digest/job record
 
 #### Scenario: Generate now finds active digest
 - **WHEN** a user clicks Generate now and a pending or running digest already exists for that user and local day/window
@@ -287,16 +299,16 @@ The system SHALL allow authenticated users to manually generate a Daily News dig
 - **WHEN** Generate now or scheduled generation returns or displays a `pending` or `running` digest
 - **THEN** the Daily News page shows the active status and refreshes the digest by polling or realtime updates until the record reaches `success` or `failed`
 
-#### Scenario: User regenerates existing digest
-- **WHEN** a user clicks Regenerate for an existing successful or failed digest they own and no digest for the same user, local date, and period is pending or running
-- **THEN** the system overwrites that digest's content, references, status, counts, and generated timestamp while preserving its period_start, period_end, and local digest date
+#### Scenario: User regenerates existing digest successfully
+- **WHEN** a user clicks Regenerate for an existing successful or failed digest they own, no digest for the same user, local date, and period is pending or running, and the regeneration succeeds
+- **THEN** the system replaces that digest's content, references, status, counts, and generated timestamp while preserving its period_start, period_end, and local digest date
 
 #### Scenario: User regenerates pending or running digest
 - **WHEN** a user clicks Regenerate for a digest that is pending or running
-- **THEN** the system returns the existing active digest state and does not start another job or overwrite content
+- **THEN** the system returns the existing active digest state and does not start another job or overwrite existing successful content
 
-#### Scenario: User regenerates while same-window job is active
-- **WHEN** a user clicks Regenerate for a digest and another pending or running digest exists for the same user, local date, `period_start`, and `period_end`
+#### Scenario: User regenerates while same-day or same-window job is active
+- **WHEN** a user clicks Regenerate for a digest and another pending or running digest exists for the same user and local date or for the same user, local date, `period_start`, and `period_end`
 - **THEN** the system returns or displays the active digest state and does not overwrite either digest until the active job reaches a terminal state
 
 #### Scenario: User regenerates another user's digest
@@ -310,6 +322,10 @@ The system SHALL allow authenticated users to manually generate a Daily News dig
 #### Scenario: Unauthenticated regeneration is denied
 - **WHEN** a request without valid authentication calls Regenerate for any digest ID
 - **THEN** the system denies the request without creating a job, overwriting content, or revealing whether the digest exists
+
+#### Scenario: Regeneration fails after previous success
+- **WHEN** regeneration of a previously successful digest fails after entering an active state
+- **THEN** the system keeps the prior successful body and validated references visible, stores a sanitized failure state/message for the failed regeneration attempt, and does not replace the digest content with partial or failed output
 
 ### Requirement: Digest archive browsing
 The system SHALL retain Daily News digests indefinitely and provide paginated browsing of previous digests for each user.
