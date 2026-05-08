@@ -3,6 +3,7 @@ package routes
 import (
 	"errors"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -12,14 +13,45 @@ import (
 )
 
 type DailyNewsDigestDTO struct {
-	ID        string `json:"id"`
-	User      string `json:"user"`
-	Status    string `json:"status"`
-	Trigger   string `json:"trigger"`
-	LocalDate string `json:"local_date"`
+	ID             string   `json:"id"`
+	User           string   `json:"user"`
+	Status         string   `json:"status"`
+	Trigger        string   `json:"trigger"`
+	LocalDate      string   `json:"local_date"`
+	Title          string   `json:"title,omitempty"`
+	BodyMarkdown   string   `json:"body_markdown,omitempty"`
+	ReferencedIDs  []string `json:"referenced_entry_ids,omitempty"`
+	CandidateCount int      `json:"candidate_count"`
+	IncludedCount  int      `json:"included_count"`
+	UsedSubset     bool     `json:"used_subset"`
+	ErrorMessage   string   `json:"error_message,omitempty"`
+	GeneratedAt    string   `json:"generated_at,omitempty"`
+	PeriodStart    string   `json:"period_start,omitempty"`
+	PeriodEnd      string   `json:"period_end,omitempty"`
+}
+
+type DailyNewsDigestListDTO struct {
+	Latest   DailyNewsDigestDTO   `json:"latest"`
+	Selected DailyNewsDigestDTO   `json:"selected"`
+	Archive  []DailyNewsDigestDTO `json:"archive"`
+	Limit    int                  `json:"limit"`
+	Offset   int                  `json:"offset"`
+	HasMore  bool                 `json:"has_more"`
 }
 
 func RegisterDailyNewsRoutes(se *core.ServeEvent) {
+	se.Router.GET("/api/daily-news/digests", func(re *core.RequestEvent) error {
+		if re.Auth == nil {
+			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
+		}
+		limit, _ := strconv.Atoi(re.Request.URL.Query().Get("limit"))
+		offset, _ := strconv.Atoi(re.Request.URL.Query().Get("offset"))
+		status, dto, err := HandleDailyNewsListDigests(re.App, re.Auth.Id, re.Request.URL.Query().Get("selected"), limit, offset)
+		if err != nil {
+			return re.JSON(status, map[string]string{"error": err.Error()})
+		}
+		return re.JSON(status, dto)
+	})
 	se.Router.POST("/api/daily-news/generate", func(re *core.RequestEvent) error {
 		if re.Auth == nil {
 			return re.JSON(http.StatusUnauthorized, map[string]string{"error": "Authentication required."})
@@ -40,6 +72,44 @@ func RegisterDailyNewsRoutes(se *core.ServeEvent) {
 		}
 		return re.JSON(status, dto)
 	})
+}
+
+func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, offset int) (int, DailyNewsDigestListDTO, error) {
+	if userID == "" {
+		return http.StatusUnauthorized, DailyNewsDigestListDTO{}, errors.New("Authentication required.")
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	latestRecords, err := app.FindRecordsByFilter("daily_digests", "user = {:user}", "-period_end", 1, 0, dbx.Params{"user": userID})
+	if err != nil || len(latestRecords) == 0 {
+		return http.StatusOK, DailyNewsDigestListDTO{Archive: []DailyNewsDigestDTO{}, Limit: limit, Offset: offset}, nil
+	}
+	latest := latestRecords[0]
+	selected := latest
+	if selectedID != "" && selectedID != latest.Id {
+		candidate, err := app.FindRecordById("daily_digests", selectedID)
+		if err != nil || candidate.GetString("user") != userID {
+			return http.StatusNotFound, DailyNewsDigestListDTO{}, errors.New("Digest not found.")
+		}
+		selected = candidate
+	}
+	records, err := app.FindRecordsByFilter("daily_digests", "user = {:user} && id != {:latest}", "-period_end", limit+1, offset, dbx.Params{"user": userID, "latest": latest.Id})
+	if err != nil {
+		return http.StatusInternalServerError, DailyNewsDigestListDTO{}, err
+	}
+	hasMore := len(records) > limit
+	if hasMore {
+		records = records[:limit]
+	}
+	archive := make([]DailyNewsDigestDTO, 0, len(records))
+	for _, record := range records {
+		archive = append(archive, dailyNewsDigestDTO(record))
+	}
+	return http.StatusOK, DailyNewsDigestListDTO{Latest: dailyNewsDigestDTO(latest), Selected: dailyNewsDigestDTO(selected), Archive: archive, Limit: limit, Offset: offset, HasMore: hasMore}, nil
 }
 
 func HandleDailyNewsGenerateNow(app core.App, userID string, now time.Time) (int, DailyNewsDigestDTO, error) {
@@ -169,5 +239,20 @@ func findSuccessfulScheduledDigest(app core.App, userID, localDate string) (*cor
 }
 
 func dailyNewsDigestDTO(record *core.Record) DailyNewsDigestDTO {
-	return DailyNewsDigestDTO{ID: record.Id, User: record.GetString("user"), Status: record.GetString("status"), Trigger: record.GetString("trigger"), LocalDate: record.GetString("local_date")}
+	return DailyNewsDigestDTO{
+		ID:             record.Id,
+		User:           record.GetString("user"),
+		Status:         record.GetString("status"),
+		Trigger:        record.GetString("trigger"),
+		LocalDate:      record.GetString("local_date"),
+		Title:          record.GetString("title"),
+		BodyMarkdown:   record.GetString("body_markdown"),
+		CandidateCount: int(record.GetFloat("candidate_count")),
+		IncludedCount:  int(record.GetFloat("included_count")),
+		UsedSubset:     record.GetBool("used_subset"),
+		ErrorMessage:   record.GetString("error_message"),
+		GeneratedAt:    record.GetDateTime("last_success_at").String(),
+		PeriodStart:    record.GetDateTime("period_start").String(),
+		PeriodEnd:      record.GetDateTime("period_end").String(),
+	}
 }

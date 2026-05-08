@@ -201,6 +201,68 @@ func TestCompleteDailyNewsRegenerationSuccessAndFailureSnapshots(t *testing.T) {
 	}
 }
 
+func TestHandleDailyNewsListDigestsReturnsLatestArchiveAndSelectedOwnedDigest(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "archive@example.com")
+	other := testutil.CreateSuperuser(t, app, "archive-other@example.com")
+	older := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-07", "success", "automatic")
+	older.Set("title", "Older")
+	older.Set("body_markdown", "# Older")
+	older.Set("period_end", "2026-05-07T06:00:00Z")
+	if err := app.Save(older); err != nil {
+		t.Fatalf("save older: %v", err)
+	}
+	middle := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-07", "failed", "manual")
+	middle.Set("title", "Middle")
+	middle.Set("period_end", "2026-05-07T12:00:00Z")
+	if err := app.Save(middle); err != nil {
+		t.Fatalf("save middle: %v", err)
+	}
+	latest := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	latest.Set("title", "Latest")
+	latest.Set("body_markdown", "# Latest")
+	latest.Set("period_end", "2026-05-08T06:00:00Z")
+	latest.Set("candidate_count", 3)
+	latest.Set("included_count", 2)
+	latest.Set("used_subset", true)
+	if err := app.Save(latest); err != nil {
+		t.Fatalf("save latest: %v", err)
+	}
+	otherDigest := testutil.CreateDailyDigest(t, app, other.Id, "2026-05-09", "success", "automatic")
+	otherDigest.Set("period_end", "2026-05-09T06:00:00Z")
+	if err := app.Save(otherDigest); err != nil {
+		t.Fatalf("save other: %v", err)
+	}
+
+	status, result, err := HandleDailyNewsListDigests(app, user.Id, "", 1, 0)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("list failed: status=%d err=%v", status, err)
+	}
+	if result.Latest.ID != latest.Id || result.Selected.ID != latest.Id || result.Latest.Title != "Latest" || result.Latest.BodyMarkdown != "# Latest" {
+		t.Fatalf("expected latest selected digest DTO, got %+v", result)
+	}
+	if len(result.Archive) != 1 || result.Archive[0].ID != middle.Id || !result.HasMore {
+		t.Fatalf("expected paginated owner archive with has_more, got %+v", result)
+	}
+	if result.Archive[0].ID == otherDigest.Id {
+		t.Fatal("archive leaked another user's digest")
+	}
+
+	status, selected, err := HandleDailyNewsListDigests(app, user.Id, older.Id, 10, 0)
+	if err != nil || status != http.StatusOK || selected.Selected.ID != older.Id || selected.Latest.ID != latest.Id {
+		t.Fatalf("expected explicit owned selection, status=%d result=%+v err=%v", status, selected, err)
+	}
+	status, _, err = HandleDailyNewsListDigests(app, user.Id, otherDigest.Id, 10, 0)
+	if err == nil || status != http.StatusNotFound {
+		t.Fatalf("expected cross-user selected digest denial, status=%d err=%v", status, err)
+	}
+	status, _, err = HandleDailyNewsListDigests(app, "", "", 10, 0)
+	if err == nil || status != http.StatusUnauthorized {
+		t.Fatalf("expected unauthenticated denial, status=%d err=%v", status, err)
+	}
+}
+
 func TestHandleDailyNewsGenerateNowEnforcesOwnerAndAuth(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
