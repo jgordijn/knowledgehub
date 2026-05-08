@@ -11,7 +11,8 @@ Review count (post-implementation): 0/5
 - Current focus completed: Task group 4.3-4.4 (manual Regenerate API). Tests and implementation both touched `internal/routes/daily_news.go`, `internal/routes/daily_news_test.go`, and Daily News job lifecycle behavior, so they were **not parallelized**.
 - Current focus completed: Task 4.5 concurrency/lock tests. This extended existing database uniqueness/lock coverage in `internal/engine/daily_news_scheduler_test.go`; it was **not parallelized**.
 - Current focus completed: frontend task group 5.1-5.2. These touched `ui/src/lib/components/Sidebar.svelte`, a new route, and small UI helpers/tests, so they were done locally and **not parallelized**.
-- Current focus: task 5.3 latest digest display/sanitizer. This owns the Daily News UI rendering/sanitizer boundary (`ui/src/lib/daily-news-ui.*`, new Daily News component, and `/daily-news` route), so it is **not parallelized** with 5.4-5.6 or 6.x reference rendering.
+- Current focus completed: task 5.3 latest digest display/sanitizer. This owned the Daily News UI rendering/sanitizer boundary (`ui/src/lib/daily-news-ui.*`, new Daily News component, and `/daily-news` route), so it was **not parallelized** with 5.4-5.6 or 6.x reference rendering.
+- Current focus: task 5.4 pending/failed/empty UI states. This extends the same Daily News route/component state rendering from 5.3, so it is **not parallelized**.
 - Checked remaining tasks for safe delegation after 5.2: 6.x and 7.x need backend route contracts; no delegate session launched yet.
 
 ## Progress log
@@ -58,3 +59,5 @@ Review count (post-implementation): 0/5
   - Added `renderDailyNewsMarkdown`, Daily News DTO/subset helpers, `DailyNewsDigest.svelte`, and latest digest rendering from the Daily News route DTO.
   - Marked OpenSpec task 5.3 complete.
 - Tests run: `cd ui && bunx vitest run src/lib/daily-news-ui.test.ts`.
+- Check attempted: `cd ui && bun run check` still fails on pre-existing diagnostics in `vite.config.ts`, `LinkPanel.svelte`, `QuickAddModal.svelte`, and existing a11y warnings; no Daily News diagnostics were reported.
+- Started task 5.4 locally: no safe parallel slice identified because the state messaging belongs in the same Daily News UI helpers/page contract.
