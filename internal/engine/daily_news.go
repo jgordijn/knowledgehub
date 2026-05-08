@@ -28,7 +28,12 @@ func FindDailyNewsCandidates(app core.App, userID string, periodEnd time.Time) (
 	if start.IsZero() {
 		start = end.Add(-24 * time.Hour)
 	}
-	start = start.UTC().Truncate(time.Second)
+	return FindDailyNewsCandidatesInWindow(app, userID, start, end)
+}
+
+func FindDailyNewsCandidatesInWindow(app core.App, userID string, periodStart, periodEnd time.Time) (DailyNewsWindow, []*core.Record, error) {
+	start := periodStart.UTC().Truncate(time.Second)
+	end := periodEnd.UTC().Truncate(time.Second)
 
 	entries, err := app.FindAllRecords("entries")
 	if err != nil {

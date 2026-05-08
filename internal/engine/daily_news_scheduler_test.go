@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -77,6 +78,53 @@ func TestRunDailyNewsScheduleClaimsDueEnabledSettings(t *testing.T) {
 	}
 }
 
+func TestProcessPendingDailyNewsJobsUsesStoredRegenerationWindow(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-regenerate-window@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	testutil.CreateSetting(t, app, ai.SettingAPIKey, "test-key")
+	resource := testutil.CreateResource(t, app, "Older Source", "https://example.com/feed", "rss", "healthy", 0, true)
+	oldStart := time.Date(2026, 5, 6, 6, 0, 0, 0, time.UTC)
+	oldEnd := time.Date(2026, 5, 7, 6, 0, 0, 0, time.UTC)
+	newEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+	oldEntry := testutil.CreateEntryWithStars(t, app, resource.Id, "Older article", "https://example.com/old", 4, 0)
+	oldEntry.Set("discovered_at", oldStart.Add(time.Hour).Format(time.RFC3339))
+	if err := app.Save(oldEntry); err != nil {
+		t.Fatalf("save old entry: %v", err)
+	}
+	newEntry := testutil.CreateEntryWithStars(t, app, resource.Id, "Newer article", "https://example.com/new", 5, 0)
+	newEntry.Set("discovered_at", oldEnd.Add(time.Hour).Format(time.RFC3339))
+	if err := app.Save(newEntry); err != nil {
+		t.Fatalf("save new entry: %v", err)
+	}
+	newerSuccess := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	newerSuccess.Set("period_start", oldEnd.Format(time.RFC3339))
+	newerSuccess.Set("period_end", newEnd.Format(time.RFC3339))
+	newerSuccess.Set("has_successful_snapshot", true)
+	if err := app.Save(newerSuccess); err != nil {
+		t.Fatalf("save newer success: %v", err)
+	}
+	_, _, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-07", PeriodStart: oldStart, PeriodEnd: oldEnd, Trigger: "manual", Scheduled: false, Now: newEnd})
+	if err != nil {
+		t.Fatalf("claim old job: %v", err)
+	}
+	var prompt string
+	restore := ai.SetCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
+		prompt = messages[1].Content
+		return `{"title":"Old Daily","body_markdown":"# Old Daily","referenced_entry_ids":["` + oldEntry.Id + `"]}`, nil
+	})
+	defer restore()
+
+	processed, err := ProcessPendingDailyNewsJobs(app, newEnd.Add(time.Minute))
+	if err != nil || processed != 1 {
+		t.Fatalf("processed=%d err=%v", processed, err)
+	}
+	if !strings.Contains(prompt, "Window UTC: 2026-05-06T06:00:00Z to 2026-05-07T06:00:00Z") || !strings.Contains(prompt, oldEntry.Id) || strings.Contains(prompt, newEntry.Id) {
+		t.Fatalf("prompt did not use stored old window/candidates:\n%s", prompt)
+	}
+}
+
 func TestProcessPendingDailyNewsJobsGeneratesTerminalDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
@@ -96,10 +144,12 @@ func TestProcessPendingDailyNewsJobsGeneratesTerminalDigest(t *testing.T) {
 	if err != nil {
 		t.Fatalf("claim job: %v", err)
 	}
+	var prompt string
 	restore := ai.SetCompleteFunc(func(apiKey, model string, messages []ai.Message) (string, error) {
 		if apiKey != "test-key" || model != "test-model" {
 			t.Fatalf("unexpected ai config %q/%q", apiKey, model)
 		}
+		prompt = messages[1].Content
 		return `{"title":"Daily","body_markdown":"# Daily\n[[kh-entry:` + entry.Id + `]]","referenced_entry_ids":["` + entry.Id + `"]}`, nil
 	})
 	defer restore()
@@ -107,6 +157,9 @@ func TestProcessPendingDailyNewsJobsGeneratesTerminalDigest(t *testing.T) {
 	processed, err := ProcessPendingDailyNewsJobs(app, periodEnd.Add(time.Minute))
 	if err != nil || processed != 1 {
 		t.Fatalf("processed=%d err=%v", processed, err)
+	}
+	if !strings.Contains(prompt, `"source":"Source"`) || strings.Contains(prompt, `"source":"`+resource.Id+`"`) {
+		t.Fatalf("worker prompt should contain human-readable source name, got:\n%s", prompt)
 	}
 	updated, _ := app.FindRecordById("daily_digests", job.Id)
 	if updated.GetString("status") != "success" || updated.GetString("title") != "Daily" || !updated.GetBool("has_successful_snapshot") || updated.GetString("active_window_key") != "" {

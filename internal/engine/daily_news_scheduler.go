@@ -265,12 +265,17 @@ func generateClaimedDailyNewsJob(app core.App, job *core.Record, now time.Time) 
 	if err != nil || apiKey == "" {
 		return FailDailyNewsRegeneration(app, job.Id, "OpenRouter API key is not configured.", now)
 	}
+	periodStart := job.GetDateTime("period_start").Time().UTC()
 	periodEnd := job.GetDateTime("period_end").Time().UTC()
-	window, candidates, err := FindDailyNewsCandidates(app, job.GetString("user"), periodEnd)
+	window, candidates, err := FindDailyNewsCandidatesInWindow(app, job.GetString("user"), periodStart, periodEnd)
 	if err != nil {
 		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
 	}
-	result, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: apiKey, Model: ai.GetModel(app), Window: window, Candidates: candidates, ExtraInstructions: settings.GetString("extra_instructions")})
+	sourceNames, err := dailyNewsSourceNames(app, candidates)
+	if err != nil {
+		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
+	}
+	result, err := GenerateDailyNewsDigest(app, DailyNewsGenerateInput{APIKey: apiKey, Model: ai.GetModel(app), Window: window, Candidates: candidates, ExtraInstructions: settings.GetString("extra_instructions"), SourceNames: sourceNames})
 	if err != nil {
 		return FailDailyNewsRegeneration(app, job.Id, err.Error(), now)
 	}

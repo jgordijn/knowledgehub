@@ -179,6 +179,22 @@ func effectiveDailyNewsStars(entry *core.Record) int {
 	return entry.GetInt("ai_stars")
 }
 
+func dailyNewsSourceNames(app core.App, entries []*core.Record) (map[string]string, error) {
+	names := make(map[string]string)
+	for _, entry := range entries {
+		resourceID := entry.GetString("resource")
+		if resourceID == "" || names[resourceID] != "" {
+			continue
+		}
+		resource, err := app.FindRecordById("resources", resourceID)
+		if err != nil {
+			return nil, err
+		}
+		names[resourceID] = resource.GetString("name")
+	}
+	return names, nil
+}
+
 func dailyNewsEntrySource(entry *core.Record, names ...map[string]string) string {
 	resourceID := entry.GetString("resource")
 	if len(names) > 0 && names[0] != nil && names[0][resourceID] != "" {
