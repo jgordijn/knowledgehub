@@ -4,6 +4,7 @@ import {
 	dailyNewsLoadingMessage,
 	renderDailyNewsMarkdown,
 	dailyNewsSubsetMessage,
+	dailyNewsStateMessage,
 	type DailyNewsDigestDTO
 } from './daily-news-ui';
 
@@ -54,5 +55,24 @@ Top **story** with [safe link](https://example.com).
 
 		expect(dailyNewsSubsetMessage(digest)).toBe('This digest is based on 20 of 42 available articles.');
 		expect(dailyNewsSubsetMessage({ ...digest, used_subset: false })).toBe('');
+	});
+
+	it('describes pending, running, failed, and empty digest states', () => {
+		expect(dailyNewsStateMessage({ id: 'p', status: 'pending' })).toEqual({
+			tone: 'info',
+			title: 'Daily News is queued',
+			message: 'Your digest has been queued and will be generated shortly.'
+		});
+		expect(dailyNewsStateMessage({ id: 'r', status: 'running' }).title).toBe('Daily News is being generated');
+		expect(dailyNewsStateMessage({ id: 'f', status: 'failed', error_message: 'OpenRouter unavailable' })).toEqual({
+			tone: 'error',
+			title: 'Daily News generation failed',
+			message: 'OpenRouter unavailable'
+		});
+		expect(dailyNewsStateMessage({ id: 'e', status: 'success', body_markdown: '', candidate_count: 0 })).toEqual({
+			tone: 'empty',
+			title: 'No articles today',
+			message: 'No new articles matched this digest window.'
+		});
 	});
 });
