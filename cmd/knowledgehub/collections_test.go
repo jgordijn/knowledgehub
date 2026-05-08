@@ -66,6 +66,7 @@ func TestRegisterCollections_CreatesDailyNewsCollections(t *testing.T) {
 	assertRule(t, "settings list", settings.ListRule, "user = @request.auth.id")
 	assertRule(t, "settings view", settings.ViewRule, "user = @request.auth.id")
 	assertDeniedRule(t, "settings create", settings.CreateRule)
+	assertDeniedRule(t, "settings update", settings.UpdateRule)
 	assertDeniedRule(t, "settings delete", settings.DeleteRule)
 	assertIndexContains(t, settings, "unique", "user")
 

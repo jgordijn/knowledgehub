@@ -331,6 +331,26 @@ func TestDailyNewsConcreteLockIndexesPreventDuplicateActiveJobs(t *testing.T) {
 	}
 }
 
+func TestDailyNewsPreDueManualClaimsReuseActiveSameDayManualLock(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-predue-manual-dedupe@example.com")
+	firstEnd := time.Date(2026, 5, 8, 5, 30, 0, 0, time.UTC)
+	secondEnd := firstEnd.Add(time.Second)
+
+	first, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: firstEnd.Add(-24 * time.Hour), PeriodEnd: firstEnd, Trigger: "manual", Scheduled: false, Now: firstEnd})
+	if err != nil || !created {
+		t.Fatalf("first pre-due manual claim created=%v err=%v", created, err)
+	}
+	second, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: secondEnd.Add(-24 * time.Hour), PeriodEnd: secondEnd, Trigger: "manual", Scheduled: false, Now: secondEnd})
+	if err != nil || created || second.Id != first.Id {
+		t.Fatalf("same-day active manual claim was not reused: created=%v got=%s want=%s err=%v", created, second.Id, first.Id, err)
+	}
+	if first.GetString("active_scheduled_day_key") == "" {
+		t.Fatalf("pre-due manual claim should use a concrete active day lock")
+	}
+}
+
 func TestDailyNewsPreDueManualAndLaterScheduledUseSeparateLocks(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
@@ -344,6 +364,10 @@ func TestDailyNewsPreDueManualAndLaterScheduledUseSeparateLocks(t *testing.T) {
 	}
 	if err := CompleteDailyNewsJob(app, manual.Id, "success", "", manualEnd.Add(time.Minute)); err != nil {
 		t.Fatalf("complete manual: %v", err)
+	}
+	manual, err = app.FindRecordById("daily_digests", manual.Id)
+	if err != nil {
+		t.Fatalf("reload manual: %v", err)
 	}
 	if manual.GetString("successful_scheduled_day_key") != "" {
 		t.Fatalf("pre-due manual should not reserve scheduled success key")

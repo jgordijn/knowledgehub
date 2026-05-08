@@ -128,12 +128,14 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	periodStart := claim.PeriodStart.UTC().Truncate(time.Second)
 	periodEnd := claim.PeriodEnd.UTC().Truncate(time.Second)
 	windowKey := dailyNewsWindowKey(claim.UserID, claim.LocalDate, periodStart, periodEnd)
-	scheduledDayKey := ""
+	scheduledDayKey := claim.UserID + "|" + claim.LocalDate + "|manual"
 	if claim.Scheduled {
 		scheduledDayKey = claim.UserID + "|" + claim.LocalDate
-		if existing, err := findDigestByKey(app, "active_scheduled_day_key", scheduledDayKey); err == nil {
-			return existing, false, nil
-		}
+	}
+	if existing, err := findDigestByKey(app, "active_scheduled_day_key", scheduledDayKey); err == nil {
+		return existing, false, nil
+	}
+	if claim.Scheduled {
 		if existing, err := findDigestByKey(app, "successful_scheduled_day_key", scheduledDayKey); err == nil {
 			return existing, false, errDailyNewsScheduledSuccessExists
 		}
@@ -338,7 +340,7 @@ func CompleteDailyNewsRegeneration(app core.App, id string, result DailyNewsGene
 	record.Set("active_window_key", "")
 	record.Set("active_scheduled_day_key", "")
 	record.Set("error_message", "")
-	if key := record.GetString("scheduled_day_key"); key != "" && record.GetString("successful_scheduled_day_key") == "" {
+	if key := record.GetString("scheduled_day_key"); key != "" && record.GetString("trigger") != "manual" && record.GetString("successful_scheduled_day_key") == "" {
 		record.Set("successful_scheduled_day_key", key)
 	}
 	return app.Save(record)
@@ -372,7 +374,7 @@ func CompleteDailyNewsJob(app core.App, id, status, message string, now time.Tim
 	if status == "success" {
 		record.Set("has_successful_snapshot", true)
 		record.Set("last_success_at", normalizedNow(now).Format(time.RFC3339))
-		if key := record.GetString("scheduled_day_key"); key != "" {
+		if key := record.GetString("scheduled_day_key"); key != "" && record.GetString("trigger") != "manual" {
 			record.Set("successful_scheduled_day_key", key)
 		}
 		record.Set("error_message", "")

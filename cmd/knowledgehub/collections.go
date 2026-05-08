@@ -256,7 +256,7 @@ func ensureDailyNewsSettingsCollection(app core.App) {
 	collection.ListRule = types.Pointer("user = @request.auth.id")
 	collection.ViewRule = types.Pointer("user = @request.auth.id")
 	collection.CreateRule = types.Pointer("")
-	collection.UpdateRule = types.Pointer("user = @request.auth.id")
+	collection.UpdateRule = types.Pointer("")
 	collection.DeleteRule = types.Pointer("")
 	collection.Indexes = append(collection.Indexes, "CREATE UNIQUE INDEX idx_daily_news_settings_user ON daily_news_settings (user)")
 
