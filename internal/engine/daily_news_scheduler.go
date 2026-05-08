@@ -131,11 +131,11 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	scheduledDayKey := ""
 	if claim.Scheduled {
 		scheduledDayKey = claim.UserID + "|" + claim.LocalDate
-		if existing, err := findDigestByKey(app, "successful_scheduled_day_key", scheduledDayKey); err == nil {
-			return existing, false, errDailyNewsScheduledSuccessExists
-		}
 		if existing, err := findDigestByKey(app, "active_scheduled_day_key", scheduledDayKey); err == nil {
 			return existing, false, nil
+		}
+		if existing, err := findDigestByKey(app, "successful_scheduled_day_key", scheduledDayKey); err == nil {
+			return existing, false, errDailyNewsScheduledSuccessExists
 		}
 	}
 	if existing, err := findDigestByKey(app, "active_window_key", windowKey); err == nil {

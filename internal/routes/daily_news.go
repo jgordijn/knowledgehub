@@ -294,6 +294,9 @@ func HandleDailyNewsGenerateNow(app core.App, userID string, now time.Time) (int
 	if !due {
 		loc, _ := time.LoadLocation(schedule.Timezone)
 		localDate = now.In(loc).Format("2006-01-02")
+		if active, findErr := findActiveManualDigest(app, userID, localDate); findErr == nil {
+			return http.StatusAccepted, dailyNewsDigestDTO(active), nil
+		}
 		periodEnd = now.UTC().Truncate(time.Second)
 		trigger = "manual"
 		scheduled = false
@@ -397,6 +400,10 @@ func getOrCreateDailyNewsSettingsForUser(app core.App, userID string) (*core.Rec
 func findSuccessfulScheduledDigest(app core.App, userID, localDate string) (*core.Record, error) {
 	key := userID + "|" + localDate
 	return app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && successful_scheduled_day_key = {:key}", dbx.Params{"user": userID, "date": localDate, "key": key})
+}
+
+func findActiveManualDigest(app core.App, userID, localDate string) (*core.Record, error) {
+	return app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && trigger = 'manual' && (status = 'pending' || status = 'running')", dbx.Params{"user": userID, "date": localDate})
 }
 
 func dailyNewsSettingsDTO(record *core.Record) DailyNewsSettingsDTO {
