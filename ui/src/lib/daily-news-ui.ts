@@ -19,6 +19,13 @@ export type DailyNewsDigestDTO = {
 	used_subset?: boolean;
 	local_date?: string;
 	generated_at?: string;
+	error_message?: string;
+};
+
+export type DailyNewsStateMessage = {
+	tone: 'info' | 'error' | 'empty';
+	title: string;
+	message: string;
 };
 
 export function dailyNewsNavItem(): DailyNewsNavItem {
@@ -34,6 +41,23 @@ export function dailyNewsSubsetMessage(digest: Pick<DailyNewsDigestDTO, 'used_su
 		return '';
 	}
 	return `This digest is based on ${digest.included_count} of ${digest.candidate_count} available articles.`;
+}
+
+export function dailyNewsStateMessage(digest: DailyNewsDigestDTO | null | undefined): DailyNewsStateMessage | null {
+	if (!digest) return null;
+	if (digest.status === 'pending') {
+		return { tone: 'info', title: 'Daily News is queued', message: 'Your digest has been queued and will be generated shortly.' };
+	}
+	if (digest.status === 'running') {
+		return { tone: 'info', title: 'Daily News is being generated', message: 'Your digest is being written now. This page will update when it is ready.' };
+	}
+	if (digest.status === 'failed') {
+		return { tone: 'error', title: 'Daily News generation failed', message: digest.error_message || 'Please try again later.' };
+	}
+	if (digest.status === 'success' && digest.candidate_count === 0 && !digest.body_markdown) {
+		return { tone: 'empty', title: 'No articles today', message: 'No new articles matched this digest window.' };
+	}
+	return null;
 }
 
 function neutralizeDangerousMarkdownLinks(markdown: string): string {
