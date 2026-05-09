@@ -566,6 +566,72 @@ func TestHandleDailyNewsListDigestsReturnsLatestArchiveAndSelectedOwnedDigest(t 
 	}
 }
 
+func TestHandleDailyNewsListDigestsPrefersPendingRetryForSameWindow(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "archive-pending-retry@example.com")
+
+	failed := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "failed", "automatic")
+	failed.Set("title", "Failed attempt")
+	failed.Set("period_end", "2026-05-08T06:00:00Z")
+	failed.Set("attempt_finished_at", "2026-05-08T06:01:00Z")
+	if err := app.Save(failed); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+	retry := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "pending", "automatic")
+	retry.Set("title", "Retry pending")
+	retry.Set("period_end", "2026-05-08T06:00:00Z")
+	retry.Set("queued_at", "2026-05-08T06:02:00Z")
+	if err := app.Save(retry); err != nil {
+		t.Fatalf("save retry: %v", err)
+	}
+
+	status, result, err := HandleDailyNewsListDigests(app, user.Id, "", 10, 0)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("list failed: status=%d err=%v", status, err)
+	}
+	if result.Latest.ID != retry.Id || result.Selected.ID != retry.Id {
+		t.Fatalf("expected pending retry as latest, got %+v", result)
+	}
+	if len(result.Archive) != 1 || result.Archive[0].ID != failed.Id {
+		t.Fatalf("expected failed attempt in archive after retry, got %+v", result.Archive)
+	}
+}
+
+func TestHandleDailyNewsListDigestsPrefersSuccessfulRetryForSameWindow(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "archive-success-retry@example.com")
+
+	failed := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "failed", "automatic")
+	failed.Set("title", "Failed attempt")
+	failed.Set("period_end", "2026-05-08T06:00:00Z")
+	failed.Set("attempt_finished_at", "2026-05-08T06:01:00Z")
+	if err := app.Save(failed); err != nil {
+		t.Fatalf("save failed: %v", err)
+	}
+	success := testutil.CreateDailyDigest(t, app, user.Id, "2026-05-08", "success", "automatic")
+	success.Set("title", "Successful retry")
+	success.Set("body_markdown", "# Successful retry")
+	success.Set("period_end", "2026-05-08T06:00:00Z")
+	success.Set("last_success_at", "2026-05-08T06:03:00Z")
+	success.Set("attempt_finished_at", "2026-05-08T06:03:00Z")
+	if err := app.Save(success); err != nil {
+		t.Fatalf("save success: %v", err)
+	}
+
+	status, result, err := HandleDailyNewsListDigests(app, user.Id, "", 10, 0)
+	if err != nil || status != http.StatusOK {
+		t.Fatalf("list failed: status=%d err=%v", status, err)
+	}
+	if result.Latest.ID != success.Id || result.Selected.ID != success.Id || result.Latest.Title != "Successful retry" {
+		t.Fatalf("expected successful retry as latest, got %+v", result)
+	}
+	if len(result.Archive) != 1 || result.Archive[0].ID != failed.Id {
+		t.Fatalf("expected failed attempt in archive after success, got %+v", result.Archive)
+	}
+}
+
 func TestHandleDailyNewsGenerateNowEnforcesOwnerAndAuth(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

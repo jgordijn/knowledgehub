@@ -3,6 +3,7 @@ package routes
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"time"
 	"unicode"
@@ -227,6 +228,32 @@ func HandleDailyNewsEntryReference(app core.App, userID, digestID, entryID strin
 	return http.StatusOK, DailyNewsEntryReferenceDTO{Available: true, Entry: dailyNewsEntryCardDTO(app, entry)}, nil
 }
 
+func dailyNewsDigestListRecency(record *core.Record) time.Time {
+	for _, field := range []string{"last_success_at", "attempt_finished_at", "queued_at", "created"} {
+		value := record.GetDateTime(field).Time()
+		if !value.IsZero() {
+			return value
+		}
+	}
+	return time.Time{}
+}
+
+func sortDailyNewsDigestList(records []*core.Record) {
+	sort.SliceStable(records, func(i, j int) bool {
+		leftPeriodEnd := records[i].GetDateTime("period_end").Time()
+		rightPeriodEnd := records[j].GetDateTime("period_end").Time()
+		if !leftPeriodEnd.Equal(rightPeriodEnd) {
+			return leftPeriodEnd.After(rightPeriodEnd)
+		}
+		leftRecency := dailyNewsDigestListRecency(records[i])
+		rightRecency := dailyNewsDigestListRecency(records[j])
+		if !leftRecency.Equal(rightRecency) {
+			return leftRecency.After(rightRecency)
+		}
+		return records[i].Id > records[j].Id
+	})
+}
+
 func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, offset int) (int, DailyNewsDigestListDTO, error) {
 	if userID == "" {
 		return http.StatusUnauthorized, DailyNewsDigestListDTO{}, errors.New("Authentication required.")
@@ -237,11 +264,12 @@ func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, 
 	if offset < 0 {
 		offset = 0
 	}
-	latestRecords, err := app.FindRecordsByFilter("daily_digests", "user = {:user}", "-period_end", 1, 0, dbx.Params{"user": userID})
-	if err != nil || len(latestRecords) == 0 {
+	userRecords, err := app.FindRecordsByFilter("daily_digests", "user = {:user}", "-period_end", 0, 0, dbx.Params{"user": userID})
+	if err != nil || len(userRecords) == 0 {
 		return http.StatusOK, DailyNewsDigestListDTO{Archive: []DailyNewsDigestDTO{}, Limit: limit, Offset: offset}, nil
 	}
-	latest := latestRecords[0]
+	sortDailyNewsDigestList(userRecords)
+	latest := userRecords[0]
 	selected := latest
 	if selectedID != "" && selectedID != latest.Id {
 		candidate, err := app.FindRecordById("daily_digests", selectedID)
@@ -250,14 +278,21 @@ func HandleDailyNewsListDigests(app core.App, userID, selectedID string, limit, 
 		}
 		selected = candidate
 	}
-	records, err := app.FindRecordsByFilter("daily_digests", "user = {:user} && id != {:latest}", "-period_end", limit+1, offset, dbx.Params{"user": userID, "latest": latest.Id})
-	if err != nil {
-		return http.StatusInternalServerError, DailyNewsDigestListDTO{}, err
+	records := make([]*core.Record, 0, len(userRecords)-1)
+	for _, record := range userRecords {
+		if record.Id != latest.Id {
+			records = append(records, record)
+		}
 	}
-	hasMore := len(records) > limit
-	if hasMore {
-		records = records[:limit]
+	if offset > len(records) {
+		offset = len(records)
 	}
+	end := offset + limit
+	hasMore := end < len(records)
+	if end > len(records) {
+		end = len(records)
+	}
+	records = records[offset:end]
 	archive := make([]DailyNewsDigestDTO, 0, len(records))
 	for _, record := range records {
 		archive = append(archive, dailyNewsDigestDTO(record))
