@@ -331,6 +331,33 @@ func TestDailyNewsConcreteLockIndexesPreventDuplicateActiveJobs(t *testing.T) {
 	}
 }
 
+func TestDailyNewsConcreteDayLockPreventsPreDueManualScheduledDuplicate(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-local-day-lock@example.com")
+	localDate := "2026-05-08"
+	manualEnd := time.Date(2026, 5, 8, 5, 59, 59, 0, time.UTC)
+	scheduledEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+
+	manual, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: localDate, PeriodStart: manualEnd.Add(-24 * time.Hour), PeriodEnd: manualEnd, Trigger: "manual", Scheduled: false, Now: manualEnd})
+	if err != nil || !created {
+		t.Fatalf("manual claim created=%v err=%v", created, err)
+	}
+	wantActiveDayKey := user.Id + "|" + localDate
+	if got := manual.GetString("active_scheduled_day_key"); got != wantActiveDayKey {
+		t.Fatalf("manual claim used non-canonical active local-day lock: got %q want %q", got, wantActiveDayKey)
+	}
+
+	duplicate := testutil.CreateDailyDigest(t, app, user.Id, localDate, "pending", "automatic")
+	duplicate.Set("period_start", manualEnd.Format(time.RFC3339))
+	duplicate.Set("period_end", scheduledEnd.Format(time.RFC3339))
+	duplicate.Set("active_window_key", dailyNewsWindowKey(user.Id, localDate, manualEnd, scheduledEnd))
+	duplicate.Set("active_scheduled_day_key", manual.GetString("active_scheduled_day_key"))
+	if err := app.Save(duplicate); err == nil {
+		t.Fatalf("database accepted duplicate non-empty active same-day lock")
+	}
+}
+
 func TestDailyNewsPreDueManualClaimsReuseActiveSameDayManualLock(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
