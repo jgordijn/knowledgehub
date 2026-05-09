@@ -93,7 +93,9 @@ export function dailyNewsShouldPoll(digest: DailyNewsDigestDTO | null | undefine
 	return digest?.status === 'pending' || digest?.status === 'running';
 }
 
-export function validateDailyNewsSettings(settings: Pick<DailyNewsSettingsDTO, 'generation_time' | 'timezone' | 'extra_instructions'>): string[] {
+export type DailyNewsSettingsValidationInput = Pick<DailyNewsSettingsDTO, 'generation_time' | 'timezone' | 'extra_instructions'> & Partial<Pick<DailyNewsSettingsDTO, 'enabled'>>;
+
+export function validateDailyNewsSettings(settings: DailyNewsSettingsValidationInput): string[] {
 	const errors: string[] = [];
 	if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.generation_time)) {
 		errors.push('Use a 24-hour HH:MM generation time.');
