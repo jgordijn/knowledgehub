@@ -100,6 +100,61 @@ func TestDailyNewsRegisteredRoutesRequireAuthAndServeAuthenticatedSettings(t *te
 	}
 }
 
+func TestDailyNewsGenericCollectionMutationsAreDeniedWithoutAuthWhileRoutesWork(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	settingsReq := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	settingsReq.Header.Set("Authorization", token)
+	settingsRec := httptest.NewRecorder()
+	mux.ServeHTTP(settingsRec, settingsReq)
+	if settingsRec.Code != http.StatusOK {
+		t.Fatalf("settings route failed: %d body=%s", settingsRec.Code, settingsRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(settingsRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "automatic")
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"settings create", http.MethodPost, "/api/collections/daily_news_settings/records", `{"user":"` + settings.User + `","generation_time":"08:00","timezone":"UTC"}`},
+		{"settings update", http.MethodPatch, "/api/collections/daily_news_settings/records/" + settings.ID, `{"generation_time":"10:00"}`},
+		{"settings delete", http.MethodDelete, "/api/collections/daily_news_settings/records/" + settings.ID, ``},
+		{"digest create", http.MethodPost, "/api/collections/daily_digests/records", `{"user":"` + settings.User + `","local_date":"2026-05-09","status":"success","trigger":"manual"}`},
+		{"digest update", http.MethodPatch, "/api/collections/daily_digests/records/" + digest.Id, `{"title":"mutated"}`},
+		{"digest delete", http.MethodDelete, "/api/collections/daily_digests/records/" + digest.Id, ``},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			if tc.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code < 400 {
+				t.Fatalf("expected unauthenticated generic mutation denial, got %d body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+
+	listReq := httptest.NewRequest("GET", "/api/collections/daily_digests/records", nil)
+	listReq.Header.Set("Authorization", token)
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected owner-scoped digest list success, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+}
+
 func TestDailyNewsRegisteredDigestDetailRouteReturnsOwnedDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

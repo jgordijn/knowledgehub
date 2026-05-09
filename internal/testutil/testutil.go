@@ -124,11 +124,11 @@ func registerCollections(t *testing.T, app core.App) {
 	dailySettings.Fields.Add(&core.TextField{Name: "generation_time", Required: true, Max: 5})
 	dailySettings.Fields.Add(&core.TextField{Name: "timezone", Required: true, Max: 100})
 	dailySettings.Fields.Add(&core.TextField{Name: "extra_instructions", Max: 8000})
-	dailySettings.ListRule = types.Pointer("")
-	dailySettings.ViewRule = types.Pointer("")
-	dailySettings.CreateRule = types.Pointer("")
-	dailySettings.UpdateRule = types.Pointer("")
-	dailySettings.DeleteRule = types.Pointer("")
+	dailySettings.ListRule = types.Pointer("user = @request.auth.id")
+	dailySettings.ViewRule = types.Pointer("user = @request.auth.id")
+	dailySettings.CreateRule = nil
+	dailySettings.UpdateRule = nil
+	dailySettings.DeleteRule = nil
 	dailySettings.Indexes = append(dailySettings.Indexes, "CREATE UNIQUE INDEX idx_daily_news_settings_user ON daily_news_settings (user)")
 	if err := app.Save(dailySettings); err != nil {
 		t.Fatalf("failed to create daily_news_settings collection: %v", err)
@@ -161,11 +161,11 @@ func registerCollections(t *testing.T, app core.App) {
 	dailyDigests.Fields.Add(&core.TextField{Name: "scheduled_day_key", Max: 200})
 	dailyDigests.Fields.Add(&core.TextField{Name: "active_scheduled_day_key", Max: 200})
 	dailyDigests.Fields.Add(&core.TextField{Name: "successful_scheduled_day_key", Max: 200})
-	dailyDigests.ListRule = types.Pointer("")
-	dailyDigests.ViewRule = types.Pointer("")
-	dailyDigests.CreateRule = types.Pointer("")
-	dailyDigests.UpdateRule = types.Pointer("")
-	dailyDigests.DeleteRule = types.Pointer("")
+	dailyDigests.ListRule = types.Pointer("user = @request.auth.id")
+	dailyDigests.ViewRule = types.Pointer("user = @request.auth.id")
+	dailyDigests.CreateRule = nil
+	dailyDigests.UpdateRule = nil
+	dailyDigests.DeleteRule = nil
 	dailyDigests.Indexes = append(dailyDigests.Indexes,
 		"CREATE UNIQUE INDEX idx_daily_digests_active_window_key ON daily_digests (active_window_key) WHERE active_window_key != ''",
 		"CREATE UNIQUE INDEX idx_daily_digests_active_scheduled_day_key ON daily_digests (active_scheduled_day_key) WHERE active_scheduled_day_key != ''",

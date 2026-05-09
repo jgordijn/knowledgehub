@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/types"
 
 	_ "github.com/pocketbase/pocketbase/migrations"
 )
@@ -103,8 +104,8 @@ func assertRule(t *testing.T, label string, rule *string, want string) {
 
 func assertDeniedRule(t *testing.T, label string, rule *string) {
 	t.Helper()
-	if rule == nil || strings.TrimSpace(*rule) != "" {
-		t.Fatalf("%s rule = %v, want denied empty rule", label, rule)
+	if rule != nil {
+		t.Fatalf("%s rule = %q, want nil denied rule", label, *rule)
 	}
 }
 
@@ -124,6 +125,45 @@ func assertIndexContains(t *testing.T, collection *core.Collection, parts ...str
 		}
 	}
 	t.Fatalf("%s indexes %v do not contain all parts %v", collection.Name, collection.Indexes, parts)
+}
+
+func TestEnsureDailyNewsCollectionsMigrateGenericMutationRulesToDenied(t *testing.T) {
+	app, cleanup := newTestApp(t)
+	defer cleanup()
+	registerCollections(app)
+
+	settings, err := app.FindCollectionByNameOrId("daily_news_settings")
+	if err != nil {
+		t.Fatalf("daily_news_settings collection not found: %v", err)
+	}
+	digests, err := app.FindCollectionByNameOrId("daily_digests")
+	if err != nil {
+		t.Fatalf("daily_digests collection not found: %v", err)
+	}
+	settings.CreateRule = types.Pointer("")
+	settings.UpdateRule = types.Pointer("")
+	settings.DeleteRule = types.Pointer("")
+	digests.CreateRule = types.Pointer("")
+	digests.UpdateRule = types.Pointer("")
+	digests.DeleteRule = types.Pointer("")
+	if err := app.Save(settings); err != nil {
+		t.Fatalf("save public settings rules: %v", err)
+	}
+	if err := app.Save(digests); err != nil {
+		t.Fatalf("save public digest rules: %v", err)
+	}
+
+	ensureDailyNewsSettingsCollection(app)
+	ensureDailyDigestsCollection(app)
+
+	settings, _ = app.FindCollectionByNameOrId("daily_news_settings")
+	digests, _ = app.FindCollectionByNameOrId("daily_digests")
+	assertDeniedRule(t, "settings create", settings.CreateRule)
+	assertDeniedRule(t, "settings update", settings.UpdateRule)
+	assertDeniedRule(t, "settings delete", settings.DeleteRule)
+	assertDeniedRule(t, "digests create", digests.CreateRule)
+	assertDeniedRule(t, "digests update", digests.UpdateRule)
+	assertDeniedRule(t, "digests delete", digests.DeleteRule)
 }
 
 func TestEnsureDailyNewsDefaultSettingsForSuperusers(t *testing.T) {

@@ -241,7 +241,15 @@ func ensureSettingsCollection(app core.App) {
 }
 
 func ensureDailyNewsSettingsCollection(app core.App) {
-	if _, err := app.FindCollectionByNameOrId("daily_news_settings"); err == nil {
+	if collection, err := app.FindCollectionByNameOrId("daily_news_settings"); err == nil {
+		collection.ListRule = types.Pointer("user = @request.auth.id")
+		collection.ViewRule = types.Pointer("user = @request.auth.id")
+		collection.CreateRule = nil
+		collection.UpdateRule = nil
+		collection.DeleteRule = nil
+		if err := app.Save(collection); err != nil {
+			log.Printf("Failed to update daily_news_settings collection rules: %v", err)
+		}
 		return
 	}
 
@@ -255,9 +263,9 @@ func ensureDailyNewsSettingsCollection(app core.App) {
 	collection.Fields.Add(&core.TextField{Name: "extra_instructions", Max: 8000})
 	collection.ListRule = types.Pointer("user = @request.auth.id")
 	collection.ViewRule = types.Pointer("user = @request.auth.id")
-	collection.CreateRule = types.Pointer("")
-	collection.UpdateRule = types.Pointer("")
-	collection.DeleteRule = types.Pointer("")
+	collection.CreateRule = nil
+	collection.UpdateRule = nil
+	collection.DeleteRule = nil
 	collection.Indexes = append(collection.Indexes, "CREATE UNIQUE INDEX idx_daily_news_settings_user ON daily_news_settings (user)")
 
 	if err := app.Save(collection); err != nil {
@@ -266,7 +274,15 @@ func ensureDailyNewsSettingsCollection(app core.App) {
 }
 
 func ensureDailyDigestsCollection(app core.App) {
-	if _, err := app.FindCollectionByNameOrId("daily_digests"); err == nil {
+	if collection, err := app.FindCollectionByNameOrId("daily_digests"); err == nil {
+		collection.ListRule = types.Pointer("user = @request.auth.id")
+		collection.ViewRule = types.Pointer("user = @request.auth.id")
+		collection.CreateRule = nil
+		collection.UpdateRule = nil
+		collection.DeleteRule = nil
+		if err := app.Save(collection); err != nil {
+			log.Printf("Failed to update daily_digests collection rules: %v", err)
+		}
 		return
 	}
 
@@ -299,9 +315,9 @@ func ensureDailyDigestsCollection(app core.App) {
 	collection.Fields.Add(&core.TextField{Name: "successful_scheduled_day_key", Max: 200})
 	collection.ListRule = types.Pointer("user = @request.auth.id")
 	collection.ViewRule = types.Pointer("user = @request.auth.id")
-	collection.CreateRule = types.Pointer("")
-	collection.UpdateRule = types.Pointer("")
-	collection.DeleteRule = types.Pointer("")
+	collection.CreateRule = nil
+	collection.UpdateRule = nil
+	collection.DeleteRule = nil
 	collection.Indexes = append(collection.Indexes,
 		"CREATE UNIQUE INDEX idx_daily_digests_active_window_key ON daily_digests (active_window_key) WHERE active_window_key != ''",
 		"CREATE UNIQUE INDEX idx_daily_digests_active_scheduled_day_key ON daily_digests (active_scheduled_day_key) WHERE active_scheduled_day_key != ''",
