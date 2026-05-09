@@ -67,9 +67,11 @@
 	}
 
 	function handleFeedClick(e: MouseEvent) {
-		e.preventDefault();
 		handleNavClick();
-		onSetReadFilter?.('unread');
+		if (page.url.pathname === '/') {
+			e.preventDefault();
+			onSetReadFilter?.('unread');
+		}
 	}
 
 	function handleSavedClick(e: MouseEvent) {

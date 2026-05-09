@@ -2,6 +2,15 @@
 	import { onMount } from 'svelte';
 	import pb from '$lib/pb';
 	import { getTheme, setTheme, type ThemeMode } from '$lib/theme';
+	import {
+		dailyNewsCanRegenerate,
+		dailyNewsGenerateButtonLabel,
+		dailyNewsRegenerateButtonLabel,
+		validateDailyNewsSettings,
+		type DailyNewsDigestDTO,
+		type DailyNewsDigestListDTO,
+		type DailyNewsSettingsDTO
+	} from '$lib/daily-news-ui';
 
 	let apiKey = $state('');
 	let model = $state('anthropic/claude-sonnet-4');
@@ -16,6 +25,16 @@
 
 	// Theme
 	let themeMode = $state<ThemeMode>('system');
+
+	// Daily News
+	let dailyNewsSettings = $state<DailyNewsSettingsDTO>({ enabled: true, generation_time: '08:00', timezone: 'Europe/Amsterdam', extra_instructions: '' });
+	let latestDailyDigest = $state<DailyNewsDigestDTO | null>(null);
+	let dailyNewsSettingsError = $state('');
+	let dailyNewsSettingsSaved = $state('');
+	let dailyNewsSettingsLoading = $state(false);
+	let dailyNewsGenerateLoading = $state(false);
+	let dailyNewsRegenerateLoading = $state(false);
+	let dailyNewsActionError = $state('');
 
 	// Password change
 	let oldPassword = $state('');
@@ -38,10 +57,29 @@
 					modelRecordId = record.id;
 				}
 			}
+			await loadDailyNewsSettings();
+			await loadLatestDailyDigest();
 		} catch {
 			// Backend may not be ready
 		} finally {
 			loading = false;
+		}
+	}
+
+	async function loadDailyNewsSettings() {
+		try {
+			dailyNewsSettings = (await pb.send('/api/daily-news/settings', { method: 'GET' })) as DailyNewsSettingsDTO;
+		} catch {
+			dailyNewsSettingsError = 'Could not load Daily News settings.';
+		}
+	}
+
+	async function loadLatestDailyDigest() {
+		try {
+			const response = (await pb.send('/api/daily-news/digests?limit=1&offset=0', { method: 'GET' })) as DailyNewsDigestListDTO;
+			latestDailyDigest = response.latest ?? response.selected ?? null;
+		} catch {
+			latestDailyDigest = null;
 		}
 	}
 
@@ -68,6 +106,50 @@
 			error = err instanceof Error ? err.message : 'Failed to save settings.';
 		} finally {
 			saving = false;
+		}
+	}
+
+	async function saveDailyNewsSettings() {
+		dailyNewsSettingsError = '';
+		dailyNewsSettingsSaved = '';
+		const errors = validateDailyNewsSettings(dailyNewsSettings);
+		if (errors.length > 0) {
+			dailyNewsSettingsError = errors[0];
+			return;
+		}
+		dailyNewsSettingsLoading = true;
+		try {
+			dailyNewsSettings = (await pb.send('/api/daily-news/settings', { method: 'PUT', body: dailyNewsSettings })) as DailyNewsSettingsDTO;
+			dailyNewsSettingsSaved = 'Daily News settings saved.';
+		} catch {
+			dailyNewsSettingsError = 'Could not save Daily News settings.';
+		} finally {
+			dailyNewsSettingsLoading = false;
+		}
+	}
+
+	async function generateDailyNewsNow() {
+		dailyNewsGenerateLoading = true;
+		dailyNewsActionError = '';
+		try {
+			latestDailyDigest = (await pb.send('/api/daily-news/generate', { method: 'POST' })) as DailyNewsDigestDTO;
+		} catch {
+			dailyNewsActionError = 'Could not queue Daily News generation.';
+		} finally {
+			dailyNewsGenerateLoading = false;
+		}
+	}
+
+	async function regenerateDailyNews() {
+		if (!latestDailyDigest) return;
+		dailyNewsRegenerateLoading = true;
+		dailyNewsActionError = '';
+		try {
+			latestDailyDigest = (await pb.send(`/api/daily-news/digests/${latestDailyDigest.id}/regenerate`, { method: 'POST' })) as DailyNewsDigestDTO;
+		} catch {
+			dailyNewsActionError = 'Could not queue Daily News regeneration.';
+		} finally {
+			dailyNewsRegenerateLoading = false;
 		}
 	}
 
@@ -198,6 +280,29 @@
 					{saving ? 'Saving...' : 'Save Settings'}
 				</button>
 			</div>
+		</div>
+
+		<!-- Daily News -->
+		<div class="rounded-lg border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+			<h2 class="mb-4 text-sm font-semibold text-slate-700 dark:text-slate-300">Daily News</h2>
+			<div class="mb-5 flex flex-wrap gap-3">
+				<button type="button" class="rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white hover:bg-amber-600 disabled:opacity-50" disabled={dailyNewsGenerateLoading || dailyNewsRegenerateLoading} onclick={generateDailyNewsNow}>
+					{dailyNewsGenerateButtonLabel(dailyNewsGenerateLoading)}
+				</button>
+				<button type="button" class="rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700" disabled={!dailyNewsCanRegenerate(latestDailyDigest) || dailyNewsGenerateLoading || dailyNewsRegenerateLoading} onclick={regenerateDailyNews}>
+					{dailyNewsRegenerateButtonLabel(dailyNewsRegenerateLoading)}
+				</button>
+			</div>
+			{#if dailyNewsActionError}<p class="mb-4 text-sm text-red-600 dark:text-red-300">{dailyNewsActionError}</p>{/if}
+			<div class="grid gap-4 sm:grid-cols-2">
+				<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><input type="checkbox" bind:checked={dailyNewsSettings.enabled} /> Enabled</label>
+				<label class="text-sm text-slate-700 dark:text-slate-200">Generation time<input class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" bind:value={dailyNewsSettings.generation_time} placeholder="08:00" /></label>
+				<label class="text-sm text-slate-700 dark:text-slate-200">Timezone<input class="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" bind:value={dailyNewsSettings.timezone} placeholder="Europe/Amsterdam" /></label>
+				<label class="sm:col-span-2 text-sm text-slate-700 dark:text-slate-200">Extra digest instructions<textarea class="mt-1 min-h-28 w-full rounded-md border border-slate-300 px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-100" bind:value={dailyNewsSettings.extra_instructions} maxlength="2000"></textarea></label>
+			</div>
+			<button type="button" class="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50" disabled={dailyNewsSettingsLoading} onclick={saveDailyNewsSettings}>{dailyNewsSettingsLoading ? 'Saving…' : 'Save Daily News settings'}</button>
+			{#if dailyNewsSettingsError}<p class="mt-2 text-sm text-red-600 dark:text-red-300">{dailyNewsSettingsError}</p>{/if}
+			{#if dailyNewsSettingsSaved}<p class="mt-2 text-sm text-green-700 dark:text-green-300">{dailyNewsSettingsSaved}</p>{/if}
 		</div>
 
 		<!-- Appearance -->

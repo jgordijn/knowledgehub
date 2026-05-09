@@ -5,15 +5,10 @@
 		dailyNewsLoadingMessage,
 		dailyNewsStateMessage,
 		dailyNewsArchiveLabel,
-		dailyNewsGenerateButtonLabel,
-		dailyNewsRegenerateButtonLabel,
-		dailyNewsCanRegenerate,
 		dailyNewsShouldPoll,
 		type DailyNewsDigestDTO,
 		type DailyNewsDigestListDTO,
-		validateDailyNewsSettings,
-		type DailyNewsEntryReferenceDTO,
-		type DailyNewsSettingsDTO
+		type DailyNewsEntryReferenceDTO
 	} from '$lib/daily-news-ui';
 	import pb from '$lib/pb';
 
@@ -24,16 +19,9 @@
 	let archiveOffset = 0;
 	let archiveLoading = $state(false);
 	let archiveError = $state('');
-	let generateLoading = $state(false);
-	let regenerateLoading = $state(false);
-	let actionError = $state('');
 	let referenceModal = $state<DailyNewsEntryReferenceDTO | null>(null);
 	let referenceLoading = $state(false);
 	let referenceError = $state('');
-	let settings = $state<DailyNewsSettingsDTO>({ enabled: true, generation_time: '08:00', timezone: 'Europe/Amsterdam', extra_instructions: '' });
-	let settingsError = $state('');
-	let settingsSaved = $state('');
-	let settingsLoading = $state(false);
 	const archiveLimit = 10;
 	let displayDigest = $derived(selectedDigest ?? latestDigest);
 	let stateMessage = $derived(dailyNewsStateMessage(displayDigest));
@@ -62,42 +50,6 @@
 		}
 	}
 
-	function applyReturnedDigest(digest: DailyNewsDigestDTO) {
-		if (!latestDigest || latestDigest.id === digest.id) {
-			latestDigest = digest;
-		}
-		selectedDigest = digest;
-	}
-
-	async function generateNow() {
-		generateLoading = true;
-		actionError = '';
-		try {
-			const digest = (await pb.send('/api/daily-news/generate', { method: 'POST' })) as DailyNewsDigestDTO;
-			applyReturnedDigest(digest);
-			void loadDigests(digest.id, 0);
-		} catch {
-			actionError = 'Could not queue Daily News generation.';
-		} finally {
-			generateLoading = false;
-		}
-	}
-
-	async function regenerateDigest() {
-		if (!displayDigest) return;
-		regenerateLoading = true;
-		actionError = '';
-		try {
-			const digest = (await pb.send(`/api/daily-news/digests/${displayDigest.id}/regenerate`, { method: 'POST' })) as DailyNewsDigestDTO;
-			applyReturnedDigest(digest);
-			void loadDigests(digest.id, 0);
-		} catch {
-			actionError = 'Could not queue Daily News regeneration.';
-		} finally {
-			regenerateLoading = false;
-		}
-	}
-
 	async function openEntryReference(entryID: string) {
 		if (!displayDigest) return;
 		referenceLoading = true;
@@ -112,36 +64,8 @@
 		}
 	}
 
-	async function loadSettings() {
-		try {
-			settings = (await pb.send('/api/daily-news/settings', { method: 'GET' })) as DailyNewsSettingsDTO;
-		} catch {
-			settingsError = 'Could not load Daily News settings.';
-		}
-	}
-
-	async function saveSettings() {
-		settingsError = '';
-		settingsSaved = '';
-		const errors = validateDailyNewsSettings(settings);
-		if (errors.length > 0) {
-			settingsError = errors[0];
-			return;
-		}
-		settingsLoading = true;
-		try {
-			settings = (await pb.send('/api/daily-news/settings', { method: 'PUT', body: settings })) as DailyNewsSettingsDTO;
-			settingsSaved = 'Daily News settings saved.';
-		} catch {
-			settingsError = 'Could not save Daily News settings.';
-		} finally {
-			settingsLoading = false;
-		}
-	}
-
 	onMount(() => {
 		void loadDigests();
-		void loadSettings();
 		const poll = window.setInterval(() => {
 			if (dailyNewsShouldPoll(displayDigest)) {
 				void loadDigests(displayDigest?.id ?? '', 0);
@@ -164,17 +88,7 @@
 		{:else}
 			<p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{dailyNewsLoadingMessage()}</p>
 		{/if}
-		<div class="mt-5 flex flex-wrap gap-3">
-			<button type="button" class="rounded-full bg-amber-500 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-600 disabled:cursor-not-allowed disabled:opacity-60" disabled={generateLoading || regenerateLoading} onclick={generateNow}>
-				{dailyNewsGenerateButtonLabel(generateLoading)}
-			</button>
-			<button type="button" class="rounded-full border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-700" disabled={!dailyNewsCanRegenerate(displayDigest) || generateLoading || regenerateLoading} onclick={regenerateDigest}>
-				{dailyNewsRegenerateButtonLabel(regenerateLoading)}
-			</button>
-		</div>
-		{#if actionError}
-			<p class="mt-3 text-sm text-red-600 dark:text-red-300">{actionError}</p>
-		{/if}
+		<p class="mt-5 text-sm text-slate-500 dark:text-slate-400">Generation controls and schedule options are in Settings.</p>
 	</div>
 
 	{#if stateMessage}
@@ -217,18 +131,6 @@
 		</div>
 	{/if}
 
-	<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
-		<h2 class="text-lg font-semibold text-slate-950 dark:text-slate-50">Daily News settings</h2>
-		<div class="mt-4 grid gap-4 sm:grid-cols-2">
-			<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200"><input type="checkbox" bind:checked={settings.enabled} /> Enabled</label>
-			<label class="text-sm text-slate-700 dark:text-slate-200">Generation time<input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.generation_time} placeholder="08:00" /></label>
-			<label class="text-sm text-slate-700 dark:text-slate-200">Timezone<input class="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.timezone} placeholder="Europe/Amsterdam" /></label>
-			<label class="sm:col-span-2 text-sm text-slate-700 dark:text-slate-200">Extra digest instructions<textarea class="mt-1 min-h-28 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 dark:border-slate-600 dark:bg-slate-900" bind:value={settings.extra_instructions} maxlength="2000"></textarea></label>
-		</div>
-		<button type="button" class="mt-4 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60 dark:bg-slate-100 dark:text-slate-900" disabled={settingsLoading} onclick={saveSettings}>{settingsLoading ? 'Saving…' : 'Save settings'}</button>
-		{#if settingsError}<p class="mt-2 text-sm text-red-600 dark:text-red-300">{settingsError}</p>{/if}
-		{#if settingsSaved}<p class="mt-2 text-sm text-green-700 dark:text-green-300">{settingsSaved}</p>{/if}
-	</div>
 
 	<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
 		<h2 class="text-lg font-semibold text-slate-950 dark:text-slate-50">Previous editions</h2>
