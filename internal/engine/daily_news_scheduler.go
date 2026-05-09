@@ -132,7 +132,7 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	if claim.Scheduled {
 		scheduledDayKey = claim.UserID + "|" + claim.LocalDate
 	}
-	if existing, err := findDigestByKey(app, "active_scheduled_day_key", scheduledDayKey); err == nil {
+	if existing, err := findActiveDigestForLocalDate(app, claim.UserID, claim.LocalDate); err == nil {
 		return existing, false, nil
 	}
 	if claim.Scheduled {
@@ -173,6 +173,10 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 		return nil, false, err
 	}
 	return record, true, nil
+}
+
+func findActiveDigestForLocalDate(app core.App, userID, localDate string) (*core.Record, error) {
+	return app.FindFirstRecordByFilter("daily_digests", "user = {:user} && local_date = {:date} && (status = 'pending' || status = 'running')", dbx.Params{"user": userID, "date": localDate})
 }
 
 func EnsureDailyNewsSettingsForSuperusers(app core.App) error {
