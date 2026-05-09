@@ -1,7 +1,7 @@
 ## 1. Baseline and Parity
 
-- [ ] 1.1 Inventory current Makefile targets and all repository references to `make`/`Makefile`.
-- [ ] 1.2 Capture expected outputs for current build, test, and release commands so justfile parity can be verified.
+- [x] 1.1 Inventory current Makefile targets and all repository references to `make`/`Makefile`.
+- [x] 1.2 Capture expected outputs for current build, test, and release commands so justfile parity can be verified.
 
 ## 2. Justfile Implementation
 
