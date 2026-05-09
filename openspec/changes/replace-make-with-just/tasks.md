@@ -5,10 +5,10 @@
 
 ## 2. Justfile Implementation
 
-- [ ] 2.1 Add a root `justfile` with variables for app name, build directory, and command directory.
-- [ ] 2.2 Implement `ui`, `build`, `dev`, `release`, `clean`, and `test` recipes equivalent to the current Makefile targets.
-- [ ] 2.3 Make the release recipe accept a version value for `-X main.version=...` while still supporting local `just release` without an explicit version.
-- [ ] 2.4 Remove the root `Makefile` after justfile parity is in place.
+- [x] 2.1 Add a root `justfile` with variables for app name, build directory, and command directory.
+- [x] 2.2 Implement `ui`, `build`, `dev`, `release`, `clean`, and `test` recipes equivalent to the current Makefile targets.
+- [x] 2.3 Make the release recipe accept a version value for `-X main.version=...` while still supporting local `just release` without an explicit version.
+- [x] 2.4 Remove the root `Makefile` after justfile parity is in place.
 
 ## 3. GitHub Workflow Updates
 
