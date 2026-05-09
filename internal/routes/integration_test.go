@@ -37,6 +37,7 @@ func buildMux(t *testing.T, app core.App) http.Handler {
 	RegisterLinkSummaryRoute(se)
 	RegisterTriggerRoutes(se)
 	RegisterDailyNewsRoutes(se)
+	RegisterQuickAddRoutes(se)
 
 	mux, err := pbRouter.BuildMux()
 	if err != nil {
