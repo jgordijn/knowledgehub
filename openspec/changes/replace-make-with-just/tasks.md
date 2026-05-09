@@ -12,15 +12,15 @@
 
 ## 3. GitHub Workflow Updates
 
-- [ ] 3.1 Update `.github/workflows/ci.yml` to install `just` and invoke justfile recipe(s) for frontend/embed and test steps.
-- [ ] 3.2 Update `.github/workflows/release.yml` to install `just`, invoke justfile recipe(s) for test/build/package steps, and pass the computed release version to the release build.
-- [ ] 3.3 Verify workflow artifact paths remain `build/knowledgehub` and `build/knowledgehub-linux-amd64.tar.gz`.
+- [x] 3.1 Update `.github/workflows/ci.yml` to install `just` and invoke justfile recipe(s) for frontend/embed and test steps.
+- [x] 3.2 Update `.github/workflows/release.yml` to install `just`, invoke justfile recipe(s) for test/build/package steps, and pass the computed release version to the release build.
+- [x] 3.3 Verify workflow artifact paths remain `build/knowledgehub` and `build/knowledgehub-linux-amd64.tar.gz`.
 
 ## 4. Documentation Updates
 
-- [ ] 4.1 Update README and project documentation examples from `make ...` to `just ...`.
-- [ ] 4.2 Update agent/project instructions that reference Makefile or make commands.
-- [ ] 4.3 Search for remaining `make ` and `Makefile` mentions and either update or explicitly justify intentional historical references.
+- [x] 4.1 Update README and project documentation examples from `make ...` to `just ...`.
+- [x] 4.2 Update agent/project instructions that reference Makefile or make commands.
+- [x] 4.3 Search for remaining `make ` and `Makefile` mentions and either update or explicitly justify intentional historical references.
 
 ## 5. Verification
 
