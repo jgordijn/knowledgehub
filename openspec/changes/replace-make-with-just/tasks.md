@@ -25,6 +25,6 @@
 ## 5. Verification
 
 - [x] 5.1 Run `just test` and confirm tests pass with coverage output.
-- [ ] 5.2 Run `just build` and confirm the frontend is embedded and the local binary is produced.
+- [x] 5.2 Run `just build` and confirm the frontend is embedded and the local binary is produced.
 - [ ] 5.3 Run `just release` with and without an explicit version value and confirm the tarball contents match the expected release package.
 - [ ] 5.4 Run `openspec validate replace-make-with-just --strict` and resolve any proposal/spec issues.
