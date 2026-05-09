@@ -351,6 +351,23 @@ func TestDailyNewsPreDueManualClaimsReuseActiveSameDayManualLock(t *testing.T) {
 	}
 }
 
+func TestDailyNewsActivePreDueManualBlocksLaterScheduledClaim(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "daily-news-active-predue-blocks-scheduled@example.com")
+	manualEnd := time.Date(2026, 5, 8, 5, 30, 0, 0, time.UTC)
+	scheduledEnd := time.Date(2026, 5, 8, 6, 0, 0, 0, time.UTC)
+
+	manual, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: manualEnd.Add(-24 * time.Hour), PeriodEnd: manualEnd, Trigger: "manual", Scheduled: false, Now: manualEnd})
+	if err != nil || !created {
+		t.Fatalf("pre-due manual claim created=%v err=%v", created, err)
+	}
+	scheduled, created, err := ClaimDailyNewsJob(app, DailyNewsJobClaim{UserID: user.Id, LocalDate: "2026-05-08", PeriodStart: manualEnd, PeriodEnd: scheduledEnd, Trigger: "automatic", Scheduled: true, Now: scheduledEnd})
+	if err != nil || created || scheduled.Id != manual.Id {
+		t.Fatalf("active pre-due manual should block scheduled claim: created=%v got=%s want=%s err=%v", created, scheduled.Id, manual.Id, err)
+	}
+}
+
 func TestDailyNewsPreDueManualAndLaterScheduledUseSeparateLocks(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()

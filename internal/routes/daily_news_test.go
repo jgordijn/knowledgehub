@@ -260,6 +260,25 @@ func TestHandleDailyNewsGenerateNowReusesPreDueManualJobAcrossSeconds(t *testing
 	}
 }
 
+func TestHandleDailyNewsGenerateNowDueReusesActivePreDueManualJob(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	user := testutil.CreateSuperuser(t, app, "predue-due-active@example.com")
+	testutil.CreateDailyNewsSettings(t, app, user.Id, true, "08:00", "Europe/Amsterdam", "")
+	_, first, err := HandleDailyNewsGenerateNow(app, user.Id, mustTime("2026-05-08T05:30:00Z"))
+	if err != nil {
+		t.Fatalf("pre-due generate failed: %v", err)
+	}
+
+	status, second, err := HandleDailyNewsGenerateNow(app, user.Id, mustTime("2026-05-08T06:00:00Z"))
+	if err != nil {
+		t.Fatalf("due generate failed: %v", err)
+	}
+	if status != http.StatusAccepted || second.ID != first.ID {
+		t.Fatalf("expected due generate to reuse active pre-due manual job, status=%d first=%s second=%s", status, first.ID, second.ID)
+	}
+}
+
 func TestHandleDailyNewsGenerateNowReturnsSuccessfulSameDayDigest(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
 	defer cleanup()
