@@ -16,11 +16,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - uses: taiki-e/install-action@just
+
       - name: Build frontend
-        run: |
-          cd ui && bun install && bun run build
-          mkdir -p ../cmd/knowledgehub/ui/build
-          cp -r build/* ../cmd/knowledgehub/ui/build/
+        run: just ui
 
       - name: Run tests
-        run: go test ./internal/... -count=1
+        run: just test
