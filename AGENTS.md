@@ -51,7 +51,7 @@ ui/                    # SvelteKit frontend (static adapter, built with Bun)
 
 openspec/              # Design documents and task tracking
 knowledgehub.service   # systemd unit file
-Makefile               # Build, dev, test, release targets
+justfile               # Build, dev, test, release recipes
 ```
 
 ## Technology Stack
@@ -99,13 +99,13 @@ All collections require authentication (`@request.auth.id != ''`). Collections a
 cd ui && bun install && bun run dev
 
 # Backend dev (serves on :8090)
-make dev
+just dev
 
 # Full build (frontend + backend)
-make build
+just build
 
 # Run tests
-make test
+just test
 ```
 
 ### Running tests
