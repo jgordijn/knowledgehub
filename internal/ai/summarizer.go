@@ -28,6 +28,11 @@ func callComplete(apiKey, model string, messages []Message) (string, error) {
 	return fn(apiKey, model, messages)
 }
 
+// Complete invokes the configured chat completion function.
+func Complete(apiKey, model string, messages []Message) (string, error) {
+	return callComplete(apiKey, model, messages)
+}
+
 // SetCompleteFunc replaces clientCompleteFunc for testing and returns a restore function.
 func SetCompleteFunc(fn func(apiKey, model string, messages []Message) (string, error)) func() {
 	clientCompleteMu.Lock()

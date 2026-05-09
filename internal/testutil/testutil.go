@@ -41,6 +41,10 @@ func NewTestApp(t *testing.T) (core.App, func()) {
 
 func registerCollections(t *testing.T, app core.App) {
 	t.Helper()
+	superusers, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		t.Fatalf("superusers collection not found: %v", err)
+	}
 
 	// resources
 	resources := core.NewBaseCollection("resources")
@@ -112,6 +116,65 @@ func registerCollections(t *testing.T, app core.App) {
 		t.Fatalf("failed to create preferences collection: %v", err)
 	}
 
+	// daily_news_settings
+	dailySettings := core.NewBaseCollection("daily_news_settings")
+	addAutodateFields(dailySettings)
+	dailySettings.Fields.Add(&core.RelationField{Name: "user", CollectionId: superusers.Id, Required: true, MaxSelect: 1})
+	dailySettings.Fields.Add(&core.BoolField{Name: "enabled"})
+	dailySettings.Fields.Add(&core.TextField{Name: "generation_time", Required: true, Max: 5})
+	dailySettings.Fields.Add(&core.TextField{Name: "timezone", Required: true, Max: 100})
+	dailySettings.Fields.Add(&core.TextField{Name: "extra_instructions", Max: 8000})
+	dailySettings.ListRule = types.Pointer("user = @request.auth.id")
+	dailySettings.ViewRule = types.Pointer("user = @request.auth.id")
+	dailySettings.CreateRule = nil
+	dailySettings.UpdateRule = nil
+	dailySettings.DeleteRule = nil
+	dailySettings.Indexes = append(dailySettings.Indexes, "CREATE UNIQUE INDEX idx_daily_news_settings_user ON daily_news_settings (user)")
+	if err := app.Save(dailySettings); err != nil {
+		t.Fatalf("failed to create daily_news_settings collection: %v", err)
+	}
+
+	// daily_digests
+	dailyDigests := core.NewBaseCollection("daily_digests")
+	addAutodateFields(dailyDigests)
+	dailyDigests.Fields.Add(&core.RelationField{Name: "user", CollectionId: superusers.Id, Required: true, MaxSelect: 1})
+	dailyDigests.Fields.Add(&core.TextField{Name: "local_date", Required: true, Max: 10})
+	dailyDigests.Fields.Add(&core.DateField{Name: "period_start"})
+	dailyDigests.Fields.Add(&core.DateField{Name: "period_end"})
+	dailyDigests.Fields.Add(&core.SelectField{Name: "status", Required: true, Values: []string{"pending", "running", "success", "failed"}, MaxSelect: 1})
+	dailyDigests.Fields.Add(&core.SelectField{Name: "trigger", Required: true, Values: []string{"automatic", "manual"}, MaxSelect: 1})
+	dailyDigests.Fields.Add(&core.TextField{Name: "title", Max: 500})
+	dailyDigests.Fields.Add(&core.EditorField{Name: "body_markdown"})
+	dailyDigests.Fields.Add(&core.JSONField{Name: "referenced_entry_ids", MaxSize: 10000})
+	dailyDigests.Fields.Add(&core.NumberField{Name: "candidate_count"})
+	dailyDigests.Fields.Add(&core.NumberField{Name: "included_count"})
+	dailyDigests.Fields.Add(&core.BoolField{Name: "used_subset"})
+	dailyDigests.Fields.Add(&core.BoolField{Name: "has_successful_snapshot"})
+	dailyDigests.Fields.Add(&core.DateField{Name: "last_success_at"})
+	dailyDigests.Fields.Add(&core.TextField{Name: "error_message", Max: 1000})
+	dailyDigests.Fields.Add(&core.DateField{Name: "queued_at"})
+	dailyDigests.Fields.Add(&core.DateField{Name: "started_at"})
+	dailyDigests.Fields.Add(&core.DateField{Name: "heartbeat_at"})
+	dailyDigests.Fields.Add(&core.DateField{Name: "attempt_finished_at"})
+	dailyDigests.Fields.Add(&core.TextField{Name: "window_key", Max: 300})
+	dailyDigests.Fields.Add(&core.TextField{Name: "active_window_key", Max: 300})
+	dailyDigests.Fields.Add(&core.TextField{Name: "scheduled_day_key", Max: 200})
+	dailyDigests.Fields.Add(&core.TextField{Name: "active_scheduled_day_key", Max: 200})
+	dailyDigests.Fields.Add(&core.TextField{Name: "successful_scheduled_day_key", Max: 200})
+	dailyDigests.ListRule = types.Pointer("user = @request.auth.id")
+	dailyDigests.ViewRule = types.Pointer("user = @request.auth.id")
+	dailyDigests.CreateRule = nil
+	dailyDigests.UpdateRule = nil
+	dailyDigests.DeleteRule = nil
+	dailyDigests.Indexes = append(dailyDigests.Indexes,
+		"CREATE UNIQUE INDEX idx_daily_digests_active_window_key ON daily_digests (active_window_key) WHERE active_window_key != ''",
+		"CREATE UNIQUE INDEX idx_daily_digests_active_scheduled_day_key ON daily_digests (active_scheduled_day_key) WHERE active_scheduled_day_key != ''",
+		"CREATE UNIQUE INDEX idx_daily_digests_successful_scheduled_day_key ON daily_digests (successful_scheduled_day_key) WHERE successful_scheduled_day_key != ''",
+	)
+	if err := app.Save(dailyDigests); err != nil {
+		t.Fatalf("failed to create daily_digests collection: %v", err)
+	}
+
 	// app_settings
 	settings := core.NewBaseCollection("app_settings")
 	addAutodateFields(settings)
@@ -130,6 +193,22 @@ func registerCollections(t *testing.T, app core.App) {
 func addAutodateFields(col *core.Collection) {
 	col.Fields.Add(&core.AutodateField{Name: "created", OnCreate: true})
 	col.Fields.Add(&core.AutodateField{Name: "updated", OnCreate: true, OnUpdate: true})
+}
+
+// CreateSuperuser is a test helper to create a PocketBase superuser owner.
+func CreateSuperuser(t *testing.T, app core.App, email string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId(core.CollectionNameSuperusers)
+	if err != nil {
+		t.Fatalf("superusers collection not found: %v", err)
+	}
+	r := core.NewRecord(col)
+	r.SetEmail(email)
+	r.SetPassword("testpassword123456")
+	if err := app.Save(r); err != nil {
+		t.Fatalf("failed to create superuser: %v", err)
+	}
+	return r
 }
 
 // CreateResource is a test helper to create a resource record.
@@ -202,6 +281,43 @@ func CreatePreference(t *testing.T, app core.App, profileText, generatedAt strin
 	}
 	if err := app.Save(r); err != nil {
 		t.Fatalf("failed to create preference: %v", err)
+	}
+	return r
+}
+
+// CreateDailyNewsSettings is a test helper to create a Daily News settings record.
+func CreateDailyNewsSettings(t *testing.T, app core.App, userID string, enabled bool, generationTime, timezone, extraInstructions string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId("daily_news_settings")
+	if err != nil {
+		t.Fatalf("daily_news_settings collection not found: %v", err)
+	}
+	r := core.NewRecord(col)
+	r.Set("user", userID)
+	r.Set("enabled", enabled)
+	r.Set("generation_time", generationTime)
+	r.Set("timezone", timezone)
+	r.Set("extra_instructions", extraInstructions)
+	if err := app.Save(r); err != nil {
+		t.Fatalf("failed to create daily news settings: %v", err)
+	}
+	return r
+}
+
+// CreateDailyDigest is a test helper to create a Daily News digest record.
+func CreateDailyDigest(t *testing.T, app core.App, userID, localDate, status, trigger string) *core.Record {
+	t.Helper()
+	col, err := app.FindCollectionByNameOrId("daily_digests")
+	if err != nil {
+		t.Fatalf("daily_digests collection not found: %v", err)
+	}
+	r := core.NewRecord(col)
+	r.Set("user", userID)
+	r.Set("local_date", localDate)
+	r.Set("status", status)
+	r.Set("trigger", trigger)
+	if err := app.Save(r); err != nil {
+		t.Fatalf("failed to create daily digest: %v", err)
 	}
 	return r
 }

@@ -1,0 +1,219 @@
+import { Marked } from 'marked';
+import DOMPurify from 'dompurify';
+
+const dailyNewsMarked = new Marked({ breaks: true, gfm: true });
+
+export type DailyNewsNavItem = {
+	href: string;
+	label: string;
+	icon: string;
+};
+
+export type DailyNewsDigestDTO = {
+	id: string;
+	status: 'pending' | 'running' | 'success' | 'failed' | string;
+	title?: string;
+	body_markdown?: string;
+	candidate_count?: number;
+	included_count?: number;
+	used_subset?: boolean;
+	local_date?: string;
+	generated_at?: string;
+	error_message?: string;
+	referenced_entry_ids?: string[];
+};
+
+export type DailyNewsSettingsDTO = {
+	id?: string;
+	user?: string;
+	enabled: boolean;
+	generation_time: string;
+	timezone: string;
+	extra_instructions: string;
+};
+
+export type DailyNewsEntryReferenceDTO = {
+	available: boolean;
+	message?: string;
+	entry?: {
+		id: string;
+		title: string;
+		url: string;
+		summary?: string;
+		takeaways?: string[];
+		effective_stars?: number;
+		source_name?: string;
+	};
+};
+
+export type DailyNewsDigestListDTO = {
+	latest?: DailyNewsDigestDTO;
+	selected?: DailyNewsDigestDTO;
+	archive?: DailyNewsDigestDTO[];
+	limit?: number;
+	offset?: number;
+	has_more?: boolean;
+};
+
+export type DailyNewsStateMessage = {
+	tone: 'info' | 'error' | 'empty';
+	title: string;
+	message: string;
+};
+
+export function dailyNewsNavItem(): DailyNewsNavItem {
+	return { href: '/daily-news', label: 'Daily News', icon: '🗞️' };
+}
+
+export function dailyNewsLoadingMessage(): string {
+	return 'Loading Daily News…';
+}
+
+export function dailyNewsArchiveLabel(digest: Pick<DailyNewsDigestDTO, 'local_date' | 'title'>): string {
+	return [digest.local_date, digest.title].filter(Boolean).join(' · ');
+}
+
+export function selectDailyNewsDigest(digests: DailyNewsDigestDTO[], selectedID: string): DailyNewsDigestDTO | null {
+	return digests.find((digest) => digest.id === selectedID) ?? digests[0] ?? null;
+}
+
+export function dailyNewsGenerateButtonLabel(loading: boolean): string {
+	return loading ? 'Generating…' : 'Generate now';
+}
+
+export function dailyNewsRegenerateButtonLabel(loading: boolean): string {
+	return loading ? 'Regenerating…' : 'Regenerate';
+}
+
+export function dailyNewsCanRegenerate(digest: DailyNewsDigestDTO | null | undefined): boolean {
+	return digest?.status === 'success' || digest?.status === 'failed';
+}
+
+export function dailyNewsShouldPoll(digest: DailyNewsDigestDTO | null | undefined): boolean {
+	return digest?.status === 'pending' || digest?.status === 'running';
+}
+
+export type DailyNewsSettingsValidationInput = Pick<DailyNewsSettingsDTO, 'generation_time' | 'timezone' | 'extra_instructions'> & Partial<Pick<DailyNewsSettingsDTO, 'enabled'>>;
+
+export function validateDailyNewsSettings(settings: DailyNewsSettingsValidationInput): string[] {
+	const errors: string[] = [];
+	if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.generation_time)) {
+		errors.push('Use a 24-hour HH:MM generation time.');
+	}
+	const timezone = settings.timezone.trim();
+	if (!timezone) {
+		errors.push('Choose a timezone.');
+	} else {
+		try {
+			new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+		} catch {
+			errors.push('Choose a valid IANA timezone.');
+		}
+	}
+	if ([...settings.extra_instructions].length > 2000) {
+		errors.push('Extra instructions must be 2000 characters or fewer.');
+	}
+	for (const char of settings.extra_instructions) {
+		if (char === '\t' || char === '\n' || char === '\r') continue;
+		if (/\p{Cc}|\p{Cf}/u.test(char)) {
+			errors.push('Extra instructions contain unsupported control characters.');
+			break;
+		}
+	}
+	return errors;
+}
+
+export function dailyNewsSubsetMessage(digest: Pick<DailyNewsDigestDTO, 'used_subset' | 'included_count' | 'candidate_count'>): string {
+	if (!digest.used_subset || !digest.included_count || !digest.candidate_count) {
+		return '';
+	}
+	return `This digest is based on ${digest.included_count} of ${digest.candidate_count} available articles.`;
+}
+
+export function dailyNewsStateMessage(digest: DailyNewsDigestDTO | null | undefined): DailyNewsStateMessage | null {
+	if (!digest) return null;
+	if (digest.status === 'pending') {
+		return { tone: 'info', title: 'Daily News is queued', message: 'Your digest has been queued and will be generated shortly.' };
+	}
+	if (digest.status === 'running') {
+		return { tone: 'info', title: 'Daily News is being generated', message: 'Your digest is being written now. This page will update when it is ready.' };
+	}
+	if (digest.status === 'failed') {
+		return { tone: 'error', title: 'Daily News generation failed', message: digest.error_message || 'Please try again later.' };
+	}
+	if (digest.status === 'success' && digest.candidate_count === 0 && !digest.body_markdown) {
+		return { tone: 'empty', title: 'No articles today', message: 'No new articles matched this digest window.' };
+	}
+	return null;
+}
+
+function neutralizeDangerousMarkdownLinks(markdown: string): string {
+	return markdown.replace(/!?\[([^\]]*)\]\(([^)]+)\)/g, (match, label: string, url: string) => {
+		const trimmed = url.trim().toLowerCase();
+		if (match.startsWith('!')) return label;
+		if (trimmed.startsWith('https://')) return match;
+		return label;
+	});
+}
+
+function escapeHTML(value: string): string {
+	return value
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;')
+		.replace(/'/g, '&#39;');
+}
+
+function neutralizeRawHTML(markdown: string): string {
+	return markdown.replace(/<\/?[A-Za-z][^>]*>/g, '');
+}
+
+export function renderDailyNewsReferences(markdown: string, referencedIDs: string[] = []): string {
+	const allowed = new Set(referencedIDs);
+	return markdown.replace(/\[\[kh-entry:([A-Za-z0-9_-]+)\]\]/g, (_marker, entryID: string) => {
+		if (!allowed.has(entryID)) return '';
+		const safeID = escapeHTML(entryID);
+		return `<button type="button" class="daily-news-entry-ref" data-entry-id="${safeID}">Open referenced entry</button>`;
+	});
+}
+
+export function renderDailyNewsMarkdown(markdown: string | null | undefined, referencedIDs: string[] = []): string {
+	if (!markdown) return '';
+	const safeMarkdown = neutralizeRawHTML(neutralizeDangerousMarkdownLinks(markdown));
+	const html = dailyNewsMarked.parse(renderDailyNewsReferences(safeMarkdown, referencedIDs)) as string;
+	return DOMPurify.sanitize(html, {
+		ALLOWED_TAGS: [
+			'h1',
+			'h2',
+			'h3',
+			'h4',
+			'h5',
+			'h6',
+			'p',
+			'em',
+			'strong',
+			'blockquote',
+			'ul',
+			'ol',
+			'li',
+			'table',
+			'thead',
+			'tbody',
+			'tr',
+			'th',
+			'td',
+			'code',
+			'pre',
+			'br',
+			'a',
+			'button'
+		],
+		ALLOWED_ATTR: ['href', 'title', 'target', 'rel', 'type', 'class', 'data-entry-id'],
+		ALLOW_DATA_ATTR: true,
+		FORBID_TAGS: ['img', 'svg', 'script', 'style', 'iframe'],
+		ADD_ATTR: ['target'],
+		ADD_URI_SAFE_ATTR: [],
+		ALLOWED_URI_REGEXP: /^https:\/\//i
+	}).replace(/<a\s/gi, '<a target="_blank" rel="noopener noreferrer" ');
+}

@@ -36,6 +36,8 @@ func buildMux(t *testing.T, app core.App) http.Handler {
 	RegisterChatRoute(se)
 	RegisterLinkSummaryRoute(se)
 	RegisterTriggerRoutes(se)
+	RegisterDailyNewsRoutes(se)
+	RegisterQuickAddRoutes(se)
 
 	mux, err := pbRouter.BuildMux()
 	if err != nil {
@@ -68,6 +70,198 @@ func createAuthToken(t *testing.T, app core.App) string {
 	}
 
 	return token
+}
+
+func TestDailyNewsRegisteredRoutesRequireAuthAndServeAuthenticatedSettings(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+
+	unauth := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	unauthRec := httptest.NewRecorder()
+	mux.ServeHTTP(unauthRec, unauth)
+	if unauthRec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected unauthenticated daily news settings denial, got %d body=%s", unauthRec.Code, unauthRec.Body.String())
+	}
+
+	token := createAuthToken(t, app)
+	auth := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	auth.Header.Set("Authorization", token)
+	authRec := httptest.NewRecorder()
+	mux.ServeHTTP(authRec, auth)
+	if authRec.Code != http.StatusOK {
+		t.Fatalf("expected authenticated settings success, got %d body=%s", authRec.Code, authRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(authRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if settings.User == "" || settings.GenerationTime != "08:00" || settings.Timezone == "" {
+		t.Fatalf("expected materialized default settings, got %+v", settings)
+	}
+}
+
+func TestDailyNewsGenericCollectionMutationsAreDeniedWithoutAuthWhileRoutesWork(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	settingsReq := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	settingsReq.Header.Set("Authorization", token)
+	settingsRec := httptest.NewRecorder()
+	mux.ServeHTTP(settingsRec, settingsReq)
+	if settingsRec.Code != http.StatusOK {
+		t.Fatalf("settings route failed: %d body=%s", settingsRec.Code, settingsRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(settingsRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "automatic")
+
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"settings create", http.MethodPost, "/api/collections/daily_news_settings/records", `{"user":"` + settings.User + `","generation_time":"08:00","timezone":"UTC"}`},
+		{"settings update", http.MethodPatch, "/api/collections/daily_news_settings/records/" + settings.ID, `{"generation_time":"10:00"}`},
+		{"settings delete", http.MethodDelete, "/api/collections/daily_news_settings/records/" + settings.ID, ``},
+		{"digest create", http.MethodPost, "/api/collections/daily_digests/records", `{"user":"` + settings.User + `","local_date":"2026-05-09","status":"success","trigger":"manual"}`},
+		{"digest update", http.MethodPatch, "/api/collections/daily_digests/records/" + digest.Id, `{"title":"mutated"}`},
+		{"digest delete", http.MethodDelete, "/api/collections/daily_digests/records/" + digest.Id, ``},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body))
+			if tc.body != "" {
+				req.Header.Set("Content-Type", "application/json")
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code < 400 {
+				t.Fatalf("expected unauthenticated generic mutation denial, got %d body=%s", rec.Code, rec.Body.String())
+			}
+		})
+	}
+
+	listReq := httptest.NewRequest("GET", "/api/collections/daily_digests/records", nil)
+	listReq.Header.Set("Authorization", token)
+	listRec := httptest.NewRecorder()
+	mux.ServeHTTP(listRec, listReq)
+	if listRec.Code != http.StatusOK {
+		t.Fatalf("expected owner-scoped digest list success, got %d body=%s", listRec.Code, listRec.Body.String())
+	}
+}
+
+func TestDailyNewsRegisteredDigestDetailRouteReturnsOwnedDigest(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	settingsReq := httptest.NewRequest("GET", "/api/daily-news/settings", nil)
+	settingsReq.Header.Set("Authorization", token)
+	settingsRec := httptest.NewRecorder()
+	mux.ServeHTTP(settingsRec, settingsReq)
+	if settingsRec.Code != http.StatusOK {
+		t.Fatalf("settings failed: %d body=%s", settingsRec.Code, settingsRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(settingsRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "automatic")
+	digest.Set("title", "Route Digest")
+	digest.Set("body_markdown", "# Route Digest")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+
+	req := httptest.NewRequest("GET", "/api/daily-news/digests/"+digest.Id, nil)
+	req.Header.Set("Authorization", token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected digest detail success, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var dto DailyNewsDigestDTO
+	if err := json.Unmarshal(rec.Body.Bytes(), &dto); err != nil {
+		t.Fatalf("decode digest: %v", err)
+	}
+	if dto.ID != digest.Id || dto.User != settings.User || dto.Title != "Route Digest" {
+		t.Fatalf("unexpected digest dto: %+v", dto)
+	}
+}
+
+func TestDailyNewsRegisteredSettingsPutGenerateAndRegenerateRoutes(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	putBody := strings.NewReader(`{"enabled":false,"generation_time":"09:15","timezone":"UTC","extra_instructions":"focus on infrastructure"}`)
+	putReq := httptest.NewRequest("PUT", "/api/daily-news/settings", putBody)
+	putReq.Header.Set("Authorization", token)
+	putReq.Header.Set("Content-Type", "application/json")
+	putRec := httptest.NewRecorder()
+	mux.ServeHTTP(putRec, putReq)
+	if putRec.Code != http.StatusOK {
+		t.Fatalf("expected settings PUT success, got %d body=%s", putRec.Code, putRec.Body.String())
+	}
+	var settings DailyNewsSettingsDTO
+	if err := json.Unmarshal(putRec.Body.Bytes(), &settings); err != nil {
+		t.Fatalf("decode settings: %v", err)
+	}
+	if settings.GenerationTime != "09:15" || settings.Timezone != "UTC" || settings.ExtraInstructions != "focus on infrastructure" || settings.Enabled {
+		t.Fatalf("unexpected saved settings: %+v", settings)
+	}
+
+	generateReq := httptest.NewRequest("POST", "/api/daily-news/generate", nil)
+	generateReq.Header.Set("Authorization", token)
+	generateRec := httptest.NewRecorder()
+	mux.ServeHTTP(generateRec, generateReq)
+	if generateRec.Code != http.StatusAccepted {
+		t.Fatalf("expected generate accepted, got %d body=%s", generateRec.Code, generateRec.Body.String())
+	}
+
+	digest := testutil.CreateDailyDigest(t, app, settings.User, "2026-05-08", "success", "manual")
+	digest.Set("period_start", "2026-05-07T08:00:00Z")
+	digest.Set("period_end", "2026-05-08T08:00:00Z")
+	if err := app.Save(digest); err != nil {
+		t.Fatalf("save digest: %v", err)
+	}
+	regenReq := httptest.NewRequest("POST", "/api/daily-news/digests/"+digest.Id+"/regenerate", nil)
+	regenReq.Header.Set("Authorization", token)
+	regenRec := httptest.NewRecorder()
+	mux.ServeHTTP(regenRec, regenReq)
+	if regenRec.Code != http.StatusAccepted {
+		t.Fatalf("expected regenerate accepted, got %d body=%s", regenRec.Code, regenRec.Body.String())
+	}
+}
+
+func TestDailyNewsRegisteredDigestRouteReturnsNullableEmptyState(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	req := httptest.NewRequest("GET", "/api/daily-news/digests", nil)
+	req.Header.Set("Authorization", token)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected empty digest list success, got %d body=%s", rec.Code, rec.Body.String())
+	}
+	var body map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode digest list: %v", err)
+	}
+	if body["latest"] != nil || body["selected"] != nil {
+		t.Fatalf("expected null latest/selected, got %s", rec.Body.String())
+	}
 }
 
 // ============================================================

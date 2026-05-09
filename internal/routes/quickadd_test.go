@@ -3,11 +3,50 @@ package routes
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/jgordijn/knowledgehub/internal/ai"
 	"github.com/jgordijn/knowledgehub/internal/testutil"
 )
+
+func TestQuickAddRoutesValidateAuthAndInput(t *testing.T) {
+	app, cleanup := testutil.NewTestApp(t)
+	defer cleanup()
+	mux := buildMux(t, app)
+	token := createAuthToken(t, app)
+
+	cases := []struct {
+		name string
+		path string
+		body string
+		auth bool
+		want int
+	}{
+		{"quick add unauth", "/api/quick-add", `{}`, false, http.StatusUnauthorized},
+		{"quick add invalid json", "/api/quick-add", `{`, true, http.StatusBadRequest},
+		{"quick add missing url", "/api/quick-add", `{}`, true, http.StatusBadRequest},
+		{"quick add invalid url", "/api/quick-add", `{"url":"not a url"}`, true, http.StatusBadRequest},
+		{"subscribe unauth", "/api/quick-add/subscribe", `{}`, false, http.StatusUnauthorized},
+		{"subscribe invalid json", "/api/quick-add/subscribe", `{`, true, http.StatusBadRequest},
+		{"subscribe missing feed", "/api/quick-add/subscribe", `{"name":"Feed"}`, true, http.StatusBadRequest},
+		{"subscribe missing name", "/api/quick-add/subscribe", `{"feed_url":"https://example.com/feed.xml"}`, true, http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Content-Type", "application/json")
+			if tc.auth {
+				req.Header.Set("Authorization", token)
+			}
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != tc.want {
+				t.Fatalf("status = %d body=%s, want %d", rec.Code, rec.Body.String(), tc.want)
+			}
+		})
+	}
+}
 
 func TestHandleQuickAddDirect_Success(t *testing.T) {
 	app, cleanup := testutil.NewTestApp(t)
