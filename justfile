@@ -26,7 +26,7 @@ release version="": ui
     else \
         ldflags="-s -w"; \
     fi; \
-    CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags="$ldflags" -o {{build_dir}}/{{app_name}} {{cmd_dir}}
+    CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="$ldflags" -o {{build_dir}}/{{app_name}} {{cmd_dir}}
     tar czf {{build_dir}}/{{app_name}}-linux-amd64.tar.gz -C {{build_dir}} {{app_name}} -C .. knowledgehub.service knowledgehub-updater.sh knowledgehub-updater.service knowledgehub-updater.timer
 
 clean:
