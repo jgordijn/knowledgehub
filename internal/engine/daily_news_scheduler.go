@@ -128,9 +128,10 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	periodStart := claim.PeriodStart.UTC().Truncate(time.Second)
 	periodEnd := claim.PeriodEnd.UTC().Truncate(time.Second)
 	windowKey := dailyNewsWindowKey(claim.UserID, claim.LocalDate, periodStart, periodEnd)
-	scheduledDayKey := claim.UserID + "|" + claim.LocalDate + "|manual"
+	activeDayKey := claim.UserID + "|" + claim.LocalDate
+	scheduledDayKey := activeDayKey + "|manual"
 	if claim.Scheduled {
-		scheduledDayKey = claim.UserID + "|" + claim.LocalDate
+		scheduledDayKey = activeDayKey
 	}
 	if existing, err := findActiveDigestForLocalDate(app, claim.UserID, claim.LocalDate); err == nil {
 		return existing, false, nil
@@ -158,17 +159,15 @@ func ClaimDailyNewsJob(app core.App, claim DailyNewsJobClaim) (*core.Record, boo
 	record.Set("window_key", windowKey)
 	record.Set("active_window_key", windowKey)
 	record.Set("scheduled_day_key", scheduledDayKey)
-	record.Set("active_scheduled_day_key", scheduledDayKey)
+	record.Set("active_scheduled_day_key", activeDayKey)
 	record.Set("queued_at", normalizedNow(claim.Now).Format(time.RFC3339))
 	if err := app.Save(record); err != nil {
 		// A concurrent writer may have won the concrete unique-index race.
 		if existing, findErr := findDigestByKey(app, "active_window_key", windowKey); findErr == nil {
 			return existing, false, nil
 		}
-		if scheduledDayKey != "" {
-			if existing, findErr := findDigestByKey(app, "active_scheduled_day_key", scheduledDayKey); findErr == nil {
-				return existing, false, nil
-			}
+		if existing, findErr := findDigestByKey(app, "active_scheduled_day_key", activeDayKey); findErr == nil {
+			return existing, false, nil
 		}
 		return nil, false, err
 	}
