@@ -21,6 +21,10 @@ jobs:
 
       - uses: oven-sh/setup-bun@v2
 
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: just
+
       - name: Determine version bump
         id: version
         run: |
@@ -50,25 +54,11 @@ jobs:
           echo "new_tag=$NEW_TAG" >> "$GITHUB_OUTPUT"
           echo "Bumping $LATEST -> $NEW_TAG"
 
-      - name: Build frontend
-        run: |
-          cd ui && bun install && bun run build
-          mkdir -p ../cmd/knowledgehub/ui/build
-          cp -r build/* ../cmd/knowledgehub/ui/build/
-
       - name: Run tests
-        run: go test ./internal/... -count=1
+        run: just test
 
-      - name: Build binary
-        run: |
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 \
-            go build -ldflags="-s -w -X main.version=${{ steps.version.outputs.new_tag }}" -o build/knowledgehub ./cmd/knowledgehub
-
-      - name: Package tarball
-        run: |
-          tar czf build/knowledgehub-linux-amd64.tar.gz \
-            -C build knowledgehub \
-            -C .. knowledgehub.service knowledgehub-updater.sh knowledgehub-updater.service knowledgehub-updater.timer
+      - name: Build and package release
+        run: just release "${{ steps.version.outputs.new_tag }}"
 
       - name: Create tag and release
         env:

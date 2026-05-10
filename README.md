@@ -18,6 +18,7 @@ A personal knowledge radar that monitors RSS feeds and blogs, summarizes article
 For **building** from source:
 - Go 1.24+
 - Bun (for building the frontend)
+- just (for running project recipes)
 
 For **running** the binary:
 - Linux amd64 (the release target)
@@ -30,7 +31,7 @@ For **running** the binary:
 ```bash
 git clone https://github.com/jgordijn/knowledgehub.git
 cd knowledgehub
-make build
+just build
 ```
 
 This builds the SvelteKit frontend, embeds it in the Go binary, and outputs `build/knowledgehub`.
@@ -97,7 +98,7 @@ sudo chown -R knowledgehub:knowledgehub /opt/knowledgehub
 ### Deploy
 
 ```bash
-# Download the latest release (or build with: make release)
+# Download the latest release (or build with: just release)
 curl -LO https://github.com/jgordijn/knowledgehub/releases/latest/download/knowledgehub-linux-amd64.tar.gz
 
 # Copy to the target machine (skip if downloading directly on the host)
@@ -156,10 +157,10 @@ The SQLite database in `/opt/knowledgehub/data` is preserved across updates. Poc
 
 ```bash
 # Run tests
-make test
+just test
 
 # Start the backend in dev mode (serves on :8090)
-make dev
+just dev
 
 # Frontend dev with hot reload (separate terminal)
 cd ui && bun run dev
