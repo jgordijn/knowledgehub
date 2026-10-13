@@ -228,16 +228,26 @@
 		loadBookmarkedCount();
 	}
 
+	// Bulk update in one request: per-entry PATCHes flood the small server
+	// (each one re-serializes the entry and broadcasts a realtime event).
+	async function setReadState(ids: string[], isRead: boolean) {
+		try {
+			await pb.send('/api/entries/mark-read', {
+				method: 'POST',
+				body: JSON.stringify({ ids, is_read: isRead }),
+				headers: { 'Content-Type': 'application/json' }
+			});
+		} catch (err) {
+			console.error('mark read failed:', err);
+		}
+	}
+
 	async function undoMarkRead() {
 		const toUndo = [...undoEntries];
 		undoEntries = [];
 		clearTimeout(undoTimeout);
 
-		await Promise.all(
-			toUndo.map((e) =>
-				pb.collection('entries').update(e.id, { is_read: false }).catch(() => {})
-			)
-		);
+		await setReadState(toUndo.map((e) => e.id), false);
 
 		entries = [...entries, ...toUndo.map((e) => ({ ...e, is_read: false }))];
 		loadUnreadCount();
@@ -252,9 +262,7 @@
 			toMark = toMark.filter((e) => entryTime(e) < cutoff);
 		}
 		if (toMark.length === 0) return;
-		await Promise.all(
-			toMark.map((e) => pb.collection('entries').update(e.id, { is_read: true }).catch(() => {}))
-		);
+		await setReadState(toMark.map((e) => e.id), true);
 		await loadEntries();
 		loadUnreadCount();
 	}

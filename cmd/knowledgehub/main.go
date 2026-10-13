@@ -45,6 +45,7 @@ func main() {
 		routes.RegisterLinkSummaryRoute(se)
 		routes.RegisterQuickAddRoutes(se)
 		routes.RegisterDailyNewsRoutes(se)
+		routes.RegisterMarkReadRoute(se)
 		registerSetupRoutes(se)
 
 		// Health check endpoint
