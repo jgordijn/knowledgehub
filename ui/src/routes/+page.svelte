@@ -291,6 +291,17 @@
 		}
 	}
 
+	// Bulk mark-read emits one realtime update per entry; coalesce the
+	// resulting count reloads instead of issuing two requests per event.
+	let countReloadTimeout: ReturnType<typeof setTimeout> | undefined;
+	function scheduleCountReload() {
+		clearTimeout(countReloadTimeout);
+		countReloadTimeout = setTimeout(() => {
+			loadUnreadCount();
+			loadBookmarkedCount();
+		}, 300);
+	}
+
 	let mounted = false;
 
 	// Reload entries when read filter changes
@@ -356,8 +367,7 @@
 					entries = entries.map((en) =>
 						en.id === e.record.id ? { ...en, ...e.record } : en
 					);
-					loadUnreadCount();
-					loadBookmarkedCount();
+					scheduleCountReload();
 				} else if (e.action === 'delete') {
 					entries = entries.filter((en) => en.id !== e.record.id);
 					loadUnreadCount();
@@ -372,6 +382,7 @@
 	onDestroy(() => {
 		unsub?.();
 		clearTimeout(undoTimeout);
+		clearTimeout(countReloadTimeout);
 	});
 
 	// Helper to get resource name by id
